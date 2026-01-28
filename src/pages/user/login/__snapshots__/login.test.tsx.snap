@@ -472,9 +472,9 @@ exports[`Login Page should login success 1`] = `
               href="https://pro.ant.design"
               rel="noreferrer"
               target="_blank"
-              title="Ant Design Pro"
+              title="Salam"
             >
-              Ant Design Pro
+              Salam
             </a>
             <a
               class="ant-pro-global-footer-list-link"
@@ -1015,9 +1015,9 @@ exports[`Login Page should show login form 1`] = `
               href="https://pro.ant.design"
               rel="noreferrer"
               target="_blank"
-              title="Ant Design Pro"
+              title="Salam"
             >
-              Ant Design Pro
+              Salam
             </a>
             <a
               class="ant-pro-global-footer-list-link"

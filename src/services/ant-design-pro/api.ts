@@ -22,12 +22,17 @@ export async function outLogin(options?: { [key: string]: any }) {
 
 /** 登录接口 POST /api/login/account */
 export async function login(body: API.LoginParams, options?: { [key: string]: any }) {
-  return request<API.LoginResult>('/api/login/account', {
+  const form = new URLSearchParams();
+  Object.entries(body ?? {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) form.append(k, String(v));
+  });
+
+  return request<API.LoginResult>('/api/v1/auth/login', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
     },
-    data: body,
+    data: form.toString(),
     ...(options || {}),
   });
 }
