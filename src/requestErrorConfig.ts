@@ -72,6 +72,13 @@ export const errorConfig: RequestConfig = {
       } else if (error.response) {
         // Axios 的错误
         // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
+        console.log(error.response)
+        if (error.response?.data?.code==='A0230') {
+          message.error('用户未登录或登录已过期，请重新登录');
+          localStorage.removeItem('accessToken');
+          window.location.href = '/user/login';
+          return;
+        }
         message.error(`Response status:${error.response.status}`);
       } else if (error.request) {
         // 请求已经成功发起，但没有收到响应

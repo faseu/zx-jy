@@ -1,5 +1,6 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { useParams, useRequest } from '@umijs/max';
+import {PageContainer} from '@ant-design/pro-components';
+import {useParams, useRequest, history} from '@umijs/max';
+
 import {
   Card,
   Col,
@@ -14,22 +15,22 @@ import {
   Typography,
   message,
 } from 'antd';
-import React, { useState } from 'react';
-import type { PrisonVO, ProvinceDetailVO } from '../data.d';
+import React, {useState} from 'react';
+import type {PrisonVO, ProvinceDetailVO} from '../data.d';
 import {
   createPrison,
   queryProvinceDetail,
   queryProvincePrisons,
 } from '../service';
 
-const { Paragraph, Title } = Typography;
+const {Paragraph, Title} = Typography;
 
 const ProvinceDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
   const provinceId = params.id ?? '';
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
-  const { data: detailData, loading: detailLoading } = useRequest(
+  const {data: detailData, loading: detailLoading} = useRequest(
     () => queryProvinceDetail(provinceId),
     {
       ready: Boolean(provinceId),
@@ -52,7 +53,7 @@ const ProvinceDetailPage: React.FC = () => {
   type PrisonListItem = PrisonVO & { __isNew?: boolean; id?: number | string };
   const listData: PrisonListItem[] = [
     ...prisons,
-    { id: 'new', __isNew: true },
+    {id: 'new', __isNew: true},
   ];
 
   const handleOpenModal = () => {
@@ -101,10 +102,10 @@ const ProvinceDetailPage: React.FC = () => {
                   'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.55))',
               }}
             >
-              <Title level={3} style={{ color: '#fff', marginBottom: 4 }}>
+              <Title level={3} style={{color: '#fff', marginBottom: 4}}>
                 {detail?.provinceName || '省份'}
               </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.75)', margin: 0 }}>
+              <Paragraph style={{color: 'rgba(255,255,255,0.75)', margin: 0}}>
                 省份概览
               </Paragraph>
             </div>
@@ -112,21 +113,21 @@ const ProvinceDetailPage: React.FC = () => {
         </Col>
         <Col xs={24} lg={17}>
           <Card loading={detailLoading}>
-            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-              <Statistic title="监狱" value={detail?.totalPrisons ?? 0} />
-              <Statistic title="设备" value={detail?.totalDevices ?? 0} />
-              <Statistic title="在线" value={detail?.onlineDevices ?? 0} />
-              <Statistic title="离线" value={detail?.offlineDevices ?? 0} />
-              <Statistic title="告警" value={detail?.totalAlarms ?? 0} />
+            <div style={{display: 'flex', justifyContent: 'space-around'}}>
+              <Statistic title="监狱" value={detail?.totalPrisons ?? 0}/>
+              <Statistic title="设备" value={detail?.totalDevices ?? 0}/>
+              <Statistic title="在线" value={detail?.onlineDevices ?? 0}/>
+              <Statistic title="离线" value={detail?.offlineDevices ?? 0}/>
+              <Statistic title="告警" value={detail?.totalAlarms ?? 0}/>
             </div>
           </Card>
           <Card
             title="监狱列表"
             loading={prisonsLoading}
-            style={{ marginTop: 16 }}
+            style={{marginTop: 16}}
           >
             <List
-              grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 3, xl: 3 }}
+              grid={{gutter: 16, xs: 1, sm: 2, md: 3, lg: 3, xl: 3}}
               dataSource={listData}
               renderItem={(item) => (
                 <List.Item>
@@ -134,19 +135,31 @@ const ProvinceDetailPage: React.FC = () => {
                     <Card
                       hoverable
                       onClick={handleOpenModal}
-                      style={{ minHeight: '132px', display: 'flex', alignItems: 'center', justifyContent:'center', color: '#007bff' }}
+                      style={{
+                        minHeight: '132px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#007bff'
+                      }}
                     >
                       新增监狱 +
                     </Card>
                   ) : (
-                    <Card style={{ marginBottom: 12, minHeight: '132px', boxSizing: 'border-box' }} hoverable>
+                    <Card style={{marginBottom: 12, minHeight: '132px', boxSizing: 'border-box'}} hoverable
+                          onClick={() => {
+                            if (item.id !== undefined && item.id !== null) {
+                              history.push(`/region/prison/${item.id}`);
+                            }
+                          }}
+                    >
                       <Title level={5}>
                         {item.name || '未命名监狱'}
                       </Title>
-                      <Paragraph style={{ marginBottom: 4 }}>
+                      <Paragraph style={{marginBottom: 4}}>
                         楼数：{item.buildingNum ?? 0}
                       </Paragraph>
-                      <Paragraph style={{ marginBottom: 0 }}>
+                      <Paragraph style={{marginBottom: 0}}>
                         设备数：{item.totalDevices ?? 0}
                       </Paragraph>
                     </Card>
@@ -175,18 +188,18 @@ const ProvinceDetailPage: React.FC = () => {
           <Form.Item
             label="监狱名称"
             name="name"
-            rules={[{ required: true, message: '请输入监狱名称' }]}
+            rules={[{required: true, message: '请输入监狱名称'}]}
           >
-            <Input placeholder="请输入监狱名称" />
+            <Input placeholder="请输入监狱名称"/>
           </Form.Item>
-          <Form.Item label="监室数量" name="roomNumber"  rules={[{ required: true, message: '请输入监室数量' }]}>
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="请输入监室数量" />
+          <Form.Item label="监室数量" name="roomNumber" rules={[{required: true, message: '请输入监室数量'}]}>
+            <InputNumber min={0} style={{width: '100%'}} placeholder="请输入监室数量"/>
           </Form.Item>
           <Form.Item label="授权人员列表" name="authUsers">
-            <Input placeholder="以逗号分隔" />
+            <Input placeholder="以逗号分隔"/>
           </Form.Item>
           <Form.Item name="deptId" hidden>
-            <InputNumber />
+            <InputNumber/>
           </Form.Item>
         </Form>
       </Modal>

@@ -22,6 +22,33 @@ export type PrisonVO = {
   totalDevices?: number;
 };
 
+export type PrisonInfoVO = {
+  id?: number;
+  name?: string;
+  buildingNum?: number;
+  totalDevices?: number;
+  onlineDevices?: number;
+  offlineDevices?: number;
+  totalAlarms?: number;
+};
+
+export type BuildingDetailVO = {
+  id?: number;
+  name?: string;
+  floorNum?: number;
+  totalDevices?: number;
+};
+
+export type BuildingInfoVO = {
+  id?: number;
+  name?: string;
+  floorNum?: number;
+  totalDevices?: number;
+  onlineDevices?: number;
+  offlineDevices?: number;
+  totalAlarms?: number;
+};
+
 export type ResultListProvinceVO = {
   code?: string;
   data?: ProvinceVO[];
@@ -37,6 +64,18 @@ export type ResultProvinceDetailVO = {
 export type ResultListPrisonVO = {
   code?: string;
   data?: PrisonVO[];
+  msg?: string;
+};
+
+export type ResultPrisonInfoVO = {
+  code?: string;
+  data?: PrisonInfoVO;
+  msg?: string;
+};
+
+export type ResultListBuildingDetailVO = {
+  code?: string;
+  data?: BuildingDetailVO[];
   msg?: string;
 };
 
