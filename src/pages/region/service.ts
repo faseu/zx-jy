@@ -79,11 +79,63 @@ export async function queryBuildingInfo(
   });
 }
 
+export async function queryBuildingFloors(
+  buildingId: number | string,
+  options?: { [key: string]: any },
+) {
+  return request<
+    Array<{
+      id: number;
+      floorName: string;
+      floorNo: number;
+      floorDrawing?: string;
+    }>
+  >(`/api/v1/building/floor/${buildingId}`, {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+export async function queryBuildingFloorForm(
+  floorId: number | string,
+  options?: { [key: string]: any },
+) {
+  return request<{
+    id: number;
+    floorName: string;
+    floorNo: number;
+    buildingId: number;
+    buildingName: string;
+    deviceNumber: number;
+    floorDrawing?: string;
+  }>(`/api/v1/floor/${floorId}/form`, {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
 export async function createBuilding(
   data: { name: string; prisonId: number },
   options?: { [key: string]: any },
 ) {
   return request('/api/v1/building', {
+    method: 'POST',
+    data,
+    ...(options || {}),
+  });
+}
+
+export async function createFloor(
+  data: {
+    floorNo: number;
+    floorName: string;
+    buildingId: number;
+    deviceNumber?: number;
+    floorDrawing?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/floor', {
     method: 'POST',
     data,
     ...(options || {}),
