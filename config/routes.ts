@@ -61,6 +61,10 @@ export default [
         component: './region/prison',
       },
       {
+        path: '/region/building/:prisonId/:id',
+        component: './region/building',
+      },
+      {
         path: '/region/building/:id',
         component: './region/building',
       },

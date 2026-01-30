@@ -149,7 +149,7 @@ const PrisonDetailPage: React.FC = () => {
                     <Card
                       onClick={() => {
                         if (item.id !== undefined && item.id !== null) {
-                          history.push(`/region/building/${item.id}`);
+                          history.push(`/region/building/${prisonId}/${item.id}`);
                         }
                       }}
                       style={{

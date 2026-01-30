@@ -6,30 +6,44 @@ import {
   Col,
   Form,
   Image,
+  Input,
   InputNumber,
   Modal,
   Row,
   Select,
   Statistic,
+  Steps,
   Typography,
   Upload,
   message,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import type { BuildingInfoVO } from '../data.d';
-import { createFloor, queryBuildingFloorForm, queryBuildingFloors, queryBuildingInfo } from '../service';
+import {
+  createFloor,
+  queryBuildingFloorForm,
+  queryBuildingFloors,
+  queryBuildingInfo,
+  queryPrisonBuildings,
+  queryPrisonInfo,
+} from '../service';
 
 const { Paragraph, Title } = Typography;
 
 const BuildingDetailPage: React.FC = () => {
-  const [selectedFloor, setSelectedFloor] = useState<number>(1);
+  const [selectedFloor, setSelectedFloor] = useState<number>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [planSubmitting, setPlanSubmitting] = useState(false);
+  const [deviceStep, setDeviceStep] = useState(0);
+  const [devicePrisonId, setDevicePrisonId] = useState<number | null>(null);
+  const [deviceBuildingId, setDeviceBuildingId] = useState<number | null>(null);
   const [planForm] = Form.useForm();
-  const params = useParams<{ id: string }>();
+  const [deviceForm] = Form.useForm();
+  const params = useParams<{ id: string; prisonId: string }>();
   const buildingId = params.id ?? '';
+  const prisonId = params.prisonId ?? '';
   const { data: detailData, loading: detailLoading } = useRequest(
     () => queryBuildingInfo(buildingId),
     {
@@ -51,11 +65,47 @@ const BuildingDetailPage: React.FC = () => {
       refreshDeps: [selectedFloorId],
     },
   );
+  const { data: prisonDetail } = useRequest(() => queryPrisonInfo(prisonId), {
+    ready: Boolean(prisonId),
+    refreshDeps: [prisonId],
+  });
+  const { data: deviceBuildingsData, loading: deviceBuildingsLoading } = useRequest(
+    () => queryPrisonBuildings(devicePrisonId as number),
+    {
+      ready: Boolean(devicePrisonId),
+      refreshDeps: [devicePrisonId],
+    },
+  );
+  const { data: deviceFloorsData, loading: deviceFloorsLoading } = useRequest(
+    () => queryBuildingFloors(deviceBuildingId as number),
+    {
+      ready: Boolean(deviceBuildingId),
+      refreshDeps: [deviceBuildingId],
+    },
+  );
   const floorOptions =
     floorData?.map((item) => ({
       label: item.floorName,
       value: item.floorNo,
       id: item.id,
+    })) ?? [];
+  const prisonOptions = prisonId
+    ? [
+        {
+          label: prisonDetail?.name || `监狱${prisonId}`,
+          value: Number(prisonId),
+        },
+      ]
+    : [];
+  const deviceBuildingOptions =
+    deviceBuildingsData?.map((item) => ({
+      label: item.name || `楼宇${item.id}`,
+      value: item.id,
+    })) ?? [];
+  const deviceFloorOptions =
+    deviceFloorsData?.map((item) => ({
+      label: item.floorName,
+      value: item.id,
     })) ?? [];
   const planFloorOptions = Array.from({ length: 106 }, (_, index) => {
     const value = index - 5;
@@ -77,6 +127,46 @@ const BuildingDetailPage: React.FC = () => {
       return event;
     }
     return event?.fileList ?? [];
+  };
+  const handleOpenDeviceModal = () => {
+    const nextPrisonId = prisonId || null;
+    const nextBuildingId = buildingId || null;
+    setDevicePrisonId(nextPrisonId);
+    setDeviceBuildingId(nextBuildingId);
+    setDeviceStep(0);
+    deviceForm.setFieldsValue({
+      prisonId: nextPrisonId ?? undefined,
+      buildingId: nextBuildingId ?? undefined,
+      floorId: selectedFloorId ?? undefined,
+      deviceCode: undefined,
+    });
+    setDeviceModalOpen(true);
+  };
+  const handleDeviceCancel = () => {
+    setDeviceModalOpen(false);
+    setDeviceStep(0);
+    deviceForm.resetFields();
+  };
+  const handleDeviceNext = async () => {
+    try {
+      await deviceForm.validateFields(['prisonId', 'buildingId', 'floorId', 'deviceCode']);
+      setDeviceStep(1);
+    } catch (error) {
+      return;
+    }
+  };
+  const handleDevicePrev = () => {
+    setDeviceStep(0);
+  };
+  const handleDeviceFinish = async () => {
+    try {
+      await deviceForm.validateFields();
+      setDeviceModalOpen(false);
+      setDeviceStep(0);
+      deviceForm.resetFields();
+    } catch (error) {
+      return;
+    }
   };
   const handlePlanOk = async () => {
     try {
@@ -111,6 +201,15 @@ const BuildingDetailPage: React.FC = () => {
   const handleFloorChange = (value: number, option: any) => {
     setSelectedFloor(value);
     setSelectedFloorId(option?.id ?? null);
+  };
+  const handleDevicePrisonChange = (value: number | null) => {
+    setDevicePrisonId(value ?? null);
+    setDeviceBuildingId(null);
+    deviceForm.setFieldsValue({ buildingId: undefined, floorId: undefined });
+  };
+  const handleDeviceBuildingChange = (value: number | null) => {
+    setDeviceBuildingId(value ?? null);
+    deviceForm.setFieldsValue({ floorId: undefined });
   };
 
   return (
@@ -177,7 +276,7 @@ const BuildingDetailPage: React.FC = () => {
                 <Button type="primary" onClick={() => setPlanModalOpen(true)}>
                   添加图纸
                 </Button>
-                <Button onClick={() => setDeviceModalOpen(true)}>添加设备</Button>
+                <Button onClick={handleOpenDeviceModal}>添加设备</Button>
               </div>
             </div>
             <Card
@@ -224,7 +323,7 @@ const BuildingDetailPage: React.FC = () => {
         <Form
           form={planForm}
           layout="vertical"
-          initialValues={{ floor: selectedFloor, deviceCount: 0 }}
+          initialValues={{ floor: selectedFloor, deviceCount: null }}
         >
           <Form.Item label="选择楼层" name="floor" rules={[{ required: true, message: '请选择楼层' }]}>
             <Select options={planFloorOptions} />
@@ -256,10 +355,80 @@ const BuildingDetailPage: React.FC = () => {
       <Modal
         title="添加设备"
         open={deviceModalOpen}
-        onCancel={() => setDeviceModalOpen(false)}
-        onOk={() => setDeviceModalOpen(false)}
+        onCancel={handleDeviceCancel}
+        footer={
+          deviceStep === 0
+            ? [
+                <Button key="cancel" onClick={handleDeviceCancel}>
+                  取消
+                </Button>,
+                <Button key="next" type="primary" onClick={handleDeviceNext}>
+                  下一步
+                </Button>,
+              ]
+            : [
+                <Button key="prev" onClick={handleDevicePrev}>
+                  上一步
+                </Button>,
+                <Button key="finish" type="primary" onClick={handleDeviceFinish}>
+                  完成
+                </Button>,
+              ]
+        }
       >
-        <div>待补充</div>
+        <Steps
+          size="small"
+          current={deviceStep}
+          items={[{ title: '基础信息' }, { title: '其他信息' }]}
+          style={{ marginBottom: 16 }}
+        />
+        {deviceStep === 0 ? (
+          <Form form={deviceForm} layout="vertical">
+            <Form.Item
+              label="监狱"
+              name="prisonId"
+              rules={[{ required: true, message: '请选择监狱' }]}
+            >
+              <Select
+                options={prisonOptions}
+                onChange={handleDevicePrisonChange}
+                placeholder="请选择监狱"
+              />
+            </Form.Item>
+            <Form.Item
+              label="楼宇"
+              name="buildingId"
+              rules={[{ required: true, message: '请选择楼宇' }]}
+            >
+              <Select
+                options={deviceBuildingOptions}
+                onChange={handleDeviceBuildingChange}
+                placeholder="请选择楼宇"
+                loading={deviceBuildingsLoading}
+              />
+            </Form.Item>
+            <Form.Item
+              label="楼层"
+              name="floorId"
+              rules={[{ required: true, message: '请选择楼层' }]}
+            >
+              <Select
+                options={deviceFloorOptions}
+                placeholder="请选择楼层"
+                loading={deviceFloorsLoading}
+              />
+            </Form.Item>
+            <Form.Item
+              label="设备编号"
+              name="deviceCode"
+              rules={[{ required: true, message: '请输入设备编号' }]}
+            >
+              <Input placeholder="请输入设备编号" />
+            </Form.Item>
+          </Form>
+        ) : (
+          <div>待补充</div>
+        )}
       </Modal>
     </PageContainer>
   );
