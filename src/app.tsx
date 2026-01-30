@@ -38,7 +38,6 @@ export const layout: RunTimeLayoutConfig = ({
       <SelectLang key="SelectLang" />,
     ],
     avatarProps: undefined,
-    footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
       if (location.pathname === '/') {

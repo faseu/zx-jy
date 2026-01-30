@@ -325,7 +325,7 @@ const BuildingDetailPage: React.FC = () => {
         <Form
           form={planForm}
           layout="vertical"
-          initialValues={{ floor: selectedFloor, deviceCount: null }}
+          initialValues={{ floor: null, deviceCount: null }}
         >
           <Form.Item label="选择楼层" name="floor" rules={[{ required: true, message: '请选择楼层' }]}>
             <Select options={planFloorOptions} />

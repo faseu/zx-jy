@@ -56,5 +56,7 @@ export default {
   'menu.user-management.super-admin': 'Super Admin',
   'menu.user-management.province-admin': 'Province Admin',
   'menu.user-management.prison-admin': 'Prison Admin',
+  'menu.alarm': 'Alarm Management',
+  'menu.data': 'Data Analytics',
+  'menu.log': 'Logs',
 };
-

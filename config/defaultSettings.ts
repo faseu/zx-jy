@@ -11,7 +11,7 @@ const Settings: ProLayoutProps & {
   "colorPrimary": "#1890ff",
   "layout": "top",
   "contentWidth": "Fixed",
-  "fixedHeader": false,
+  "fixedHeader": true,
   "fixSiderbar": true,
   "pwa": true,
   "logo": "./logo.png",

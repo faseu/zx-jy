@@ -81,6 +81,50 @@ export default [
       },
     ],
   },
+  {
+    path: '/machine',
+    name: 'machine',
+    icon: 'cluster',
+    routes: [
+      {
+        path: '/machine',
+        component: './machine',
+      },
+    ],
+  },
+  {
+    path: '/alarm',
+    name: 'alarm',
+    icon: 'bell',
+    routes: [
+      {
+        path: '/alarm',
+        component: './alarm',
+      },
+    ],
+  },
+  {
+    path: '/data',
+    name: 'data',
+    icon: 'database',
+    routes: [
+      {
+        path: '/data',
+        component: './data',
+      },
+    ],
+  },
+  {
+    path: '/log',
+    name: 'log',
+    icon: 'file',
+    routes: [
+      {
+        path: '/log',
+        component: './log',
+      },
+    ],
+  },
 
   {
     path: '/',
@@ -91,3 +135,4 @@ export default [
     path: '/*',
   },
 ];
+
