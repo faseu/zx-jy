@@ -15,7 +15,7 @@ import {
   Steps,
   Typography,
   Upload,
-  message,
+  message, TimePicker,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import type { BuildingInfoVO } from '../data.d';
@@ -97,16 +97,18 @@ const BuildingDetailPage: React.FC = () => {
         },
       ]
     : [];
-  const deviceBuildingOptions =
-    deviceBuildingsData?.map((item) => ({
-      label: item.name || `楼宇${item.id}`,
-      value: item.id,
-    })) ?? [];
-  const deviceFloorOptions =
-    deviceFloorsData?.map((item) => ({
-      label: item.floorName,
-      value: item.id,
-    })) ?? [];
+  const deviceBuildingOptions = deviceBuildingsLoading
+    ? []
+    : deviceBuildingsData?.map((item) => ({
+        label: item.name || `楼宇${item.id}`,
+        value: item.id,
+      })) ?? [];
+  const deviceFloorOptions = deviceFloorsLoading
+    ? []
+    : deviceFloorsData?.map((item) => ({
+        label: item.floorName,
+        value: item.id,
+      })) ?? [];
   const planFloorOptions = Array.from({ length: 106 }, (_, index) => {
     const value = index - 5;
     if (value === 0) {
@@ -405,6 +407,8 @@ const BuildingDetailPage: React.FC = () => {
                 onChange={handleDeviceBuildingChange}
                 placeholder="请选择楼宇"
                 loading={deviceBuildingsLoading}
+                disabled={deviceBuildingsLoading}
+                notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼宇'}
               />
             </Form.Item>
             <Form.Item
@@ -416,6 +420,8 @@ const BuildingDetailPage: React.FC = () => {
                 options={deviceFloorOptions}
                 placeholder="请选择楼层"
                 loading={deviceFloorsLoading}
+                disabled={deviceFloorsLoading}
+                notFoundContent={deviceFloorsLoading ? '加载中...' : '暂无楼层'}
               />
             </Form.Item>
             <Form.Item
@@ -427,7 +433,46 @@ const BuildingDetailPage: React.FC = () => {
             </Form.Item>
           </Form>
         ) : (
-          <div>待补充</div>
+          <>
+            <Form.Item
+              label="全网编号"
+              name="networkCode"
+              rules={[{ required: true, message: '请输入全网编号' }]}
+            >
+              <Input placeholder="请输入全网编号" />
+            </Form.Item>
+            <Form.Item label="IP" name="ip" rules={[{ required: true, message: '请输入IP' }]}>
+              <Input placeholder="请输入IP" />
+            </Form.Item>
+            <Form.Item
+              label="端口"
+              name="port"
+              rules={[{ required: true, message: '请输入端口' }]}
+            >
+              <InputNumber min={0} max={65535} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              label="功率调节"
+              name="power"
+              rules={[{ required: true, message: '请输入功率调节' }]}
+            >
+              <InputNumber min={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              label="开始时间"
+              name="startTime"
+              rules={[{ required: true, message: '请选择开始时间' }]}
+            >
+              <TimePicker format="HH:mm" style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              label="停止时间"
+              name="stopTime"
+              rules={[{ required: true, message: '请选择停止时间' }]}
+            >
+              <TimePicker format="HH:mm" style={{ width: '100%' }} />
+            </Form.Item>
+          </>
         )}
       </Modal>
     </PageContainer>

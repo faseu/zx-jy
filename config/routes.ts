@@ -26,18 +26,6 @@ export default [
         redirect: '/user/login',
       },
       {
-        name: 'register-result',
-        icon: 'smile',
-        path: '/user/register-result',
-        component: './user/register-result',
-      },
-      {
-        name: 'register',
-        icon: 'smile',
-        path: '/user/register',
-        component: './user/register',
-      },
-      {
         component: '404',
         path: '/user/*',
       },
@@ -67,6 +55,29 @@ export default [
       {
         path: '/region/building/:id',
         component: './region/building',
+      },
+    ],
+  },
+  {
+    path: '/account',
+    name: 'overview',
+    icon: 'team',
+    routes: [
+      {
+        path: '/account',
+        component: './account',
+      },
+      {
+        path: '/account/super-admin',
+        component: './account/super-admin',
+      },
+      {
+        path: '/account/province-admin',
+        component: './account/province-admin',
+      },
+      {
+        path: '/account/prison-admin',
+        component: './account/prison-admin',
       },
     ],
   },

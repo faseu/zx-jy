@@ -50,4 +50,9 @@ export default {
   'menu.editor.flow': 'Flow Editor',
   'menu.editor.mind': 'Mind Editor',
   'menu.editor.koni': 'Koni Editor',
+  'menu.user-management': 'User Management',
+  'menu.user-management.overview': 'Entry',
+  'menu.user-management.super-admin': 'Super Admin',
+  'menu.user-management.province-admin': 'Province Admin',
+  'menu.user-management.prison-admin': 'Prison Admin',
 };

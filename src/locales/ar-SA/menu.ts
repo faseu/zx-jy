@@ -51,5 +51,10 @@ export default {
   'menu.editor.flow': '賲丨乇乇 丕賱鬲丿賮賯',
   'menu.editor.mind': '賲丨乇乇 丕賱禺乇丕卅胤 丕賱匕賴賳賷丞',
   'menu.editor.koni': '賲丨乇乇 賰賵賳賷',
+  'menu.user-management': 'User Management',
+  'menu.user-management.overview': 'Entry',
+  'menu.user-management.super-admin': 'Super Admin',
+  'menu.user-management.province-admin': 'Province Admin',
+  'menu.user-management.prison-admin': 'Prison Admin',
 };
 
