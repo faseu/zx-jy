@@ -125,6 +125,12 @@ export default [
       },
     ],
   },
+  {
+    path: '/login',
+    layout: false,
+    name: 'login',
+    component: './login',
+  },
 
   {
     path: '/',

@@ -18,15 +18,15 @@ import {
   SelectLang,
   useIntl,
 } from '@umijs/max';
-import { Alert, App, Tabs } from 'antd';
-import { createStyles } from 'antd-style';
-import React, { useState } from 'react';
-import { Footer } from '@/components';
-import { login } from '@/services/ant-design-pro/api';
-import { getFakeCaptcha } from '@/services/ant-design-pro/login';
+import {Alert, App, Tabs} from 'antd';
+import {createStyles} from 'antd-style';
+import React, {useState} from 'react';
+import {Footer} from '@/components';
+import {login} from '@/services/ant-design-pro/api';
+import {getFakeCaptcha} from '@/services/ant-design-pro/login';
 import Settings from '../../../../config/defaultSettings';
 
-const useStyles = createStyles(({ token }) => {
+const useStyles = createStyles(({token}) => {
   return {
     action: {
       marginLeft: '8px',
@@ -53,15 +53,23 @@ const useStyles = createStyles(({ token }) => {
     container: {
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      width: '100vw',
       height: '100vh',
-      overflow: 'auto',
+      backgroundImage: "https://infinitypro-img.infinitynewtab.com/wallpaper/ocean/18438.jpg?attname=infinity-1223146.jpg",
       backgroundSize: '100% 100%',
-    },
+    }
+
   };
 });
 
 const ActionIcons = () => {
-  const { styles } = useStyles();
+  const {styles} = useStyles();
 
   return (
     <>
@@ -82,18 +90,18 @@ const ActionIcons = () => {
 };
 
 const Lang = () => {
-  const { styles } = useStyles();
+  const {styles} = useStyles();
 
   return (
     <div className={styles.lang} data-lang>
-      {SelectLang && <SelectLang />}
+      {SelectLang && <SelectLang/>}
     </div>
   );
 };
 
 const LoginMessage: React.FC<{
   content: string;
-}> = ({ content }) => {
+}> = ({content}) => {
   return (
     <Alert
       style={{
@@ -109,14 +117,14 @@ const LoginMessage: React.FC<{
 const Login: React.FC = () => {
   const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
   const [type, setType] = useState<string>('account');
-  const { styles } = useStyles();
-  const { message } = App.useApp();
+  const {styles} = useStyles();
+  const {message} = App.useApp();
   const intl = useIntl();
 
   const handleSubmit = async (values: API.LoginParams) => {
     try {
       // 登录
-      const msg = await login({ ...values, type });
+      const msg = await login({...values, type});
       if (msg.code === "00000") {
         const token = msg?.data?.accessToken;
         if (token) {
@@ -143,7 +151,7 @@ const Login: React.FC = () => {
       message.error(defaultLoginFailureMessage);
     }
   };
-  const { status, type: loginType } = userLoginState;
+  const {status, type: loginType} = userLoginState;
 
   return (
     <div className={styles.container}>
@@ -156,7 +164,7 @@ const Login: React.FC = () => {
           {Settings.title && ` - ${Settings.title}`}
         </title>
       </Helmet>
-      <Lang />
+      <Lang/>
       <div
         style={{
           flex: '1',
@@ -168,7 +176,7 @@ const Login: React.FC = () => {
             minWidth: 280,
             maxWidth: '75vw',
           }}
-          logo={<img alt="logo" src="/logo.png" />}
+          logo={<img alt="logo" src="/logo.png"/>}
           title="Salam"
           subTitle={intl.formatMessage({
             id: 'pages.layouts.userLayout.title',
@@ -195,7 +203,7 @@ const Login: React.FC = () => {
               name="username"
               fieldProps={{
                 size: 'large',
-                prefix: <UserOutlined />,
+                prefix: <UserOutlined/>,
               }}
               placeholder={intl.formatMessage({
                 id: 'pages.login.username.placeholder',
@@ -217,7 +225,7 @@ const Login: React.FC = () => {
               name="password"
               fieldProps={{
                 size: 'large',
-                prefix: <LockOutlined />,
+                prefix: <LockOutlined/>,
               }}
               placeholder={intl.formatMessage({
                 id: 'pages.login.password.placeholder',

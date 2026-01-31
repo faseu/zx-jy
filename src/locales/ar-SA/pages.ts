@@ -1,5 +1,5 @@
 export default {
-  'pages.layouts.userLayout.title': 'Ant Design هو أكثر تصميمات اللغة البصرية تأثيراً ووضوحاً',
+  'pages.layouts.userLayout.title': 'Salam, Welcome toJamming Managment System',
   'pages.login.accountLogin.tab': 'تسجيل دخول الحساب',
   'pages.login.accountLogin.errorMessage': 'خطأ في اسم المستخدم/كلمة المرور',
   'pages.login.failure': 'فشل في تسجيل الدخول، يرجى المحاولة مرة أخرى!',

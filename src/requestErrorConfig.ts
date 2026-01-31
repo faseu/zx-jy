@@ -76,7 +76,7 @@ export const errorConfig: RequestConfig = {
         if (error.response?.data?.code==='A0230') {
           message.error('用户未登录或登录已过期，请重新登录');
           localStorage.removeItem('accessToken');
-          window.location.href = '/user/login';
+          window.location.href = '/login';
           return;
         }
         message.error(`Response status:${error.response.status}`);
