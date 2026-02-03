@@ -2,19 +2,16 @@ import { PageContainer } from '@ant-design/pro-components';
 import { history, useRequest } from '@umijs/max';
 import { Table, Typography } from 'antd';
 import React from 'react';
-import saudiMap from '@/assets/saudi-map.png';
 import type { ProvinceVO } from './data.d';
 import { queryProvinceList } from './service';
-
+import SaudiMap from '@/components/SaudiMap';
 const { Paragraph, Title } = Typography;
 
 const RegionPage: React.FC = () => {
   const { data, loading } = useRequest(queryProvinceList);
 
   return (
-    <PageContainer>
-      <Title level={3}>地区列表</Title>
-      <Paragraph type="secondary">点击省份查看详情。</Paragraph>
+    <PageContainer title={false}>
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Table<ProvinceVO>
@@ -23,16 +20,19 @@ const RegionPage: React.FC = () => {
             dataSource={data ?? []}
             columns={[
               {
-                title: '省份名称',
+                title: '省份',
                 dataIndex: 'provinceName',
+                align: 'center'
               },
               {
-                title: '总监狱数量',
+                title: '总监狱',
                 dataIndex: 'totalPrisons',
+                align: 'center'
               },
               {
-                title: '总干扰机数量',
+                title: '总干扰机',
                 dataIndex: 'totalDevices',
+                align: 'center'
               },
             ]}
             pagination={false}
@@ -54,12 +54,8 @@ const RegionPage: React.FC = () => {
             })}
           />
         </div>
-        <div style={{ width: 400, maxWidth: '40%', minWidth: 240 }}>
-          <img
-            src={saudiMap}
-            alt="Saudi Arabia map"
-            style={{ width: '100%', height: 'auto', display: 'block' }}
-          />
+        <div style={{ width: '60%', maxWidth: '60%', minWidth: 240 }}>
+          <SaudiMap height={700} />
         </div>
       </div>
     </PageContainer>
