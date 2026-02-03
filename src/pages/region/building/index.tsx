@@ -12,6 +12,7 @@ import {
   Row,
   Select,
   Statistic,
+  Switch,
   Steps,
   Typography,
   Upload,
@@ -21,6 +22,7 @@ import React, { useEffect, useState } from 'react';
 import type { BuildingInfoVO } from '../data.d';
 import {
   createFloor,
+  createDevice,
   queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
@@ -141,6 +143,7 @@ const BuildingDetailPage: React.FC = () => {
       buildingId: nextBuildingId ?? undefined,
       floorId: selectedFloorId ?? undefined,
       deviceCode: undefined,
+      powerOff: true,
     });
     setDeviceModalOpen(true);
   };
@@ -162,12 +165,40 @@ const BuildingDetailPage: React.FC = () => {
   };
   const handleDeviceFinish = async () => {
     try {
-      await deviceForm.validateFields();
+      const values = await deviceForm.validateFields();
+      const floorName =
+        deviceFloorsData?.find((item) => item.id === values.floorId)?.floorName ??
+        deviceFloorOptions.find((item) => item.value === values.floorId)?.label;
+      if (!floorName) {
+        message.error('未找到楼层名称');
+        return;
+      }
+      const formatTime = (value: any) =>
+        value && typeof value.format === 'function' ? value.format('HH:mm') : value;
+      await createDevice({
+        deviceNo: values.deviceCode,
+        deviceName: values.deviceCode,
+        entireNo: values.networkCode,
+        floorName: String(floorName),
+        floorId: values.floorId,
+        buildingId: values.buildingId,
+        prisonId: values.prisonId,
+        powerOff: values.powerOff ? 0 : 1,
+        ipAddress: values.ip,
+        port: values.port,
+        powerConfig: values.power,
+        startTime: formatTime(values.startTime),
+        endTime: formatTime(values.stopTime),
+      });
+      message.success('添加成功');
       setDeviceModalOpen(false);
       setDeviceStep(0);
       deviceForm.resetFields();
     } catch (error) {
-      return;
+      if ((error as any)?.errorFields) {
+        return;
+      }
+      message.error('添加失败');
     }
   };
   const handlePlanOk = async () => {
@@ -358,6 +389,7 @@ const BuildingDetailPage: React.FC = () => {
         title="添加设备"
         open={deviceModalOpen}
         onCancel={handleDeviceCancel}
+        width={600}
         footer={
           deviceStep === 0
             ? [
@@ -378,102 +410,138 @@ const BuildingDetailPage: React.FC = () => {
               ]
         }
       >
-        <Steps
-          size="small"
-          current={deviceStep}
-          items={[{ title: '基础信息' }, { title: '其他信息' }]}
-          style={{ marginBottom: 16 }}
-        />
-        {deviceStep === 0 ? (
-          <Form form={deviceForm} layout="vertical">
-            <Form.Item
-              label="监狱"
-              name="prisonId"
-              rules={[{ required: true, message: '请选择监狱' }]}
+        <Form form={deviceForm} layout="vertical" initialValues={{ powerOff: true }}>
+          <Row gutter={16}>
+            <Col
+              flex="180px"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+              }}
             >
-              <Select
-                options={prisonOptions}
-                onChange={handleDevicePrisonChange}
-                placeholder="请选择监狱"
+              <div
+                style={{
+                  height: 160,
+                  border: '1px dashed #d9d9d9',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'rgba(0,0,0,0.45)',
+                  marginBottom: 12,
+                }}
+              >
+                设备图片
+              </div>
+              <Form.Item label="电源开关" name="powerOff" valuePropName="checked">
+                <Switch checkedChildren="开" unCheckedChildren="关" />
+              </Form.Item>
+            </Col>
+            <Col flex="auto">
+              <Steps
+                size="small"
+                current={deviceStep}
+                items={[{ title: '基础信息' }, { title: '其他信息' }]}
+                style={{ marginBottom: 16 }}
               />
-            </Form.Item>
-            <Form.Item
-              label="楼宇"
-              name="buildingId"
-              rules={[{ required: true, message: '请选择楼宇' }]}
-            >
-              <Select
-                options={deviceBuildingOptions}
-                onChange={handleDeviceBuildingChange}
-                placeholder="请选择楼宇"
-                loading={deviceBuildingsLoading}
-                disabled={deviceBuildingsLoading}
-                notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼宇'}
-              />
-            </Form.Item>
-            <Form.Item
-              label="楼层"
-              name="floorId"
-              rules={[{ required: true, message: '请选择楼层' }]}
-            >
-              <Select
-                options={deviceFloorOptions}
-                placeholder="请选择楼层"
-                loading={deviceFloorsLoading}
-                disabled={deviceFloorsLoading}
-                notFoundContent={deviceFloorsLoading ? '加载中...' : '暂无楼层'}
-              />
-            </Form.Item>
-            <Form.Item
-              label="设备编号"
-              name="deviceCode"
-              rules={[{ required: true, message: '请输入设备编号' }]}
-            >
-              <Input placeholder="请输入设备编号" />
-            </Form.Item>
-          </Form>
-        ) : (
-          <>
-            <Form.Item
-              label="全网编号"
-              name="networkCode"
-              rules={[{ required: true, message: '请输入全网编号' }]}
-            >
-              <Input placeholder="请输入全网编号" />
-            </Form.Item>
-            <Form.Item label="IP" name="ip" rules={[{ required: true, message: '请输入IP' }]}>
-              <Input placeholder="请输入IP" />
-            </Form.Item>
-            <Form.Item
-              label="端口"
-              name="port"
-              rules={[{ required: true, message: '请输入端口' }]}
-            >
-              <InputNumber min={0} max={65535} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              label="功率调节"
-              name="power"
-              rules={[{ required: true, message: '请输入功率调节' }]}
-            >
-              <InputNumber min={0} style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              label="开始时间"
-              name="startTime"
-              rules={[{ required: true, message: '请选择开始时间' }]}
-            >
-              <TimePicker format="HH:mm" style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              label="停止时间"
-              name="stopTime"
-              rules={[{ required: true, message: '请选择停止时间' }]}
-            >
-              <TimePicker format="HH:mm" style={{ width: '100%' }} />
-            </Form.Item>
-          </>
-        )}
+              {deviceStep === 0 ? (
+                <>
+                  <Form.Item
+                    label="监狱"
+                    name="prisonId"
+                    rules={[{ required: true, message: '请选择监狱' }]}
+                  >
+                    <Select
+                      options={prisonOptions}
+                      onChange={handleDevicePrisonChange}
+                      placeholder="请选择监狱"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="楼宇"
+                    name="buildingId"
+                    rules={[{ required: true, message: '请选择楼宇' }]}
+                  >
+                    <Select
+                      options={deviceBuildingOptions}
+                      onChange={handleDeviceBuildingChange}
+                      placeholder="请选择楼宇"
+                      loading={deviceBuildingsLoading}
+                      disabled={deviceBuildingsLoading}
+                      notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼宇'}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="楼层"
+                    name="floorId"
+                    rules={[{ required: true, message: '请选择楼层' }]}
+                  >
+                    <Select
+                      options={deviceFloorOptions}
+                      placeholder="请选择楼层"
+                      loading={deviceFloorsLoading}
+                      disabled={deviceFloorsLoading}
+                      notFoundContent={deviceFloorsLoading ? '加载中...' : '暂无楼层'}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="设备编号"
+                    name="deviceCode"
+                    rules={[{ required: true, message: '请输入设备编号' }]}
+                  >
+                    <Input placeholder="请输入设备编号" />
+                  </Form.Item>
+                </>
+              ) : (
+                <>
+                  <Form.Item
+                    label="全网编号"
+                    name="networkCode"
+                    rules={[{ required: true, message: '请输入全网编号' }]}
+                  >
+                    <Input placeholder="请输入全网编号" />
+                  </Form.Item>
+                  <Form.Item
+                    label="IP"
+                    name="ip"
+                    rules={[{ required: true, message: '请输入IP' }]}
+                  >
+                    <Input placeholder="请输入IP" />
+                  </Form.Item>
+                  <Form.Item
+                    label="端口"
+                    name="port"
+                    rules={[{ required: true, message: '请输入端口' }]}
+                  >
+                    <InputNumber min={0} max={65535} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item
+                    label="功率调节"
+                    name="power"
+                    rules={[{ required: true, message: '请输入功率调节' }]}
+                  >
+                    <InputNumber min={0} style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item
+                    label="开始时间"
+                    name="startTime"
+                    rules={[{ required: true, message: '请选择开始时间' }]}
+                  >
+                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                  </Form.Item>
+                  <Form.Item
+                    label="停止时间"
+                    name="stopTime"
+                    rules={[{ required: true, message: '请选择停止时间' }]}
+                  >
+                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                  </Form.Item>
+                </>
+              )}
+            </Col>
+          </Row>
+        </Form>
       </Modal>
     </PageContainer>
   );

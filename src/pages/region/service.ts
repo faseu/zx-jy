@@ -141,3 +141,27 @@ export async function createFloor(
     ...(options || {}),
   });
 }
+
+export async function createDevice(
+  data: {
+    deviceNo: string;
+    deviceName: string;
+    entireNo: string;
+    floorName: string;
+    floorId?: number;
+    buildingId?: number;
+    prisonId?: number;
+    powerConfig?: number;
+    ipAddress?: string;
+    port?: number;
+    startTime?: string;
+    endTime?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/device', {
+    method: 'POST',
+    data,
+    ...(options || {}),
+  });
+}
