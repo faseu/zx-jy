@@ -1,5 +1,8 @@
 {
-  "**/*.{js,jsx,tsx,ts,md,css,less,json}": [
-    "npx @biomejs/biome check --write"
+  "**/*.{js,jsx,ts,tsx}": [
+    "eslint --fix"
+  ],
+  "**/*.{js,jsx,ts,tsx,md,css,less,json,yaml,yml}": [
+    "prettier --write"
   ]
 }

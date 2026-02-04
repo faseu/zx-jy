@@ -16,7 +16,8 @@ import {
   Steps,
   Typography,
   Upload,
-  message, TimePicker,
+  message,
+  TimePicker,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
 import type { BuildingInfoVO } from '../data.d';
@@ -51,21 +52,21 @@ const BuildingDetailPage: React.FC = () => {
     {
       ready: Boolean(buildingId),
       refreshDeps: [buildingId],
-    },
+    }
   );
   const { data: floorData, refresh: refreshFloors } = useRequest(
     () => queryBuildingFloors(buildingId),
     {
       ready: Boolean(buildingId),
       refreshDeps: [buildingId],
-    },
+    }
   );
   const { data: floorFormData, loading: floorFormLoading } = useRequest(
     () => queryBuildingFloorForm(selectedFloorId as number),
     {
       ready: Boolean(selectedFloorId),
       refreshDeps: [selectedFloorId],
-    },
+    }
   );
   const { data: prisonDetail } = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
@@ -76,14 +77,14 @@ const BuildingDetailPage: React.FC = () => {
     {
       ready: Boolean(devicePrisonId),
       refreshDeps: [devicePrisonId],
-    },
+    }
   );
   const { data: deviceFloorsData, loading: deviceFloorsLoading } = useRequest(
     () => queryBuildingFloors(deviceBuildingId as number),
     {
       ready: Boolean(deviceBuildingId),
       refreshDeps: [deviceBuildingId],
-    },
+    }
   );
   const floorOptions =
     floorData?.map((item) => ({
@@ -101,16 +102,16 @@ const BuildingDetailPage: React.FC = () => {
     : [];
   const deviceBuildingOptions = deviceBuildingsLoading
     ? []
-    : deviceBuildingsData?.map((item) => ({
+    : (deviceBuildingsData?.map((item) => ({
         label: item.name || `楼宇${item.id}`,
         value: item.id,
-      })) ?? [];
+      })) ?? []);
   const deviceFloorOptions = deviceFloorsLoading
     ? []
-    : deviceFloorsData?.map((item) => ({
+    : (deviceFloorsData?.map((item) => ({
         label: item.floorName,
         value: item.id,
-      })) ?? [];
+      })) ?? []);
   const planFloorOptions = Array.from({ length: 106 }, (_, index) => {
     const value = index - 5;
     if (value === 0) {
@@ -204,10 +205,10 @@ const BuildingDetailPage: React.FC = () => {
   const handlePlanOk = async () => {
     try {
       const values = await planForm.validateFields();
-      console.log(values)
+      console.log(values);
       const fileList = values.image ?? [];
       const file = fileList[0];
-      const floorDrawing = file?.response?.data?.url ?? "";
+      const floorDrawing = file?.response?.data?.url ?? '';
       setPlanSubmitting(true);
       const floorNo = Number(values.floor);
       const floorName = floorNo < 0 ? `B${Math.abs(floorNo)}` : `F${floorNo}`;
@@ -246,14 +247,17 @@ const BuildingDetailPage: React.FC = () => {
   };
 
   return (
-    <PageContainer>
+    <PageContainer title={false}>
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={7}>
           <Card
             loading={detailLoading}
+            style={{
+              height: '100%',
+            }}
             bodyStyle={{
               padding: 0,
-              height: 420,
+              height: '100%',
               display: 'flex',
               alignItems: 'flex-end',
               backgroundImage:
@@ -267,16 +271,13 @@ const BuildingDetailPage: React.FC = () => {
                 width: '100%',
                 padding: '18px 20px',
                 color: '#fff',
-                background:
-                  'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.55))',
+                background: 'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.55))',
               }}
             >
               <Title level={3} style={{ color: '#fff', marginBottom: 4 }}>
                 {detail?.name || '楼宇'}
               </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.75)', margin: 0 }}>
-                楼宇概览
-              </Paragraph>
+              <Paragraph style={{ color: 'rgba(255,255,255,0.75)', margin: 0 }}>楼宇概览</Paragraph>
             </div>
           </Card>
         </Col>
@@ -312,32 +313,14 @@ const BuildingDetailPage: React.FC = () => {
                 <Button onClick={handleOpenDeviceModal}>添加设备</Button>
               </div>
             </div>
-            <Card
-              size="small"
-              title="楼层信息"
-              loading={floorFormLoading}
-              style={{ marginTop: 16 }}
-            >
+            <Card size="small" loading={floorFormLoading} style={{ marginTop: 16 }}>
               {floorFormData ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 16,
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
-                    <div>楼层名称：{floorFormData.floorName || '-'}</div>
-                    <div>楼层编号：{floorFormData.floorNo ?? '-'}</div>
-                    <div>设备数量：{floorFormData.deviceNumber ?? '-'}</div>
-                  </div>
+                <div>
                   <Image
-                    style={{ width: '100%', maxHeight: 300 }}
+                    style={{ width: '100%' }}
                     src={floorFormData.floorDrawing || '/logo.png'}
                     alt={floorFormData.floorName || '楼层图纸'}
                   />
-
                 </div>
               ) : (
                 <div>暂无楼层信息</div>
@@ -353,12 +336,12 @@ const BuildingDetailPage: React.FC = () => {
         onOk={handlePlanOk}
         okButtonProps={{ loading: planSubmitting }}
       >
-        <Form
-          form={planForm}
-          layout="vertical"
-          initialValues={{ floor: null, deviceCount: null }}
-        >
-          <Form.Item label="选择楼层" name="floor" rules={[{ required: true, message: '请选择楼层' }]}>
+        <Form form={planForm} layout="vertical" initialValues={{ floor: null, deviceCount: null }}>
+          <Form.Item
+            label="选择楼层"
+            name="floor"
+            rules={[{ required: true, message: '请选择楼层' }]}
+          >
             <Select options={planFloorOptions} />
           </Form.Item>
           <Form.Item label="设备数量" name="deviceCount">
@@ -502,11 +485,7 @@ const BuildingDetailPage: React.FC = () => {
                   >
                     <Input placeholder="请输入全网编号" />
                   </Form.Item>
-                  <Form.Item
-                    label="IP"
-                    name="ip"
-                    rules={[{ required: true, message: '请输入IP' }]}
-                  >
+                  <Form.Item label="IP" name="ip" rules={[{ required: true, message: '请输入IP' }]}>
                     <Input placeholder="请输入IP" />
                   </Form.Item>
                   <Form.Item
