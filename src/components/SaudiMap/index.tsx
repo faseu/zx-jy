@@ -4,11 +4,17 @@ import saudiMap from '@/assets/map/SA_regions.json'
 
 interface SaudiMapProps {
   height?: number
+  onProvinceClick?: (provinceName: string) => void
 }
 
-const SaudiMap: React.FC<SaudiMapProps> = ({ height = 700 }) => {
+const SaudiMap: React.FC<SaudiMapProps> = ({ height = 700, onProvinceClick }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<echarts.EChartsType | null>(null)
+  const onProvinceClickRef = useRef<SaudiMapProps['onProvinceClick']>(onProvinceClick)
+
+  useEffect(() => {
+    onProvinceClickRef.current = onProvinceClick
+  }, [onProvinceClick])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -58,7 +64,10 @@ const SaudiMap: React.FC<SaudiMapProps> = ({ height = 700 }) => {
     chart.setOption(option, true)
 
     const handleClick = (params: any) => {
-      console.log('点击的 Province:', params.name)
+      const provinceName = params?.name
+      if (typeof provinceName === 'string' && onProvinceClickRef.current) {
+        onProvinceClickRef.current(provinceName)
+      }
     }
     chart.on('click', handleClick)
 

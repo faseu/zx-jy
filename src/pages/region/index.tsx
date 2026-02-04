@@ -1,14 +1,27 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useRequest } from '@umijs/max';
-import { Table, Typography } from 'antd';
+import { Table, message } from 'antd';
 import React from 'react';
 import type { ProvinceVO } from './data.d';
 import { queryProvinceList } from './service';
 import SaudiMap from '@/components/SaudiMap';
-const { Paragraph, Title } = Typography;
-
 const RegionPage: React.FC = () => {
   const { data, loading } = useRequest(queryProvinceList);
+
+  const handleProvinceClick = (provinceName: string) => {
+    if (!data || data.length === 0) {
+      message.warning('省份数据加载中，请稍后再试');
+      return;
+    }
+
+    const matched = data.find((item) => item.provinceName === provinceName);
+    if (matched?.provinceId === undefined || matched?.provinceId === null) {
+      message.warning(`未找到 ${provinceName} 的省份信息`);
+      return;
+    }
+
+    history.push(`/region/province/${matched.provinceId}`);
+  };
 
   return (
     <PageContainer title={false}>
@@ -55,7 +68,7 @@ const RegionPage: React.FC = () => {
           />
         </div>
         <div style={{ width: '60%', maxWidth: '60%', minWidth: 240 }}>
-          <SaudiMap height={700} />
+          <SaudiMap height={700} onProvinceClick={handleProvinceClick} />
         </div>
       </div>
     </PageContainer>
