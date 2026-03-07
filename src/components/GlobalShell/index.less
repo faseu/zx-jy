@@ -1,0 +1,97 @@
+﻿.globalShell {
+  background: #e1e1e1;
+}
+
+.globalShellTopBar {
+  height: 60px;
+  padding: 0 18px;
+  border-top: 2px solid #2666d4;
+  border-bottom: 1px solid #b7b7b7;
+  background: #e1e1e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.globalShellBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.globalShellLogo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #4ea75a;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.globalShellBrand h1 {
+  margin: 0;
+  color: #001529;
+  font-size: 33px;
+  font-family: Arial, 'Microsoft YaHei', sans-serif;
+  font-weight: 700;
+}
+
+.globalShellActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.globalShellActions .ant-btn {
+  border-radius: 4px;
+  font-size: 28px;
+  height: 44px;
+  padding: 0 18px;
+}
+
+.globalShellTabs {
+  padding: 10px 32px 8px;
+  border-bottom: 2px solid #2666d4;
+  background: #e1e1e1;
+  display: flex;
+  align-items: center;
+}
+
+.globalShellTab {
+  min-width: 88px;
+  height: 36px;
+  border: 1px solid #b9b9b9;
+  background: #ececec;
+  color: #000;
+  font-size: 24px;
+  font-family: Arial, 'Microsoft YaHei', sans-serif;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.globalShellTab + .globalShellTab {
+  margin-left: -1px;
+}
+
+.globalShellTabActive {
+  background: #2a67d4;
+  border-color: #2a67d4;
+  color: #fff;
+  font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .globalShellBrand h1 {
+    font-size: 24px;
+  }
+
+  .globalShellTab,
+  .globalShellActions .ant-btn {
+    font-size: 16px;
+  }
+}

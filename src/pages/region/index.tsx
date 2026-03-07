@@ -1,10 +1,11 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { history, useRequest } from '@umijs/max';
+﻿import { history, useRequest } from '@umijs/max';
 import { Table, message } from 'antd';
 import React from 'react';
+import SaudiMap from '@/components/SaudiMap';
 import type { ProvinceVO } from './data.d';
 import { queryProvinceList } from './service';
-import SaudiMap from '@/components/SaudiMap';
+import './index.less';
+
 const RegionPage: React.FC = () => {
   const { data, loading } = useRequest(queryProvinceList);
 
@@ -24,54 +25,40 @@ const RegionPage: React.FC = () => {
   };
 
   return (
-    <PageContainer title={false}>
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="regionPage">
+      <div className="regionMain">
+        <div className="regionTableWrap">
           <Table<ProvinceVO>
+            className="regionDataTable"
             rowKey={(record) => record.provinceId ?? record.provinceName ?? ''}
             loading={loading}
             dataSource={data ?? []}
             columns={[
-              {
-                title: '省份',
-                dataIndex: 'provinceName',
-                align: 'center'
-              },
-              {
-                title: '总监狱',
-                dataIndex: 'totalPrisons',
-                align: 'center'
-              },
-              {
-                title: '总干扰机',
-                dataIndex: 'totalDevices',
-                align: 'center'
-              },
+              { title: '省', dataIndex: 'provinceName', align: 'center' },
+              { title: '总监狱', dataIndex: 'totalPrisons', align: 'center' },
+              { title: '总干扰机', dataIndex: 'totalDevices', align: 'center' },
             ]}
             pagination={false}
+            scroll={{ y: 620 }}
             onRow={(record) => ({
               onClick: () => {
-                if (
-                  record.provinceId !== undefined &&
-                  record.provinceId !== null
-                ) {
+                if (record.provinceId !== undefined && record.provinceId !== null) {
                   history.push(`/region/province/${record.provinceId}`);
                 }
               },
-              style: {
-                cursor:
-                  record.provinceId !== undefined && record.provinceId !== null
-                    ? 'pointer'
-                    : 'default',
-              },
+              className:
+                record.provinceId !== undefined && record.provinceId !== null
+                  ? 'regionTableRowClickable'
+                  : '',
             })}
           />
         </div>
-        <div style={{ width: '60%', maxWidth: '60%', minWidth: 240 }}>
-          <SaudiMap height={700} onProvinceClick={handleProvinceClick} />
+
+        <div className="regionMapWrap">
+          <SaudiMap height={720} onProvinceClick={handleProvinceClick} />
         </div>
       </div>
-    </PageContainer>
+    </div>
   );
 };
 

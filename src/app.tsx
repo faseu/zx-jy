@@ -4,21 +4,17 @@ import { SettingDrawer } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link } from '@umijs/max';
 import React from 'react';
-import {
-  Footer,
-  Question,
-  SelectLang,
-} from '@/components';
+import { Question, SelectLang } from '@/components';
+import GlobalShell from '@/components/GlobalShell';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 import '@ant-design/v5-patch-for-react-19';
 
-const isDev =
-  process.env.NODE_ENV === 'development' || process.env.CI;
+const isDev = process.env.NODE_ENV === 'development' || process.env.CI;
 
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
- * */
+ */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
 }> {
@@ -27,16 +23,15 @@ export async function getInitialState(): Promise<{
   };
 }
 
-// ProLayout 鏀寔鐨刟pi https://procomponents.ant.design/components/layout
-export const layout: RunTimeLayoutConfig = ({
-  initialState,
-  setInitialState,
-}) => {
+const isLoginRoute = () => {
+  const pathname = history.location.pathname;
+  return pathname.startsWith('/user') || pathname === '/login';
+};
+
+// ProLayout API: https://procomponents.ant.design/components/layout
+export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   return {
-    actionsRender: () => [
-      <Question key="doc" />,
-      <SelectLang key="SelectLang" />,
-    ],
+    actionsRender: () => [<Question key="doc" />, <SelectLang key="SelectLang" />],
     avatarProps: undefined,
     onPageChange: () => {
       const { location } = history;
@@ -44,9 +39,7 @@ export const layout: RunTimeLayoutConfig = ({
         history.replace('/region');
       }
     },
-    bgLayoutImgList: [
-
-    ],
+    bgLayoutImgList: [],
     links: isDev
       ? [
           <Link key="openapi" to="/umi/plugin/openapi" target="_blank">
@@ -55,14 +48,13 @@ export const layout: RunTimeLayoutConfig = ({
           </Link>,
         ]
       : [],
+    headerRender: false,
+    menuRender: false,
     menuHeaderRender: undefined,
-    // 鑷畾涔?403 椤甸潰
-    // unAccessible: <div>unAccessible</div>,
-    // 澧炲姞涓€涓?loading 鐨勭姸鎬?
     childrenRender: (children) => {
-      // if (initialState?.loading) return <PageLoading />;
       return (
         <>
+          {!isLoginRoute() && <GlobalShell />}
           {children}
           {isDev && (
             <SettingDrawer
@@ -85,14 +77,11 @@ export const layout: RunTimeLayoutConfig = ({
 };
 
 /**
- * @name request 閰嶇疆锛屽彲浠ラ厤缃敊璇鐞?
- * 瀹冨熀浜?axios 鍜?ahooks 鐨?useRequest 鎻愪緵浜嗕竴濂楃粺涓€鐨勭綉缁滆姹傚拰閿欒澶勭悊鏂规銆?
- * @doc https://umijs.org/docs/max/request#閰嶇疆
+ * @name request config
+ * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
   baseURL: 'http://47.84.22.103:8990',
   ...errorConfig,
 };
-
-
 
