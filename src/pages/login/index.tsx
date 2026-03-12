@@ -1,140 +1,28 @@
-import {
-  AlipayCircleOutlined,
-  LockOutlined,
-  MobileOutlined,
-  TaobaoCircleOutlined,
-  UserOutlined,
-  WeiboCircleOutlined,
-} from '@ant-design/icons';
-import {
-  LoginForm,
-  ProFormText,
-} from '@ant-design/pro-components';
-import {
-  FormattedMessage,
-  Helmet,
-  SelectLang,
-  useIntl,
-} from '@umijs/max';
-import {Alert, App, Tabs} from 'antd';
-import {createStyles} from 'antd-style';
+import {LockOutlined, UserOutlined} from '@ant-design/icons';
+import {FormattedMessage, Helmet, useIntl} from '@umijs/max';
+import {Alert, App, Button, Form, Input, Radio} from 'antd';
 import React, {useState} from 'react';
 import {login} from '@/services/ant-design-pro/api';
-import loginBg from '@/assets/login-bg.jpg';
-
-const useStyles = createStyles(({token}) => {
-  return {
-    action: {
-      marginLeft: '8px',
-      color: 'rgba(0, 0, 0, 0.2)',
-      fontSize: '24px',
-      verticalAlign: 'middle',
-      cursor: 'pointer',
-      transition: 'color 0.3s',
-      '&:hover': {
-        color: token.colorPrimaryActive,
-      },
-    },
-    lang: {
-      width: 42,
-      height: 42,
-      lineHeight: '42px',
-      position: 'fixed',
-      right: 16,
-      borderRadius: token.borderRadius,
-      ':hover': {
-        backgroundColor: token.colorBgTextHover,
-      },
-    },
-    container: {
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      width: '100vw',
-      height: '100vh',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '32px 16px',
-      backgroundImage: `url(${loginBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    }
-    ,
-    panel: {
-      backgroundColor: '#ffffff',
-      borderRadius: token.borderRadiusLG,
-      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-      padding: '32px 0',
-      width: 420,
-      maxWidth: '90vw',
-    },
-
-  };
-});
-
-const ActionIcons = () => {
-  const {styles} = useStyles();
-
-  return (
-    <>
-      <AlipayCircleOutlined
-        key="AlipayCircleOutlined"
-        className={styles.action}
-      />
-      <TaobaoCircleOutlined
-        key="TaobaoCircleOutlined"
-        className={styles.action}
-      />
-      <WeiboCircleOutlined
-        key="WeiboCircleOutlined"
-        className={styles.action}
-      />
-    </>
-  );
-};
-
-const Lang = () => {
-  const {styles} = useStyles();
-
-  return (
-    <div className={styles.lang} data-lang>
-      {SelectLang && <SelectLang/>}
-    </div>
-  );
-};
+import './index.less';
 
 const LoginMessage: React.FC<{
   content: string;
 }> = ({content}) => {
-  return (
-    <Alert
-      style={{
-        marginBottom: 24,
-      }}
-      message={content}
-      type="error"
-      showIcon
-    />
-  );
+  return <Alert className="login-error" message={content} type="error" showIcon />;
 };
 
 const Login: React.FC = () => {
+  const [form] = Form.useForm<API.LoginParams>();
   const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
-  const [type, setType] = useState<string>('account');
-  const {styles} = useStyles();
+  const [type] = useState<string>('account');
+  const [lang, setLang] = useState<string>('arabic');
   const {message} = App.useApp();
   const intl = useIntl();
 
   const handleSubmit = async (values: API.LoginParams) => {
     try {
-      // 登录
       const msg = await login({...values, type});
-      if (msg.code === "00000") {
+      if (msg.code === '00000') {
         const token = msg?.data?.accessToken;
         if (token) {
           localStorage.setItem('accessToken', token);
@@ -144,12 +32,9 @@ const Login: React.FC = () => {
           defaultMessage: '登录成功！',
         });
         message.success(defaultLoginSuccessMessage);
-        console.log(msg);
         window.location.href = '/region';
         return;
       }
-      console.log(msg);
-      // 如果失败去设置用户错误信息
       setUserLoginState(msg);
     } catch (error) {
       const defaultLoginFailureMessage = intl.formatMessage({
@@ -160,10 +45,11 @@ const Login: React.FC = () => {
       message.error(defaultLoginFailureMessage);
     }
   };
+
   const {status, type: loginType} = userLoginState;
 
   return (
-    <div className={styles.container}>
+    <div className="login-page">
       <Helmet>
         <title>
           {intl.formatMessage({
@@ -172,82 +58,102 @@ const Login: React.FC = () => {
           })}
         </title>
       </Helmet>
-      <Lang/>
-      <div className={styles.panel}>
-        <LoginForm
-          contentStyle={{
-            minWidth: 280,
-            maxWidth: '90vw',
-          }}
-          logo={<img alt="logo" src="/logo.png"/>}
-          title="Salam"
-          subTitle={intl.formatMessage({
-            id: 'pages.layouts.userLayout.title',
-          })}
-          initialValues={{
-            autoLogin: true,
-            username: 'admin',
-            password: '123456',
-          }}
-          onFinish={async (values) => {
-            await handleSubmit(values as API.LoginParams);
-          }}
-        >
-          {status === 'error' && loginType === 'account' && (
-            <LoginMessage
-              content={intl.formatMessage({
-                id: 'pages.login.accountLogin.errorMessage',
-                defaultMessage: '账户或密码错误(admin/ant.design)',
-              })}
-            />
-          )}
-          <>
-            <ProFormText
-              name="username"
-              fieldProps={{
-                size: 'large',
-                prefix: <UserOutlined/>,
+      <div className="login-brand">
+        <img alt="logo" src="/logo.png" />
+        <span>SRILL LIMITED</span>
+      </div>
+      <div className="login-panel">
+        <div className="login-content">
+          <div className="login-left">
+            <div>
+              <h2 className="login-welcome">Salam, Welcome to</h2>
+              <div className="login-system-name">Jamming Managment System</div>
+            </div>
+            <div className="login-logo-wrap">
+              <img alt="system-logo" src="/logo.png" />
+            </div>
+          </div>
+          <div className="login-right">
+            <h1 className="login-title">Log In</h1>
+            <Form<API.LoginParams>
+              form={form}
+              className="login-form"
+              initialValues={{
+                username: 'admin',
+                password: '123456',
               }}
-              placeholder={intl.formatMessage({
-                id: 'pages.login.username.placeholder',
-                defaultMessage: '用户名: admin or user',
-              })}
-              rules={[
-                {
-                  required: true,
-                  message: (
-                    <FormattedMessage
-                      id="pages.login.username.required"
-                      defaultMessage="请输入用户名!"
-                    />
-                  ),
-                },
-              ]}
-            />
-            <ProFormText.Password
-              name="password"
-              fieldProps={{
-                size: 'large',
-                prefix: <LockOutlined/>,
-              }}
-              placeholder={intl.formatMessage({
-                id: 'pages.login.password.placeholder',
-                defaultMessage: '密码: ant.design',
-              })}
-              rules={[
-                {
-                  required: true,
-                  message: (
-                    <FormattedMessage
-                      id="pages.login.password.required"
-                      defaultMessage="请输入密码！"
-                    />
-                  ),
-                },
-              ]}
-            />
-          </>
-        </LoginForm>
+              onFinish={handleSubmit}
+            >
+              {status === 'error' && loginType === 'account' && (
+                <LoginMessage
+                  content={intl.formatMessage({
+                    id: 'pages.login.accountLogin.errorMessage',
+                    defaultMessage: '账户或密码错误 (admin/ant.design)',
+                  })}
+                />
+              )}
+              <Form.Item
+                className="login-field"
+                name="username"
+                rules={[
+                  {
+                    required: true,
+                    message: (
+                      <FormattedMessage
+                        id="pages.login.username.required"
+                        defaultMessage="请输入用户名!"
+                      />
+                    ),
+                  },
+                ]}
+              >
+                <Input
+                  prefix={<UserOutlined />}
+                  placeholder={intl.formatMessage({
+                    id: 'pages.login.username.placeholder',
+                    defaultMessage: 'User Name',
+                  })}
+                />
+              </Form.Item>
+              <Form.Item
+                className="login-field"
+                name="password"
+                rules={[
+                  {
+                    required: true,
+                    message: (
+                      <FormattedMessage
+                        id="pages.login.password.required"
+                        defaultMessage="请输入密码！"
+                      />
+                    ),
+                  },
+                ]}
+              >
+                <Input.Password
+                  prefix={<LockOutlined />}
+                  placeholder={intl.formatMessage({
+                    id: 'pages.login.password.placeholder',
+                    defaultMessage: 'Password',
+                  })}
+                />
+              </Form.Item>
+              <Form.Item className="login-field">
+                <Input prefix={<LockOutlined />} placeholder="Random Code" />
+              </Form.Item>
+              <div className="login-language-row">
+                <Radio.Group value={lang} onChange={(e) => setLang(e.target.value)}>
+                  <Radio value="arabic">Arabic</Radio>
+                  <Radio value="english">English</Radio>
+                  <Radio value="chinese">Chinese</Radio>
+                </Radio.Group>
+              </div>
+              <Button className="login-submit" type="primary" htmlType="submit">
+                log in
+              </Button>
+            </Form>
+          </div>
+        </div>
       </div>
     </div>
   );

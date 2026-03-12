@@ -1,9 +1,9 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { useParams, useRequest } from '@umijs/max';
+import {PageContainer} from '@ant-design/pro-components';
+import {history, useParams, useRequest} from '@umijs/max';
 import {
   Button,
-  Card,
   Col,
+  Divider,
   Form,
   Image,
   Input,
@@ -11,19 +11,19 @@ import {
   Modal,
   Row,
   Select,
-  Statistic,
-  Switch,
+  Spin,
   Steps,
-  Typography,
+  Switch,
+  TimePicker,
   Upload,
   message,
-  TimePicker,
 } from 'antd';
-import React, { useEffect, useState } from 'react';
-import type { BuildingInfoVO } from '../data.d';
+import React, {useEffect, useState} from 'react';
+import gb from '@/assets/gb.png';
+import type {BuildingInfoVO} from '../data.d';
 import {
-  createFloor,
   createDevice,
+  createFloor,
   queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
@@ -31,10 +31,8 @@ import {
   queryPrisonInfo,
 } from '../service';
 
-const { Paragraph, Title } = Typography;
-
 const BuildingDetailPage: React.FC = () => {
-  const [selectedFloor, setSelectedFloor] = useState<number>(null);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
@@ -44,54 +42,56 @@ const BuildingDetailPage: React.FC = () => {
   const [deviceBuildingId, setDeviceBuildingId] = useState<number | null>(null);
   const [planForm] = Form.useForm();
   const [deviceForm] = Form.useForm();
-  const params = useParams<{ id: string; prisonId: string }>();
+
+  const params = useParams<{id: string; prisonId: string}>();
   const buildingId = params.id ?? '';
   const prisonId = params.prisonId ?? '';
-  const { data: detailData, loading: detailLoading } = useRequest(
-    () => queryBuildingInfo(buildingId),
-    {
-      ready: Boolean(buildingId),
-      refreshDeps: [buildingId],
-    }
-  );
-  const { data: floorData, refresh: refreshFloors } = useRequest(
-    () => queryBuildingFloors(buildingId),
-    {
-      ready: Boolean(buildingId),
-      refreshDeps: [buildingId],
-    }
-  );
-  const { data: floorFormData, loading: floorFormLoading } = useRequest(
-    () => queryBuildingFloorForm(selectedFloorId as number),
-    {
-      ready: Boolean(selectedFloorId),
-      refreshDeps: [selectedFloorId],
-    }
-  );
-  const { data: prisonDetail } = useRequest(() => queryPrisonInfo(prisonId), {
+
+  const {data: detailData, loading: detailLoading} = useRequest(() => queryBuildingInfo(buildingId), {
+    ready: Boolean(buildingId),
+    refreshDeps: [buildingId],
+  });
+
+  const {data: floorData, refresh: refreshFloors} = useRequest(() => queryBuildingFloors(buildingId), {
+    ready: Boolean(buildingId),
+    refreshDeps: [buildingId],
+  });
+
+  const {data: floorFormData, loading: floorFormLoading} = useRequest(() => queryBuildingFloorForm(selectedFloorId as number), {
+    ready: Boolean(selectedFloorId),
+    refreshDeps: [selectedFloorId],
+  });
+
+  const {data: prisonDetail} = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
     refreshDeps: [prisonId],
   });
-  const { data: deviceBuildingsData, loading: deviceBuildingsLoading } = useRequest(
+
+  const {data: deviceBuildingsData, loading: deviceBuildingsLoading} = useRequest(
     () => queryPrisonBuildings(devicePrisonId as number),
     {
       ready: Boolean(devicePrisonId),
       refreshDeps: [devicePrisonId],
-    }
+    },
   );
-  const { data: deviceFloorsData, loading: deviceFloorsLoading } = useRequest(
+
+  const {data: deviceFloorsData, loading: deviceFloorsLoading} = useRequest(
     () => queryBuildingFloors(deviceBuildingId as number),
     {
       ready: Boolean(deviceBuildingId),
       refreshDeps: [deviceBuildingId],
-    }
+    },
   );
+
+  const detail: BuildingInfoVO | undefined = detailData;
+
   const floorOptions =
-    floorData?.map((item) => ({
+    floorData?.map((item: any) => ({
       label: item.floorName,
       value: item.floorNo,
       id: item.id,
     })) ?? [];
+
   const prisonOptions = prisonId
     ? [
         {
@@ -100,42 +100,44 @@ const BuildingDetailPage: React.FC = () => {
         },
       ]
     : [];
-  const deviceBuildingOptions = deviceBuildingsLoading
-    ? []
-    : (deviceBuildingsData?.map((item) => ({
-        label: item.name || `楼宇${item.id}`,
-        value: item.id,
-      })) ?? []);
-  const deviceFloorOptions = deviceFloorsLoading
-    ? []
-    : (deviceFloorsData?.map((item) => ({
-        label: item.floorName,
-        value: item.id,
-      })) ?? []);
-  const planFloorOptions = Array.from({ length: 106 }, (_, index) => {
+
+  const deviceBuildingOptions =
+    deviceBuildingsData?.map((item: any) => ({
+      label: item.name || `楼栋${item.id}`,
+      value: item.id,
+    })) ?? [];
+
+  const deviceFloorOptions =
+    deviceFloorsData?.map((item: any) => ({
+      label: item.floorName,
+      value: item.id,
+    })) ?? [];
+
+  const planFloorOptions = Array.from({length: 106}, (_, index) => {
     const value = index - 5;
-    if (value === 0) {
-      return null;
-    }
-    return { label: `${value}层`, value };
-  }).filter(Boolean);
-  const detail: BuildingInfoVO | undefined = detailData;
+    if (value === 0) return null;
+    return {label: `${value}层`, value};
+  }).filter(Boolean) as {label: string; value: number}[];
+
   useEffect(() => {
-    if (!floorData?.length || selectedFloorId) {
-      return;
-    }
+    if (!floorData?.length || selectedFloorId) return;
     setSelectedFloorId(floorData[0].id);
     setSelectedFloor(floorData[0].floorNo);
   }, [floorData, selectedFloorId]);
+
   const normalizeUpload = (event: any) => {
-    if (Array.isArray(event)) {
-      return event;
-    }
+    if (Array.isArray(event)) return event;
     return event?.fileList ?? [];
   };
+
+  const handleFloorChange = (value: number, option: any) => {
+    setSelectedFloor(value);
+    setSelectedFloorId(option?.id ?? null);
+  };
+
   const handleOpenDeviceModal = () => {
-    const nextPrisonId = prisonId || null;
-    const nextBuildingId = buildingId || null;
+    const nextPrisonId = prisonId ? Number(prisonId) : null;
+    const nextBuildingId = buildingId ? Number(buildingId) : null;
     setDevicePrisonId(nextPrisonId);
     setDeviceBuildingId(nextBuildingId);
     setDeviceStep(0);
@@ -148,34 +150,65 @@ const BuildingDetailPage: React.FC = () => {
     });
     setDeviceModalOpen(true);
   };
+
+  const handlePlanOk = async () => {
+    try {
+      const values = await planForm.validateFields();
+      const fileList = values.image ?? [];
+      const file = fileList[0];
+      const floorDrawing = file?.response?.data?.url ?? '';
+      setPlanSubmitting(true);
+      const floorNo = Number(values.floor);
+      const floorName = floorNo < 0 ? `B${Math.abs(floorNo)}` : `F${floorNo}`;
+      await createFloor({
+        floorNo,
+        floorName,
+        buildingId: Number(buildingId),
+        deviceNumber: values.deviceCount ?? 0,
+        floorDrawing,
+      });
+      refreshFloors();
+      message.success('添加成功');
+      setPlanModalOpen(false);
+      planForm.resetFields();
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      message.error('添加失败');
+    } finally {
+      setPlanSubmitting(false);
+    }
+  };
+
   const handleDeviceCancel = () => {
     setDeviceModalOpen(false);
     setDeviceStep(0);
     deviceForm.resetFields();
   };
+
   const handleDeviceNext = async () => {
     try {
       await deviceForm.validateFields(['prisonId', 'buildingId', 'floorId', 'deviceCode']);
       setDeviceStep(1);
-    } catch (error) {
+    } catch {
       return;
     }
   };
+
   const handleDevicePrev = () => {
     setDeviceStep(0);
   };
+
   const handleDeviceFinish = async () => {
     try {
       const values = await deviceForm.validateFields();
       const floorName =
-        deviceFloorsData?.find((item) => item.id === values.floorId)?.floorName ??
+        deviceFloorsData?.find((item: any) => item.id === values.floorId)?.floorName ??
         deviceFloorOptions.find((item) => item.value === values.floorId)?.label;
       if (!floorName) {
         message.error('未找到楼层名称');
         return;
       }
-      const formatTime = (value: any) =>
-        value && typeof value.format === 'function' ? value.format('HH:mm') : value;
+      const formatTime = (value: any) => (value && typeof value.format === 'function' ? value.format('HH:mm') : value);
       await createDevice({
         deviceNo: values.deviceCode,
         deviceName: values.deviceCode,
@@ -195,164 +228,138 @@ const BuildingDetailPage: React.FC = () => {
       setDeviceModalOpen(false);
       setDeviceStep(0);
       deviceForm.resetFields();
-    } catch (error) {
-      if ((error as any)?.errorFields) {
-        return;
-      }
-      message.error('添加失败');
-    }
-  };
-  const handlePlanOk = async () => {
-    try {
-      const values = await planForm.validateFields();
-      console.log(values);
-      const fileList = values.image ?? [];
-      const file = fileList[0];
-      const floorDrawing = file?.response?.data?.url ?? '';
-      setPlanSubmitting(true);
-      const floorNo = Number(values.floor);
-      const floorName = floorNo < 0 ? `B${Math.abs(floorNo)}` : `F${floorNo}`;
-      await createFloor({
-        floorNo,
-        floorName,
-        buildingId: Number(buildingId),
-        deviceNumber: values.deviceCount ?? 0,
-        floorDrawing,
-      });
-      refreshFloors();
-      message.success('添加成功');
-      setPlanModalOpen(false);
-      planForm.resetFields();
     } catch (error: any) {
-      if (error?.errorFields) {
-        return;
-      }
+      if (error?.errorFields) return;
       message.error('添加失败');
-    } finally {
-      setPlanSubmitting(false);
     }
   };
-  const handleFloorChange = (value: number, option: any) => {
-    setSelectedFloor(value);
-    setSelectedFloorId(option?.id ?? null);
-  };
+
   const handleDevicePrisonChange = (value: number | null) => {
     setDevicePrisonId(value ?? null);
     setDeviceBuildingId(null);
-    deviceForm.setFieldsValue({ buildingId: undefined, floorId: undefined });
+    deviceForm.setFieldsValue({buildingId: undefined, floorId: undefined});
   };
+
   const handleDeviceBuildingChange = (value: number | null) => {
     setDeviceBuildingId(value ?? null);
-    deviceForm.setFieldsValue({ floorId: undefined });
+    deviceForm.setFieldsValue({floorId: undefined});
   };
+
+  const stats = [
+    {label: '建筑层数', value: detail?.floorNum ?? 0},
+    {label: '设备', value: detail?.totalDevices ?? 0},
+    {label: '在线', value: detail?.onlineDevices ?? 0},
+    {label: '离线', value: detail?.offlineDevices ?? 0},
+    {label: '告警', value: detail?.totalAlarms ?? 0},
+  ];
 
   return (
     <PageContainer title={false}>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={7}>
-          <Card
-            loading={detailLoading}
-            style={{
-              height: '100%',
-            }}
-            bodyStyle={{
-              padding: 0,
-              height: '100%',
-              display: 'flex',
-              alignItems: 'flex-end',
-              backgroundImage:
-                "linear-gradient(160deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55)), url('/logo.png')",
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
+      <div style={{background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)'}}>
+        <Row gutter={0}>
+          <Col xs={24} xl={6} style={{overflow: 'hidden'}}>
             <div
               style={{
-                width: '100%',
-                padding: '18px 20px',
-                color: '#fff',
-                background: 'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.55))',
-              }}
-            >
-              <Title level={3} style={{ color: '#fff', marginBottom: 4 }}>
-                {detail?.name || '楼宇'}
-              </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.75)', margin: 0 }}>楼宇概览</Paragraph>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={17}>
-          <Card loading={detailLoading}>
-            <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-              <Statistic title="楼层" value={detail?.floorNum ?? 0} />
-              <Statistic title="设备" value={detail?.totalDevices ?? 0} />
-              <Statistic title="在线" value={detail?.onlineDevices ?? 0} />
-              <Statistic title="离线" value={detail?.offlineDevices ?? 0} />
-              <Statistic title="告警" value={detail?.totalAlarms ?? 0} />
-            </div>
-          </Card>
-          <Card style={{ marginTop: 16, minHeight: 260 }}>
-            <div
-              style={{
+                position: 'relative',
+                height: 'calc(100vh - 128px)',
+                backgroundImage: 'url(' + gb + ')',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
                 display: 'flex',
-                justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 16,
+                justifyContent: 'center',
               }}
             >
-              <Select
-                value={selectedFloor}
-                onChange={handleFloorChange}
-                options={floorOptions}
-                style={{ width: 160 }}
-              />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button type="primary" onClick={() => setPlanModalOpen(true)}>
-                  添加图纸
-                </Button>
-                <Button onClick={handleOpenDeviceModal}>添加设备</Button>
-              </div>
+              <Button style={{position: 'absolute', top: 12, right: 12}}>编辑</Button>
+              <div style={{fontSize: 48, color: '#111', textAlign: 'center'}}>{detail?.name || 'AABB楼'}</div>
             </div>
-            <Card size="small" loading={floorFormLoading} style={{ marginTop: 16 }}>
-              {floorFormData ? (
-                <div>
-                  <Image
-                    style={{ width: '100%' }}
-                    src={floorFormData.floorDrawing || '/logo.png'}
-                    alt={floorFormData.floorName || '楼层图纸'}
-                  />
+          </Col>
+
+          <Col xs={24} xl={18}>
+            <Spin spinning={detailLoading}>
+              <div style={{minHeight: 680, padding: '18px 26px'}}>
+                <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                  <Button onClick={() => history.back()}>返回</Button>
                 </div>
-              ) : (
-                <div>暂无楼层信息</div>
-              )}
-            </Card>
-          </Card>
-        </Col>
-      </Row>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: 16,
+                    marginTop: 20,
+                  }}
+                >
+                  {stats.map((item) => (
+                    <div key={item.label} style={{textAlign: 'center'}}>
+                      <div style={{fontSize: '42px', lineHeight: 1.1}}>{item.value}</div>
+                      <div style={{marginTop: 4, fontSize: 'clamp(18px, 2.2vw, 30px)', color: '#111'}}>{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <Divider style={{margin: '18px 0 22px'}} />
+
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+                    <span style={{fontSize: 30, color: '#111'}}>当前楼层:</span>
+                    <Select value={selectedFloor} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
+                  </div>
+                  <div style={{display: 'flex', gap: 8}}>
+                    <Button type="primary" onClick={() => setPlanModalOpen(true)}>
+                      添加楼层图纸
+                    </Button>
+                    <Button onClick={handleOpenDeviceModal}>添加设备</Button>
+                  </div>
+                </div>
+
+                <Spin spinning={floorFormLoading}>
+                  <div
+                    style={{
+                      minHeight: 420,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '8px 0 24px',
+                    }}
+                  >
+                    {floorFormData ? (
+                      <Image
+                        style={{width: '72%', maxWidth: 820, minWidth: 280}}
+                        src={floorFormData.floorDrawing || '/logo.png'}
+                        alt={floorFormData.floorName || '楼层图纸'}
+                      />
+                    ) : (
+                      <div style={{color: 'rgba(0,0,0,0.45)'}}>暂无楼层信息</div>
+                    )}
+                  </div>
+                </Spin>
+              </div>
+            </Spin>
+          </Col>
+        </Row>
+      </div>
+
       <Modal
         title="添加图纸"
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handlePlanOk}
-        okButtonProps={{ loading: planSubmitting }}
+        okButtonProps={{loading: planSubmitting}}
       >
-        <Form form={planForm} layout="vertical" initialValues={{ floor: null, deviceCount: null }}>
-          <Form.Item
-            label="选择楼层"
-            name="floor"
-            rules={[{ required: true, message: '请选择楼层' }]}
-          >
+        <Form form={planForm} layout="vertical" initialValues={{floor: null, deviceCount: null}}>
+          <Form.Item label="选择楼层" name="floor" rules={[{required: true, message: '请选择楼层'}]}>
             <Select options={planFloorOptions} />
           </Form.Item>
           <Form.Item label="设备数量" name="deviceCount">
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} style={{width: '100%'}} />
           </Form.Item>
           <Form.Item
             label="上传图片"
             name="image"
             valuePropName="fileList"
             getValueFromEvent={normalizeUpload}
-            rules={[{ required: true, message: '请上传楼层图纸' }]}
+            rules={[{required: true, message: '请上传楼层图纸'}]}
           >
             <Upload
               action="/api/v1/files"
@@ -368,6 +375,7 @@ const BuildingDetailPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
       <Modal
         title="添加设备"
         open={deviceModalOpen}
@@ -393,7 +401,7 @@ const BuildingDetailPage: React.FC = () => {
               ]
         }
       >
-        <Form form={deviceForm} layout="vertical" initialValues={{ powerOff: true }}>
+        <Form form={deviceForm} layout="vertical" initialValues={{powerOff: true}}>
           <Row gutter={16}>
             <Col
               flex="180px"
@@ -421,45 +429,31 @@ const BuildingDetailPage: React.FC = () => {
                 <Switch checkedChildren="开" unCheckedChildren="关" />
               </Form.Item>
             </Col>
+
             <Col flex="auto">
               <Steps
                 size="small"
                 current={deviceStep}
-                items={[{ title: '基础信息' }, { title: '其他信息' }]}
-                style={{ marginBottom: 16 }}
+                items={[{title: '基础信息'}, {title: '其他信息'}]}
+                style={{marginBottom: 16}}
               />
+
               {deviceStep === 0 ? (
                 <>
-                  <Form.Item
-                    label="监狱"
-                    name="prisonId"
-                    rules={[{ required: true, message: '请选择监狱' }]}
-                  >
-                    <Select
-                      options={prisonOptions}
-                      onChange={handleDevicePrisonChange}
-                      placeholder="请选择监狱"
-                    />
+                  <Form.Item label="监狱" name="prisonId" rules={[{required: true, message: '请选择监狱'}]}>
+                    <Select options={prisonOptions} onChange={handleDevicePrisonChange} placeholder="请选择监狱" />
                   </Form.Item>
-                  <Form.Item
-                    label="楼宇"
-                    name="buildingId"
-                    rules={[{ required: true, message: '请选择楼宇' }]}
-                  >
+                  <Form.Item label="楼栋" name="buildingId" rules={[{required: true, message: '请选择楼栋'}]}>
                     <Select
                       options={deviceBuildingOptions}
                       onChange={handleDeviceBuildingChange}
-                      placeholder="请选择楼宇"
+                      placeholder="请选择楼栋"
                       loading={deviceBuildingsLoading}
                       disabled={deviceBuildingsLoading}
-                      notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼宇'}
+                      notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
                     />
                   </Form.Item>
-                  <Form.Item
-                    label="楼层"
-                    name="floorId"
-                    rules={[{ required: true, message: '请选择楼层' }]}
-                  >
+                  <Form.Item label="楼层" name="floorId" rules={[{required: true, message: '请选择楼层'}]}>
                     <Select
                       options={deviceFloorOptions}
                       placeholder="请选择楼层"
@@ -468,53 +462,29 @@ const BuildingDetailPage: React.FC = () => {
                       notFoundContent={deviceFloorsLoading ? '加载中...' : '暂无楼层'}
                     />
                   </Form.Item>
-                  <Form.Item
-                    label="设备编号"
-                    name="deviceCode"
-                    rules={[{ required: true, message: '请输入设备编号' }]}
-                  >
+                  <Form.Item label="设备编号" name="deviceCode" rules={[{required: true, message: '请输入设备编号'}]}>
                     <Input placeholder="请输入设备编号" />
                   </Form.Item>
                 </>
               ) : (
                 <>
-                  <Form.Item
-                    label="全网编号"
-                    name="networkCode"
-                    rules={[{ required: true, message: '请输入全网编号' }]}
-                  >
+                  <Form.Item label="全网编号" name="networkCode" rules={[{required: true, message: '请输入全网编号'}]}>
                     <Input placeholder="请输入全网编号" />
                   </Form.Item>
-                  <Form.Item label="IP" name="ip" rules={[{ required: true, message: '请输入IP' }]}>
-                    <Input placeholder="请输入IP" />
+                  <Form.Item label="IP" name="ip" rules={[{required: true, message: '请输入 IP'}]}>
+                    <Input placeholder="请输入 IP" />
                   </Form.Item>
-                  <Form.Item
-                    label="端口"
-                    name="port"
-                    rules={[{ required: true, message: '请输入端口' }]}
-                  >
-                    <InputNumber min={0} max={65535} style={{ width: '100%' }} />
+                  <Form.Item label="端口" name="port" rules={[{required: true, message: '请输入端口'}]}>
+                    <InputNumber min={0} max={65535} style={{width: '100%'}} />
                   </Form.Item>
-                  <Form.Item
-                    label="功率调节"
-                    name="power"
-                    rules={[{ required: true, message: '请输入功率调节' }]}
-                  >
-                    <InputNumber min={0} style={{ width: '100%' }} />
+                  <Form.Item label="功率调节" name="power" rules={[{required: true, message: '请输入功率调节'}]}>
+                    <InputNumber min={0} style={{width: '100%'}} />
                   </Form.Item>
-                  <Form.Item
-                    label="开始时间"
-                    name="startTime"
-                    rules={[{ required: true, message: '请选择开始时间' }]}
-                  >
-                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                  <Form.Item label="开始时间" name="startTime" rules={[{required: true, message: '请选择开始时间'}]}>
+                    <TimePicker format="HH:mm" style={{width: '100%'}} />
                   </Form.Item>
-                  <Form.Item
-                    label="停止时间"
-                    name="stopTime"
-                    rules={[{ required: true, message: '请选择停止时间' }]}
-                  >
-                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                  <Form.Item label="停止时间" name="stopTime" rules={[{required: true, message: '请选择停止时间'}]}>
+                    <TimePicker format="HH:mm" style={{width: '100%'}} />
                   </Form.Item>
                 </>
               )}

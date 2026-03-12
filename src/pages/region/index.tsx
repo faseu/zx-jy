@@ -26,7 +26,7 @@ const RegionPage: React.FC = () => {
 
   return (
     <PageContainer title={false}>
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 24, alignItems: 'center',justifyContent: 'center' }}>
         <div style={{ flex: 1, minWidth: 0 }} className="region-table-wrap">
           <Table<ProvinceVO>
             className="region-table"
