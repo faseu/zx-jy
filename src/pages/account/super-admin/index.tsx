@@ -1,29 +1,81 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { Button, Card, Form, Input, Modal, Select, Space, Table, Typography } from 'antd';
+import { CaretDownOutlined } from '@ant-design/icons';
+import { Button, Col, Form, Input, Modal, Row, Select, Space, Table, Tree } from 'antd';
+import type { DataNode } from 'antd/es/tree';
 import React, { useState } from 'react';
-
-const { Paragraph } = Typography;
+import styles from './index.less';
 
 type AdminRecord = {
   username: string;
   nickname: string;
+  area: string;
 };
 
 const dataSource: AdminRecord[] = [
-  { username: 'super_admin_01', nickname: '总控' },
-  { username: 'super_admin_02', nickname: '审计' },
-  { username: 'super_admin_03', nickname: '安全' },
-  { username: 'super_admin_04', nickname: '平台' },
-  { username: 'super_admin_05', nickname: '运维' },
-  { username: 'super_admin_06', nickname: '监控' },
-  { username: 'super_admin_07', nickname: '数据' },
-  { username: 'super_admin_08', nickname: '权限' },
-  { username: 'super_admin_09', nickname: '备援' },
-  { username: 'super_admin_10', nickname: '应急' },
+  { username: '101', nickname: 'mohammed', area: '全国' },
+  { username: '102', nickname: 'Ahmed', area: 'Riyadh、Buraydah' },
+  { username: '103', nickname: 'mohammed', area: '全国' },
+  { username: '104', nickname: 'Ahmed', area: 'Riyadh、Buraydah' },
 ];
 
 const areaOptions = ['华北', '华东', '华南', '华中', '西南', '西北'];
 const featureOptions = ['查看', '编辑', '导出', '审批', '审计', '配置'];
+
+const orgTreeData: DataNode[] = [
+  {
+    title: '一级组织 1',
+    key: '1',
+    children: [
+      {
+        title: '二级组织',
+        key: '1-1',
+        children: [
+          {
+            title: '三级组织',
+            key: '1-1-1',
+            children: [
+              { title: '四级组织 1', key: '1-1-1-1' },
+              { title: '四级组织 2', key: '1-1-1-2' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    title: '一级组织 2',
+    key: '2',
+    children: [
+      {
+        title: '二级组织 1',
+        key: '2-1',
+        children: [{ title: '三级组织', key: '2-1-1' }],
+      },
+      {
+        title: '二级组织 2',
+        key: '2-2',
+        children: [
+          { title: '三级组织 1', key: '2-2-1' },
+          { title: '三级组织 2', key: '2-2-2' },
+        ],
+      },
+    ],
+  },
+  {
+    title: '一级组织 3',
+    key: '3',
+    children: [
+      {
+        title: '二级组织',
+        key: '3-1',
+        children: [
+          { title: '三级组织 1', key: '3-1-1' },
+          { title: '三级组织 2', key: '3-1-2' },
+        ],
+      },
+    ],
+  },
+];
 
 const SuperAdminListPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,72 +93,83 @@ const SuperAdminListPage: React.FC = () => {
   };
 
   return (
-    <PageContainer
-      title="超级管理员"
-      extra={[
-        <Button key="add" type="primary" onClick={() => setIsModalOpen(true)}>
-          添加用户
-        </Button>,
-      ]}
-    >
-      <Card>
-        <Paragraph type="secondary">列表字段与操作待配置。</Paragraph>
-        <Table<AdminRecord>
-          rowKey="username"
-          dataSource={dataSource}
-          pagination={false}
-          columns={[
-            {
-              title: '用户名',
-              dataIndex: 'username',
-            },
-            {
-              title: '昵称',
-              dataIndex: 'nickname',
-            },
-            {
-              title: '管理区域',
-              key: 'manage-area',
-              render: () => (
-                <Space size="small">
-                  <Button type="link">管理区域</Button>
-                </Space>
-              ),
-            },
-            {
-              title: '功能授权',
-              key: 'feature-auth',
-              render: () => (
-                <Space size="small">
-                  <Button type="link">功能授权</Button>
-                </Space>
-              ),
-            },
-            {
-              title: '密码修改',
-              key: 'password-reset',
-              render: () => (
-                <Space size="small">
-                  <Button type="link">密码修改</Button>
-                </Space>
-              ),
-            },
-            {
-              title: '账号移除',
-              key: 'account-remove',
-              render: () => (
-                <Space size="small">
-                  <Button type="link" danger>
-                    账号移除
-                  </Button>
-                </Space>
-              ),
-            },
-          ]}
-        />
-      </Card>
+    <PageContainer title={false}>
+      <div className={styles.pageShell}>
+        <Row gutter={0} className={styles.contentRow}>
+          <Col xs={24} xl={6} className={styles.leftPane}>
+            <Tree
+              className={styles.orgTree}
+              treeData={orgTreeData}
+              defaultExpandAll
+              selectable={false}
+              switcherIcon={({ expanded }) => <CaretDownOutlined rotate={expanded ? 0 : -90} />}
+            />
+          </Col>
+          <Col xs={24} xl={18} className={styles.rightPane}>
+            <div className={styles.headerRow}>
+              <h2 className={styles.pageTitle}>超级管理员</h2>
+              <Button className={styles.backButton}>返回</Button>
+            </div>
+            <div className={styles.tableWrap}>
+              <Table<AdminRecord>
+                className={styles.adminTable}
+                rowKey="username"
+                dataSource={dataSource}
+                pagination={false}
+                columns={[
+                  {
+                    title: '账户名',
+                    dataIndex: 'username',
+                  },
+                  {
+                    title: '昵称',
+                    dataIndex: 'nickname',
+                  },
+                  {
+                    title: '管理区域',
+                    dataIndex: 'area',
+                    render: (value) => <Button type="link">{value}</Button>,
+                  },
+                  {
+                    title: '功能授权',
+                    key: 'feature-auth',
+                    render: () => (
+                      <Space size="small">
+                        <Button type="link">全部权限</Button>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: '密码修改',
+                    key: 'password-reset',
+                    render: () => (
+                      <Space size="small">
+                        <Button type="link">密码修改</Button>
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: '账号删除',
+                    key: 'account-remove',
+                    render: () => (
+                      <Space size="small">
+                        <Button type="link" danger>
+                          删除
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
+              <Button type="primary" onClick={() => setIsModalOpen(true)} className={styles.createButton}>
+                新建
+              </Button>
+            </div>
+          </Col>
+        </Row>
+      </div>
       <Modal
-        title="添加用户"
+        title="新建用户"
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
@@ -114,43 +177,23 @@ const SuperAdminListPage: React.FC = () => {
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            label="账号名"
-            name="username"
-            rules={[{ required: true, message: '请输入账号名' }]}
-          >
+          <Form.Item label="账号名" name="username" rules={[{ required: true, message: '请输入账号名' }]}>
             <Input placeholder="请输入账号名" />
           </Form.Item>
-          <Form.Item
-            label="昵称"
-            name="nickname"
-            rules={[{ required: true, message: '请输入昵称' }]}
-          >
+          <Form.Item label="昵称" name="nickname" rules={[{ required: true, message: '请输入昵称' }]}>
             <Input placeholder="请输入昵称" />
           </Form.Item>
-          <Form.Item
-            label="密码"
-            name="password"
-            rules={[{ required: true, message: '请输入密码' }]}
-          >
+          <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password placeholder="请输入密码" />
           </Form.Item>
-          <Form.Item
-            label="管理区域"
-            name="areas"
-            rules={[{ required: true, message: '请选择管理区域' }]}
-          >
+          <Form.Item label="管理区域" name="areas" rules={[{ required: true, message: '请选择管理区域' }]}>
             <Select
               mode="multiple"
               placeholder="请选择管理区域"
               options={areaOptions.map((value) => ({ label: value, value }))}
             />
           </Form.Item>
-          <Form.Item
-            label="功能授权"
-            name="features"
-            rules={[{ required: true, message: '请选择功能授权' }]}
-          >
+          <Form.Item label="功能授权" name="features" rules={[{ required: true, message: '请选择功能授权' }]}>
             <Select
               mode="multiple"
               placeholder="请选择功能授权"
