@@ -1,5 +1,5 @@
-import {PageContainer} from '@ant-design/pro-components';
-import {history, useParams, useRequest} from '@umijs/max';
+import { PageContainer } from '@ant-design/pro-components';
+import { history, useParams, useRequest } from '@umijs/max';
 import {
   Button,
   Col,
@@ -19,7 +19,7 @@ import {
   Upload,
   message,
 } from 'antd';
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import gb from '@/assets/gb.png';
 import 'ol/ol.css';
 import OlMap from 'ol/Map';
@@ -31,11 +31,11 @@ import VectorSource from 'ol/source/Vector';
 import VectorLayer from 'ol/layer/Vector';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
-import {defaults as defaultInteractions, Select as OlSelect, Translate} from 'ol/interaction';
-import {Circle as CircleStyle, Fill, Stroke, Style, Text} from 'ol/style';
-import {getCenter} from 'ol/extent';
+import { defaults as defaultInteractions, Select as OlSelect, Translate } from 'ol/interaction';
+import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
+import { getCenter } from 'ol/extent';
 import shielder from '@/assets/shielder.png';
-import type {BuildingInfoVO} from '../data.d';
+import type { BuildingInfoVO } from '../data.d';
 import {
   createDevice,
   queryBuildingFloorForm,
@@ -63,8 +63,10 @@ type MarkerActionState = {
 };
 
 const INITIAL_DEVICES: DeviceItem[] = [];
-const POWER_CHANNEL_KEYS = Array.from({length: 18}, (_, index) => `ch${index + 1}`);
-const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, 0])) as Record<string, number>;
+const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
+const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
+  POWER_CHANNEL_KEYS.map((key) => [key, 0])
+) as Record<string, number>;
 
 const BuildingDetailPage: React.FC = () => {
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
@@ -89,41 +91,52 @@ const BuildingDetailPage: React.FC = () => {
   const [planForm] = Form.useForm();
   const [deviceForm] = Form.useForm();
 
-  const params = useParams<{id: string; prisonId: string}>();
+  const params = useParams<{ id: string; prisonId: string }>();
   const buildingId = params.id ?? '';
   const prisonId = params.prisonId ?? '';
 
-  const {data: detailData, loading: detailLoading} = useRequest(() => queryBuildingInfo(buildingId), {
-    ready: Boolean(buildingId),
-    refreshDeps: [buildingId],
-  });
-
-  const {data: floorData, refresh: refreshFloors} = useRequest(() => queryBuildingFloors(buildingId), {
-    ready: Boolean(buildingId),
-    refreshDeps: [buildingId],
-  });
-  const {data: floorFormData, loading: floorFormLoading, refresh: refreshFloorForm} = useRequest(
-    () => queryBuildingFloorForm(selectedFloorId as number),
+  const { data: detailData, loading: detailLoading } = useRequest(
+    () => queryBuildingInfo(buildingId),
     {
-      ready: Boolean(selectedFloorId),
-      refreshDeps: [selectedFloorId],
-    },
+      ready: Boolean(buildingId),
+      refreshDeps: [buildingId],
+    }
   );
 
-  const {data: prisonDetail} = useRequest(() => queryPrisonInfo(prisonId), {
+  const { data: floorData, refresh: refreshFloors } = useRequest(
+    () => queryBuildingFloors(buildingId),
+    {
+      ready: Boolean(buildingId),
+      refreshDeps: [buildingId],
+    }
+  );
+  const {
+    data: floorFormData,
+    loading: floorFormLoading,
+    refresh: refreshFloorForm,
+  } = useRequest(() => queryBuildingFloorForm(selectedFloorId as number), {
+    ready: Boolean(selectedFloorId),
+    refreshDeps: [selectedFloorId],
+  });
+
+  const { data: prisonDetail } = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
     refreshDeps: [prisonId],
   });
 
-  const {data: deviceBuildingsData, loading: deviceBuildingsLoading} = useRequest(
+  const { data: deviceBuildingsData, loading: deviceBuildingsLoading } = useRequest(
     () => queryPrisonBuildings(devicePrisonId as number),
     {
       ready: Boolean(devicePrisonId),
       refreshDeps: [devicePrisonId],
-    },
+    }
   );
 
-  const {data: floorDevicePageData, loading: floorDevicesLoading, refresh: refreshFloorDevices} = useRequest(
+  const {
+    data: floorDevicePageData,
+    loading: floorDevicesLoading,
+    refresh: refreshFloorDevices,
+  } = useRequest(
     () =>
       queryFloorDevicePage({
         floorId: selectedFloorId as number,
@@ -133,7 +146,7 @@ const BuildingDetailPage: React.FC = () => {
     {
       ready: Boolean(selectedFloorId),
       refreshDeps: [selectedFloorId],
-    },
+    }
   );
 
   const detail: BuildingInfoVO | undefined = detailData;
@@ -159,7 +172,9 @@ const BuildingDetailPage: React.FC = () => {
       value: Number(item.id),
     })) ?? [];
 
-  const currentFloorFromList = floorData?.find((item: any) => Number(item.id) === Number(selectedFloorId));
+  const currentFloorFromList = floorData?.find(
+    (item: any) => Number(item.id) === Number(selectedFloorId)
+  );
   const currentFloorDrawing = floorFormData?.floorDrawing ?? currentFloorFromList?.floorDrawing;
   const currentFloorName = floorFormData?.floorName;
   const currentFloorDeviceNumber = floorFormData?.deviceNumber ?? 0;
@@ -197,8 +212,8 @@ const BuildingDetailPage: React.FC = () => {
     setDevices((prev) =>
       prev.map((item) => {
         if (item.id !== deviceId) return item;
-        return {...item, position: targetCoord};
-      }),
+        return { ...item, position: targetCoord };
+      })
     );
     setMarkerAction(null);
     void updateDeviceXY(deviceId, String(targetCoord[0]), String(targetCoord[1]))
@@ -254,7 +269,7 @@ const BuildingDetailPage: React.FC = () => {
       const containerHeight = Math.max(mapContainerRef.current.clientHeight, 1);
       const initialResolution = Math.max(
         imageWidth / containerWidth,
-        imageHeight / containerHeight,
+        imageHeight / containerHeight
       );
       const fitByLongestEdge = (targetMap: OlMap) => {
         const size = targetMap.getSize();
@@ -289,12 +304,12 @@ const BuildingDetailPage: React.FC = () => {
           return new Style({
             image: new CircleStyle({
               radius: 14,
-              fill: new Fill({color: '#1677ff'}),
-              stroke: new Stroke({color: '#ffffff', width: 2}),
+              fill: new Fill({ color: '#1677ff' }),
+              stroke: new Stroke({ color: '#ffffff', width: 2 }),
             }),
             text: new Text({
               text: label,
-              fill: new Fill({color: '#ffffff'}),
+              fill: new Fill({ color: '#ffffff' }),
               font: 'bold 14px sans-serif',
             }),
           });
@@ -304,7 +319,7 @@ const BuildingDetailPage: React.FC = () => {
       const map = new OlMap({
         target: mapContainerRef.current,
         layers: [imageLayer, markerLayer],
-        interactions: defaultInteractions({doubleClickZoom: false}),
+        interactions: defaultInteractions({ doubleClickZoom: false }),
         view: new View({
           projection,
           center: getCenter(extent),
@@ -376,7 +391,9 @@ const BuildingDetailPage: React.FC = () => {
       });
       map.on('click', (evt: any) => {
         if (placingDeviceIdRef.current) return;
-        const hasFeature = map.hasFeatureAtPixel(evt.pixel, {layerFilter: (layer: any) => layer === markerLayer});
+        const hasFeature = map.hasFeatureAtPixel(evt.pixel, {
+          layerFilter: (layer: any) => layer === markerLayer,
+        });
         if (!hasFeature) {
           setMarkerAction(null);
         }
@@ -384,12 +401,14 @@ const BuildingDetailPage: React.FC = () => {
       map.on('moveend', () => {
         setMarkerAction((prev) => {
           if (!prev) return prev;
-          const feature = markerSource.getFeatures().find((item: any) => Number(item.get('deviceId')) === prev.deviceId);
+          const feature = markerSource
+            .getFeatures()
+            .find((item: any) => Number(item.get('deviceId')) === prev.deviceId);
           const geometry = feature?.getGeometry();
           if (!(geometry instanceof Point)) return null;
           const pixel = map.getPixelFromCoordinate(geometry.getCoordinates());
           if (!pixel) return null;
-          return {...prev, pixel: [pixel[0], pixel[1]]};
+          return { ...prev, pixel: [pixel[0], pixel[1]] };
         });
       });
 
@@ -461,7 +480,9 @@ const BuildingDetailPage: React.FC = () => {
 
   useEffect(() => {
     setDevices((prev) => {
-      const previousPositionMap = new Map<number, DevicePosition | null>(prev.map((item) => [item.id, item.position]));
+      const previousPositionMap = new Map<number, DevicePosition | null>(
+        prev.map((item) => [item.id, item.position])
+      );
       const next = floorDeviceRows.map((item: any, index: number) => {
         const parsedId = Number(item?.id ?? item?.deviceId);
         const id = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1;
@@ -475,7 +496,9 @@ const BuildingDetailPage: React.FC = () => {
         return {
           id,
           label,
-          position: previousPositionMap.has(id) ? previousPositionMap.get(id) ?? null : persistedPosition,
+          position: previousPositionMap.has(id)
+            ? (previousPositionMap.get(id) ?? null)
+            : persistedPosition,
         };
       });
       return next;
@@ -511,7 +534,7 @@ const BuildingDetailPage: React.FC = () => {
       powerOff: true,
       ...Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, undefined])),
     });
-    setPowerChannelValues({...INITIAL_POWER_CHANNEL_VALUES});
+    setPowerChannelValues({ ...INITIAL_POWER_CHANNEL_VALUES });
     setDeviceModalOpen(true);
   };
 
@@ -572,11 +595,15 @@ const BuildingDetailPage: React.FC = () => {
     try {
       await deviceForm.validateFields(['networkCode', 'ip', 'port', 'startTime', 'stopTime']);
       const values = deviceForm.getFieldsValue(true);
-      const formatTime = (value: any) => (value && typeof value.format === 'function' ? value.format('HH:mm') : value);
-      const channelPayload = POWER_CHANNEL_KEYS.reduce((acc, key) => {
-        acc[key] = powerChannelValues[key] ?? 0;
-        return acc;
-      }, {} as Record<string, any>);
+      const formatTime = (value: any) =>
+        value && typeof value.format === 'function' ? value.format('HH:mm') : value;
+      const channelPayload = POWER_CHANNEL_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = powerChannelValues[key] ?? 0;
+          return acc;
+        },
+        {} as Record<string, any>
+      );
       await createDevice({
         deviceNo: values.deviceCode,
         deviceName: values.deviceCode,
@@ -607,16 +634,16 @@ const BuildingDetailPage: React.FC = () => {
   const handleDevicePrisonChange = (value: number | null) => {
     setDevicePrisonId(value ?? null);
     setDeviceBuildingId(null);
-    deviceForm.setFieldsValue({buildingId: undefined, floorId: undefined});
+    deviceForm.setFieldsValue({ buildingId: undefined, floorId: undefined });
   };
 
   const handleDeviceBuildingChange = (value: number | null) => {
     setDeviceBuildingId(value ?? null);
-    deviceForm.setFieldsValue({floorId: undefined});
+    deviceForm.setFieldsValue({ floorId: undefined });
   };
 
   const handleResetMapDevices = () => {
-    setDevices((prev) => prev.map((item) => ({...item, position: null})));
+    setDevices((prev) => prev.map((item) => ({ ...item, position: null })));
     setMarkerAction(null);
     setPlacingDeviceId(null);
   };
@@ -633,7 +660,7 @@ const BuildingDetailPage: React.FC = () => {
       title: `设备详情 - ${row?.deviceName ?? row?.deviceNo ?? deviceId}`,
       width: 520,
       content: (
-        <div style={{lineHeight: 1.9}}>
+        <div style={{ lineHeight: 1.9 }}>
           <div>设备ID: {row?.id ?? deviceId}</div>
           <div>设备编号: {row?.deviceNo ?? '-'}</div>
           <div>设备名称: {row?.deviceName ?? '-'}</div>
@@ -657,18 +684,18 @@ const BuildingDetailPage: React.FC = () => {
   };
 
   const stats = [
-    {label: '建筑层数', value: detail?.floorNum ?? 0},
-    {label: '设备', value: detail?.totalDevices ?? 0},
-    {label: '在线', value: detail?.onlineDevices ?? 0},
-    {label: '离线', value: detail?.offlineDevices ?? 0},
-    {label: '告警', value: detail?.totalAlarms ?? 0},
+    { label: '建筑层数', value: detail?.floorNum ?? 0 },
+    { label: '设备', value: detail?.totalDevices ?? 0 },
+    { label: '在线', value: detail?.onlineDevices ?? 0 },
+    { label: '离线', value: detail?.offlineDevices ?? 0 },
+    { label: '告警', value: detail?.totalAlarms ?? 0 },
   ];
 
   return (
     <PageContainer title={false}>
-      <div style={{background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)'}}>
+      <div style={{ background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)' }}>
         <Row gutter={0}>
-          <Col xs={24} xl={6} style={{overflow: 'hidden'}}>
+          <Col xs={24} xl={6} style={{ overflow: 'hidden' }}>
             <div
               style={{
                 position: 'relative',
@@ -681,15 +708,26 @@ const BuildingDetailPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{position: 'absolute', top: 12, right: 12}}>编辑</Button>
-              <div style={{fontSize: 48, color: '#111', textAlign: 'center'}}>{detail?.name || 'AABB楼'}</div>
+              <Button style={{ position: 'absolute', top: 12, right: 12 }}>编辑</Button>
+              <div
+                style={{
+                  fontSize: 48,
+                  color: '#111',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  WebkitTextStroke: '1px #fff',
+                  textShadow: '0 0 1px #fff',
+                }}
+              >
+                {detail?.name || ''}
+              </div>
             </div>
           </Col>
 
           <Col xs={24} xl={18}>
             <Spin spinning={detailLoading || floorFormLoading}>
-              <div style={{minHeight: 680, padding: '18px 26px'}}>
-                <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+              <div style={{ minHeight: 680, padding: '18px 26px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <Button onClick={() => history.back()}>返回</Button>
                 </div>
 
@@ -702,21 +740,41 @@ const BuildingDetailPage: React.FC = () => {
                   }}
                 >
                   {stats.map((item) => (
-                    <div key={item.label} style={{textAlign: 'center'}}>
-                      <div style={{fontSize: '42px', lineHeight: 1.1}}>{item.value}</div>
-                      <div style={{marginTop: 4, fontSize: 'clamp(18px, 2.2vw, 30px)', color: '#111'}}>{item.label}</div>
+                    <div key={item.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '42px', lineHeight: 1.1 }}>{item.value}</div>
+                      <div
+                        style={{
+                          marginTop: 4,
+                          fontSize: 'clamp(18px, 2.2vw, 30px)',
+                          color: '#111',
+                        }}
+                      >
+                        {item.label}
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <Divider style={{margin: '18px 0 22px'}} />
+                <Divider style={{ margin: '18px 0 22px' }} />
 
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                    <span style={{fontSize: 30, color: '#111'}}>当前楼层:</span>
-                    <Select value={Number(selectedFloorId)} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 30, color: '#111' }}>当前楼层:</span>
+                    <Select
+                      value={Number(selectedFloorId)}
+                      onChange={handleFloorChange}
+                      options={floorOptions}
+                      style={{ width: 160 }}
+                    />
                   </div>
-                  <div style={{display: 'flex', gap: 8}}>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <Button type="primary" onClick={handleOpenPlanModal}>
                       添加楼层图纸
                     </Button>
@@ -748,10 +806,21 @@ const BuildingDetailPage: React.FC = () => {
                     onDrop={handleDeviceDrop}
                   >
                     {currentFloorDrawing && isImageDrawing ? (
-                      <div ref={mapContainerRef} style={{width: '100%', height: '100%'}} />
+                      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
                     ) : (
-                      <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                        <Empty description={currentFloorDrawing ? '当前图纸格式不支持地图渲染' : '当前楼层暂无图纸'} />
+                      <div
+                        style={{
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Empty
+                          description={
+                            currentFloorDrawing ? '当前图纸格式不支持地图渲染' : '当前楼层暂无图纸'
+                          }
+                        />
                       </div>
                     )}
                     {drawingLoading ? (
@@ -801,12 +870,21 @@ const BuildingDetailPage: React.FC = () => {
                           zIndex: 4,
                         }}
                       >
-                        <div style={{fontSize: 12, color: 'rgba(0,0,0,0.65)', marginBottom: 8}}>设备 {markerAction.label}</div>
-                        <div style={{display: 'flex', gap: 8}}>
-                          <Button size="small" onClick={() => handleViewDeviceDetail(markerAction.deviceId)}>
+                        <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.65)', marginBottom: 8 }}>
+                          设备 {markerAction.label}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button
+                            size="small"
+                            onClick={() => handleViewDeviceDetail(markerAction.deviceId)}
+                          >
                             查看详情
                           </Button>
-                          <Button size="small" type="primary" onClick={() => handleAdjustDevicePosition(markerAction.deviceId)}>
+                          <Button
+                            size="small"
+                            type="primary"
+                            onClick={() => handleAdjustDevicePosition(markerAction.deviceId)}
+                          >
                             修改位置
                           </Button>
                         </div>
@@ -825,15 +903,24 @@ const BuildingDetailPage: React.FC = () => {
                       flexDirection: 'column',
                     }}
                   >
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
-                      <div style={{fontWeight: 600}}>设备列表</div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600 }}>设备列表</div>
                       <Button type="link" size="small" onClick={handleResetMapDevices}>
                         复位
                       </Button>
                     </div>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <Spin spinning={floorDevicesLoading}>
-                        {devices.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无设备" /> : null}
+                        {devices.length === 0 ? (
+                          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无设备" />
+                        ) : null}
                       </Spin>
                       {devices.map((item) => (
                         <div
@@ -845,7 +932,10 @@ const BuildingDetailPage: React.FC = () => {
                           }}
                           onClick={() => setPlacingDeviceId(item.id)}
                           style={{
-                            border: placingDeviceId === item.id ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                            border:
+                              placingDeviceId === item.id
+                                ? '1px solid #1677ff'
+                                : '1px solid #d9d9d9',
                             borderRadius: 8,
                             padding: '8px 10px',
                             cursor: 'grab',
@@ -853,7 +943,7 @@ const BuildingDetailPage: React.FC = () => {
                             background: '#fff',
                           }}
                         >
-                          <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span
                               style={{
                                 width: 20,
@@ -869,9 +959,9 @@ const BuildingDetailPage: React.FC = () => {
                             >
                               {item.label}
                             </span>
-                            <span style={{fontSize: 13}}>设备 {item.label}</span>
+                            <span style={{ fontSize: 13 }}>设备 {item.label}</span>
                           </div>
-                          <div style={{marginTop: 6, fontSize: 12, color: 'rgba(0,0,0,0.45)'}}>
+                          <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
                             {item.position ? '已放置，可再次拖动' : '未放置，拖到地图'}
                           </div>
                         </div>
@@ -890,10 +980,14 @@ const BuildingDetailPage: React.FC = () => {
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handlePlanOk}
-        okButtonProps={{loading: planSubmitting}}
+        okButtonProps={{ loading: planSubmitting }}
       >
-        <Form form={planForm} layout="vertical" initialValues={{floor: null}}>
-          <Form.Item label="选择楼层" name="floor" rules={[{required: true, message: '请选择楼层'}]}>
+        <Form form={planForm} layout="vertical" initialValues={{ floor: null }}>
+          <Form.Item
+            label="选择楼层"
+            name="floor"
+            rules={[{ required: true, message: '请选择楼层' }]}
+          >
             <Select options={floorOptions} />
           </Form.Item>
           <Form.Item
@@ -901,7 +995,7 @@ const BuildingDetailPage: React.FC = () => {
             name="image"
             valuePropName="fileList"
             getValueFromEvent={normalizeUpload}
-            rules={[{required: true, message: '请上传楼层图纸'}]}
+            rules={[{ required: true, message: '请上传楼层图纸' }]}
           >
             <Upload
               action="/api/v1/files"
@@ -943,7 +1037,12 @@ const BuildingDetailPage: React.FC = () => {
               ]
         }
       >
-        <Form form={deviceForm} layout="horizontal" labelCol={{span: 3}} initialValues={{powerOff: true}}>
+        <Form
+          form={deviceForm}
+          layout="horizontal"
+          labelCol={{ span: 3 }}
+          initialValues={{ powerOff: true }}
+        >
           <Row gutter={16}>
             <Col
               flex="180px"
@@ -967,9 +1066,9 @@ const BuildingDetailPage: React.FC = () => {
                   overflow: 'hidden',
                 }}
               >
-                <img src={shielder} alt="" width={164} height={164}/>
+                <img src={shielder} alt="" width={164} height={164} />
               </div>
-              <Form.Item  name="powerOff" valuePropName="checked">
+              <Form.Item name="powerOff" valuePropName="checked">
                 <Switch checkedChildren="开" unCheckedChildren="关" />
               </Form.Item>
             </Col>
@@ -978,16 +1077,29 @@ const BuildingDetailPage: React.FC = () => {
               <Steps
                 size="small"
                 current={deviceStep}
-                items={[{title: '基础信息'}, {title: '其他信息'}]}
-                style={{marginBottom: 16}}
+                items={[{ title: '基础信息' }, { title: '其他信息' }]}
+                style={{ marginBottom: 16 }}
               />
 
               {deviceStep === 0 ? (
                 <>
-                  <Form.Item label="监狱" name="prisonId" rules={[{required: true, message: '请选择监狱'}]}>
-                    <Select options={prisonOptions} disabled onChange={handleDevicePrisonChange} placeholder="请选择监狱" />
+                  <Form.Item
+                    label="监狱"
+                    name="prisonId"
+                    rules={[{ required: true, message: '请选择监狱' }]}
+                  >
+                    <Select
+                      options={prisonOptions}
+                      disabled
+                      onChange={handleDevicePrisonChange}
+                      placeholder="请选择监狱"
+                    />
                   </Form.Item>
-                  <Form.Item label="楼栋" name="buildingId" rules={[{required: true, message: '请选择楼栋'}]}>
+                  <Form.Item
+                    label="楼栋"
+                    name="buildingId"
+                    rules={[{ required: true, message: '请选择楼栋' }]}
+                  >
                     <Select
                       options={deviceBuildingOptions}
                       onChange={handleDeviceBuildingChange}
@@ -997,43 +1109,65 @@ const BuildingDetailPage: React.FC = () => {
                       notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
                     />
                   </Form.Item>
-                  <Form.Item label="楼层" name="floorId" rules={[{required: true, message: '请选择楼层'}]}>
-                    <Select
-                      options={floorOptions}
-                      placeholder="请选择楼层"
-                      disabled
-                    />
+                  <Form.Item
+                    label="楼层"
+                    name="floorId"
+                    rules={[{ required: true, message: '请选择楼层' }]}
+                  >
+                    <Select options={floorOptions} placeholder="请选择楼层" disabled />
                   </Form.Item>
-                  <Form.Item label="设备编号" name="deviceCode" rules={[{required: true, message: '请输入设备编号'}]}>
-                    <InputNumber min={1} placeholder="请输入设备编号" style={{width: '100%'}} />
+                  <Form.Item
+                    label="设备编号"
+                    name="deviceCode"
+                    rules={[{ required: true, message: '请输入设备编号' }]}
+                  >
+                    <InputNumber min={1} placeholder="请输入设备编号" style={{ width: '100%' }} />
                   </Form.Item>
                 </>
               ) : (
                 <>
-                  <Form.Item label="全网编号" name="networkCode" rules={[{required: true, message: '请输入全网编号'}]}>
+                  <Form.Item
+                    label="全网编号"
+                    name="networkCode"
+                    rules={[{ required: true, message: '请输入全网编号' }]}
+                  >
                     <Input placeholder="请输入全网编号" />
                   </Form.Item>
-                  <Form.Item label="IP" name="ip" rules={[{required: true, message: '请输入 IP'}]}>
+                  <Form.Item
+                    label="IP"
+                    name="ip"
+                    rules={[{ required: true, message: '请输入 IP' }]}
+                  >
                     <Input placeholder="请输入 IP" />
                   </Form.Item>
-                  <Form.Item label="端口" name="port" rules={[{required: true, message: '请输入端口'}]}>
-                    <InputNumber min={0} max={65535} style={{width: '100%'}} />
+                  <Form.Item
+                    label="端口"
+                    name="port"
+                    rules={[{ required: true, message: '请输入端口' }]}
+                  >
+                    <InputNumber min={0} max={65535} style={{ width: '100%' }} />
                   </Form.Item>
                   <Form.Item label="功率调节">
                     <Row gutter={[12, 8]}>
                       {POWER_CHANNEL_KEYS.map((key, index) => (
                         <Col span={8} key={key}>
-                          <Form.Item name={key} label={`CH${index + 1}`} style={{marginBottom: 0}}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
-                              <span style={{minWidth: 24, textAlign: 'right'}}>{powerChannelValues[key] ?? 0}</span>
+                          <Form.Item
+                            name={key}
+                            label={`CH${index + 1}`}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ minWidth: 24, textAlign: 'right' }}>
+                                {powerChannelValues[key] ?? 0}
+                              </span>
                               <Slider
                                 min={0}
                                 max={100}
-                                style={{flex: 1, margin: 0}}
-                                tooltip={{open: false}}
+                                style={{ flex: 1, margin: 0 }}
+                                tooltip={{ open: false }}
                                 onChange={(value) => {
                                   const nextValue = Array.isArray(value) ? value[0] : value;
-                                  setPowerChannelValues((prev) => ({...prev, [key]: nextValue}));
+                                  setPowerChannelValues((prev) => ({ ...prev, [key]: nextValue }));
                                 }}
                               />
                             </div>
@@ -1042,11 +1176,19 @@ const BuildingDetailPage: React.FC = () => {
                       ))}
                     </Row>
                   </Form.Item>
-                  <Form.Item label="开始时间" name="startTime" rules={[{required: true, message: '请选择开始时间'}]}>
-                    <TimePicker format="HH:mm" style={{width: '100%'}} />
+                  <Form.Item
+                    label="开始时间"
+                    name="startTime"
+                    rules={[{ required: true, message: '请选择开始时间' }]}
+                  >
+                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
                   </Form.Item>
-                  <Form.Item label="停止时间" name="stopTime" rules={[{required: true, message: '请选择停止时间'}]}>
-                    <TimePicker format="HH:mm" style={{width: '100%'}} />
+                  <Form.Item
+                    label="停止时间"
+                    name="stopTime"
+                    rules={[{ required: true, message: '请选择停止时间' }]}
+                  >
+                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
                   </Form.Item>
                 </>
               )}

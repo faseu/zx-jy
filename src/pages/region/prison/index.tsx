@@ -1,9 +1,21 @@
-import {PageContainer} from '@ant-design/pro-components';
-import {history, useParams, useRequest} from '@umijs/max';
-import {Button, Col, Divider, Form, Input, InputNumber, List, Modal, Row, Spin, message} from 'antd';
-import React, {useMemo, useState} from 'react';
-import type {BuildingDetailVO, PrisonInfoVO} from '../data.d';
-import {createBuilding, queryPrisonBuildings, queryPrisonInfo} from '../service';
+import { PageContainer } from '@ant-design/pro-components';
+import { history, useParams, useRequest } from '@umijs/max';
+import {
+  Button,
+  Col,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  List,
+  Modal,
+  Row,
+  Spin,
+  message,
+} from 'antd';
+import React, { useMemo, useState } from 'react';
+import type { BuildingDetailVO, PrisonInfoVO } from '../data.d';
+import { createBuilding, queryPrisonBuildings, queryPrisonInfo } from '../service';
 import gb from '@/assets/gb.png';
 
 type BuildingListItem = BuildingDetailVO & { __isNew?: boolean; id?: number | string };
@@ -16,26 +28,30 @@ const PrisonDetailPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const {data: detailData, loading: detailLoading} = useRequest(() => queryPrisonInfo(prisonId), {
+  const { data: detailData, loading: detailLoading } = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
     refreshDeps: [prisonId],
   });
 
-  const {data: buildingsData, loading: buildingsLoading, refresh: refreshBuildings} = useRequest(
-    () => queryPrisonBuildings(prisonId),
-    {
-      ready: Boolean(prisonId),
-      refreshDeps: [prisonId],
-    },
-  );
+  const {
+    data: buildingsData,
+    loading: buildingsLoading,
+    refresh: refreshBuildings,
+  } = useRequest(() => queryPrisonBuildings(prisonId), {
+    ready: Boolean(prisonId),
+    refreshDeps: [prisonId],
+  });
 
   const detail: PrisonInfoVO | undefined = detailData;
   const buildings: BuildingDetailVO[] = buildingsData ?? [];
 
-  const listData = useMemo<BuildingListItem[]>(() => [...buildings, {id: 'new', __isNew: true}], [buildings]);
+  const listData = useMemo<BuildingListItem[]>(
+    () => [...buildings, { id: 'new', __isNew: true }],
+    [buildings]
+  );
 
   const handleOpenModal = () => {
-    form.setFieldsValue({prisonId: prisonId ? Number(prisonId) : undefined});
+    form.setFieldsValue({ prisonId: prisonId ? Number(prisonId) : undefined });
     setIsModalOpen(true);
   };
 
@@ -53,18 +69,18 @@ const PrisonDetailPage: React.FC = () => {
   };
 
   const stats = [
-    {label: '楼栋', value: detail?.buildingNum ?? 0},
-    {label: '设备', value: detail?.totalDevices ?? 0},
-    {label: '在线', value: detail?.onlineDevices ?? 0},
-    {label: '离线', value: detail?.offlineDevices ?? 0},
-    {label: '告警', value: detail?.totalAlarms ?? 0},
+    { label: '楼栋', value: detail?.buildingNum ?? 0 },
+    { label: '设备', value: detail?.totalDevices ?? 0 },
+    { label: '在线', value: detail?.onlineDevices ?? 0 },
+    { label: '离线', value: detail?.offlineDevices ?? 0 },
+    { label: '告警', value: detail?.totalAlarms ?? 0 },
   ];
 
   return (
     <PageContainer title={false}>
-      <div style={{background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)'}}>
+      <div style={{ background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)' }}>
         <Row gutter={0}>
-          <Col xs={24} xl={6} style={{overflow: 'hidden'}}>
+          <Col xs={24} xl={6} style={{ overflow: 'hidden' }}>
             <div
               style={{
                 position: 'relative',
@@ -77,21 +93,26 @@ const PrisonDetailPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{position: 'absolute', top: 12, right: 12}}>
-                编辑
-              </Button>
-              <div style={{fontSize: 48, color: '#111', textAlign: 'center'}}>
-                {detail?.name || 'Qassim'}
+              <Button style={{ position: 'absolute', top: 12, right: 12 }}>编辑</Button>
+              <div
+                style={{
+                  fontSize: 48,
+                  color: '#111',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  WebkitTextStroke: '1px #fff',
+                  textShadow: '0 0 1px #fff',
+                }}
+              >
+                {detail?.name || ''}
               </div>
             </div>
           </Col>
           <Col xs={24} xl={18}>
             <Spin spinning={detailLoading || buildingsLoading}>
-              <div style={{minHeight: 680, padding: '18px 26px'}}>
-                <div style={{display: 'flex', justifyContent: 'flex-end'}}>
-                  <Button onClick={() => history.back()}>
-                    返回
-                  </Button>
+              <div style={{ minHeight: 680, padding: '18px 26px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button onClick={() => history.back()}>返回</Button>
                 </div>
 
                 <div
@@ -103,23 +124,28 @@ const PrisonDetailPage: React.FC = () => {
                   }}
                 >
                   {stats.map((item) => (
-                    <div key={item.label} style={{textAlign: 'center'}}>
-                      <div style={{fontSize: '42px', lineHeight: 1.1}}>
-                        {item.value}
-                      </div>
+                    <div key={item.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '42px', lineHeight: 1.1 }}>{item.value}</div>
                       <div
-                        style={{marginTop: 4, fontSize: 'clamp(18px, 2.2vw, 30px)', color: '#111'}}>{item.label}</div>
+                        style={{
+                          marginTop: 4,
+                          fontSize: 'clamp(18px, 2.2vw, 30px)',
+                          color: '#111',
+                        }}
+                      >
+                        {item.label}
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <Divider style={{margin: '18px 0 22px'}}/>
+                <Divider style={{ margin: '18px 0 22px' }} />
 
                 <List
-                  grid={{gutter: 12, xs: 1, sm: 2, md: 4, lg: 4, xl: 4, xxl: 4}}
+                  grid={{ gutter: 12, xs: 1, sm: 2, md: 4, lg: 4, xl: 4, xxl: 4 }}
                   dataSource={listData}
                   renderItem={(item, index) => (
-                    <List.Item style={{marginBottom: 0}}>
+                    <List.Item style={{ marginBottom: 0 }}>
                       {item.__isNew ? (
                         <div
                           onClick={handleOpenModal}
@@ -137,8 +163,8 @@ const PrisonDetailPage: React.FC = () => {
                             color: '#d7b8bd',
                           }}
                         >
-                          <div style={{fontSize: 58, lineHeight: 1, marginBottom: 8}}>NEW</div>
-                          <div style={{fontSize: 92, lineHeight: 1, color: '#b9b9b9'}}>+</div>
+                          <div style={{ fontSize: 58, lineHeight: 1, marginBottom: 8 }}>NEW</div>
+                          <div style={{ fontSize: 92, lineHeight: 1, color: '#b9b9b9' }}>+</div>
                         </div>
                       ) : (
                         <div
@@ -159,15 +185,17 @@ const PrisonDetailPage: React.FC = () => {
                             flexDirection: 'column',
                           }}
                         >
-                          <div style={{position: 'absolute', top: 12, left: 24}}>
+                          <div style={{ position: 'absolute', top: 12, left: 24 }}>
                             <Button>编辑</Button>
                           </div>
-                          <div style={{marginTop: 28, textAlign: 'center', color: '#111'}}>
-                            <div style={{fontSize: '38px', lineHeight: 1.2}}>
+                          <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
+                            <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
                               {item.name || '未命名楼栋'}
                             </div>
-                            <div style={{fontSize: '28px', marginTop: 14}}>楼数: {item.floorNum ?? 0}</div>
-                            <div style={{fontSize: '28px', marginTop: 4}}>
+                            <div style={{ fontSize: '28px', marginTop: 14 }}>
+                              楼数: {item.floorNum ?? 0}
+                            </div>
+                            <div style={{ fontSize: '28px', marginTop: 4 }}>
                               设备数: {item.totalDevices ?? 0}
                             </div>
                           </div>
@@ -182,16 +210,44 @@ const PrisonDetailPage: React.FC = () => {
         </Row>
       </div>
 
-      <Modal title="新增楼栋" open={isModalOpen} onOk={handleSubmit} onCancel={() => setIsModalOpen(false)} destroyOnClose>
+      <Modal
+        title="新增楼栋"
+        open={isModalOpen}
+        onOk={handleSubmit}
+        onCancel={() => setIsModalOpen(false)}
+        destroyOnClose
+      >
         <Form form={form} layout="vertical">
-          <Form.Item label="楼栋名称" name="name" rules={[{required: true, message: '请输入楼栋名称'}]}>
+          <Form.Item
+            label="楼栋名称"
+            name="name"
+            rules={[{ required: true, message: '请输入楼栋名称' }]}
+          >
             <Input placeholder="请输入楼栋名称" />
           </Form.Item>
-          <Form.Item label="地上楼层数" name="groundFloorNum" rules={[{required: true, message: '请输入地上楼层数'}]}>
-            <InputNumber placeholder="请输入地上楼层数" style={{width: '100%'}} min={0} precision={0} />
+          <Form.Item
+            label="地上楼层数"
+            name="groundFloorNum"
+            rules={[{ required: true, message: '请输入地上楼层数' }]}
+          >
+            <InputNumber
+              placeholder="请输入地上楼层数"
+              style={{ width: '100%' }}
+              min={0}
+              precision={0}
+            />
           </Form.Item>
-          <Form.Item label="地下楼层数" name="undergroundFloorNum" rules={[{required: true, message: '请输入地下楼层数'}]}>
-            <InputNumber placeholder="请输入地下楼层数" style={{width: '100%'}} min={0} precision={0} />
+          <Form.Item
+            label="地下楼层数"
+            name="undergroundFloorNum"
+            rules={[{ required: true, message: '请输入地下楼层数' }]}
+          >
+            <InputNumber
+              placeholder="请输入地下楼层数"
+              style={{ width: '100%' }}
+              min={0}
+              precision={0}
+            />
           </Form.Item>
           <Form.Item name="prisonId" hidden>
             <Input />
