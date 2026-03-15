@@ -44,6 +44,7 @@ import {
   queryFloorDevicePage,
   queryPrisonBuildings,
   queryPrisonInfo,
+  updateDeviceXY,
   updateFloorDrawing,
 } from '../service';
 
@@ -53,6 +54,12 @@ type DeviceItem = {
   id: number;
   label: string;
   position: DevicePosition | null;
+};
+
+type MarkerActionState = {
+  deviceId: number;
+  label: string;
+  pixel: [number, number];
 };
 
 const INITIAL_DEVICES: DeviceItem[] = [];
@@ -72,7 +79,9 @@ const BuildingDetailPage: React.FC = () => {
     ...INITIAL_POWER_CHANNEL_VALUES,
   });
   const [placingDeviceId, setPlacingDeviceId] = useState<number | null>(null);
+  const [markerAction, setMarkerAction] = useState<MarkerActionState | null>(null);
   const [drawingLoading, setDrawingLoading] = useState(false);
+  const [markerSyncVersion, setMarkerSyncVersion] = useState(0);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OlMap | null>(null);
   const markerSourceRef = useRef<VectorSource | null>(null);
@@ -191,6 +200,14 @@ const BuildingDetailPage: React.FC = () => {
         return {...item, position: targetCoord};
       }),
     );
+    setMarkerAction(null);
+    void updateDeviceXY(deviceId, String(targetCoord[0]), String(targetCoord[1]))
+      .then(() => {
+        message.success('设备位置已更新');
+      })
+      .catch(() => {
+        message.error('设备坐标保存失败，请重试');
+      });
     setPlacingDeviceId(null);
   };
 
@@ -217,6 +234,7 @@ const BuildingDetailPage: React.FC = () => {
     let resizeHandler: (() => void) | null = null;
     if (!currentFloorDrawing || !isImageDrawing) {
       setDrawingLoading(false);
+      setMarkerSyncVersion((prev) => prev + 1);
       if (mapRef.current) {
         mapRef.current.setTarget(undefined);
         mapRef.current = null;
@@ -309,7 +327,34 @@ const BuildingDetailPage: React.FC = () => {
       };
       window.addEventListener('resize', resizeHandler);
 
-      const selectInteraction = new OlSelect({layers: [markerLayer], hitTolerance: 8});
+      const selectInteraction = new OlSelect({
+        layers: [markerLayer],
+        hitTolerance: 8,
+        style: null,
+      });
+      selectInteraction.on('select', (evt: any) => {
+        const feature = evt.selected?.[0];
+        const geometry = feature?.getGeometry();
+        if (!(geometry instanceof Point)) {
+          setMarkerAction(null);
+          return;
+        }
+        const deviceId = Number(feature.get('deviceId'));
+        if (!deviceId) {
+          setMarkerAction(null);
+          return;
+        }
+        const pixel = map.getPixelFromCoordinate(geometry.getCoordinates());
+        if (!pixel) {
+          setMarkerAction(null);
+          return;
+        }
+        setMarkerAction({
+          deviceId,
+          label: String(feature.get('label') ?? deviceId),
+          pixel: [pixel[0], pixel[1]],
+        });
+      });
       const translateInteraction = new Translate({
         features: selectInteraction.getFeatures(),
         hitTolerance: 8,
@@ -329,8 +374,27 @@ const BuildingDetailPage: React.FC = () => {
         if (!placingDeviceIdRef.current) return;
         placeDevice(placingDeviceIdRef.current, evt.coordinate as DevicePosition);
       });
+      map.on('click', (evt: any) => {
+        if (placingDeviceIdRef.current) return;
+        const hasFeature = map.hasFeatureAtPixel(evt.pixel, {layerFilter: (layer: any) => layer === markerLayer});
+        if (!hasFeature) {
+          setMarkerAction(null);
+        }
+      });
+      map.on('moveend', () => {
+        setMarkerAction((prev) => {
+          if (!prev) return prev;
+          const feature = markerSource.getFeatures().find((item: any) => Number(item.get('deviceId')) === prev.deviceId);
+          const geometry = feature?.getGeometry();
+          if (!(geometry instanceof Point)) return null;
+          const pixel = map.getPixelFromCoordinate(geometry.getCoordinates());
+          if (!pixel) return null;
+          return {...prev, pixel: [pixel[0], pixel[1]]};
+        });
+      });
 
       mapRef.current = map;
+      setMarkerSyncVersion((prev) => prev + 1);
       setDrawingLoading(false);
     };
     image.onerror = () => {
@@ -340,6 +404,8 @@ const BuildingDetailPage: React.FC = () => {
         mapRef.current = null;
       }
       markerSourceRef.current = null;
+      setMarkerAction(null);
+      setMarkerSyncVersion((prev) => prev + 1);
     };
     return () => {
       cancelled = true;
@@ -352,6 +418,8 @@ const BuildingDetailPage: React.FC = () => {
         mapRef.current = null;
       }
       markerSourceRef.current = null;
+      setMarkerAction(null);
+      setMarkerSyncVersion((prev) => prev + 1);
     };
   }, [currentFloorDrawing, isImageDrawing]);
 
@@ -389,7 +457,7 @@ const BuildingDetailPage: React.FC = () => {
       feature.set('label', item.label);
       source.addFeature(feature);
     });
-  }, [devices]);
+  }, [devices, markerSyncVersion]);
 
   useEffect(() => {
     setDevices((prev) => {
@@ -398,10 +466,16 @@ const BuildingDetailPage: React.FC = () => {
         const parsedId = Number(item?.id ?? item?.deviceId);
         const id = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1;
         const label = String(item?.name ?? item?.deviceName ?? item?.deviceNo ?? id);
+        const parsedX = Number(item?.positionX);
+        const parsedY = Number(item?.positionY);
+        const persistedPosition =
+          Number.isFinite(parsedX) && Number.isFinite(parsedY)
+            ? clampCoordinate([parsedX, parsedY])
+            : null;
         return {
           id,
           label,
-          position: previousPositionMap.get(id) ?? null,
+          position: previousPositionMap.has(id) ? previousPositionMap.get(id) ?? null : persistedPosition,
         };
       });
       return next;
@@ -543,7 +617,43 @@ const BuildingDetailPage: React.FC = () => {
 
   const handleResetMapDevices = () => {
     setDevices((prev) => prev.map((item) => ({...item, position: null})));
+    setMarkerAction(null);
     setPlacingDeviceId(null);
+  };
+
+  const getDeviceRowById = (deviceId: number) =>
+    floorDeviceRows.find((item: any) => {
+      const parsedId = Number(item?.id ?? item?.deviceId);
+      return Number.isFinite(parsedId) && parsedId === deviceId;
+    });
+
+  const handleViewDeviceDetail = (deviceId: number) => {
+    const row = getDeviceRowById(deviceId);
+    Modal.info({
+      title: `设备详情 - ${row?.deviceName ?? row?.deviceNo ?? deviceId}`,
+      width: 520,
+      content: (
+        <div style={{lineHeight: 1.9}}>
+          <div>设备ID: {row?.id ?? deviceId}</div>
+          <div>设备编号: {row?.deviceNo ?? '-'}</div>
+          <div>设备名称: {row?.deviceName ?? '-'}</div>
+          <div>全网编号: {row?.entireNo ?? '-'}</div>
+          <div>IP: {row?.ipAddress ?? '-'}</div>
+          <div>端口: {row?.port ?? '-'}</div>
+          <div>开始时间: {row?.startTime ?? '-'}</div>
+          <div>结束时间: {row?.endTime ?? '-'}</div>
+          <div>
+            坐标: {row?.positionX ?? '-'}, {row?.positionY ?? '-'}
+          </div>
+        </div>
+      ),
+    });
+  };
+
+  const handleAdjustDevicePosition = (deviceId: number) => {
+    setMarkerAction(null);
+    setPlacingDeviceId(deviceId);
+    message.info(`请点击地图或拖拽，更新设备 ${deviceId} 的位置`);
   };
 
   const stats = [
@@ -605,9 +715,6 @@ const BuildingDetailPage: React.FC = () => {
                   <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                     <span style={{fontSize: 30, color: '#111'}}>当前楼层:</span>
                     <Select value={Number(selectedFloorId)} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
-                    <span style={{fontSize: 16, color: 'rgba(0,0,0,0.65)'}}>
-                      {currentFloorName ? `${currentFloorName} / 设备数 ${currentFloorDeviceNumber}` : ''}
-                    </span>
                   </div>
                   <div style={{display: 'flex', gap: 8}}>
                     <Button type="primary" onClick={handleOpenPlanModal}>
@@ -676,6 +783,33 @@ const BuildingDetailPage: React.FC = () => {
                         }}
                       >
                         当前选择设备 {placingDeviceId}：点击地图或拖拽放置
+                      </div>
+                    ) : null}
+                    {markerAction ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: markerAction.pixel[0],
+                          top: markerAction.pixel[1] - 10,
+                          transform: 'translate(-50%, -100%)',
+                          minWidth: 180,
+                          background: '#fff',
+                          border: '1px solid #d9d9d9',
+                          borderRadius: 8,
+                          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)',
+                          padding: '8px 10px',
+                          zIndex: 4,
+                        }}
+                      >
+                        <div style={{fontSize: 12, color: 'rgba(0,0,0,0.65)', marginBottom: 8}}>设备 {markerAction.label}</div>
+                        <div style={{display: 'flex', gap: 8}}>
+                          <Button size="small" onClick={() => handleViewDeviceDetail(markerAction.deviceId)}>
+                            查看详情
+                          </Button>
+                          <Button size="small" type="primary" onClick={() => handleAdjustDevicePosition(markerAction.deviceId)}>
+                            修改位置
+                          </Button>
+                        </div>
                       </div>
                     ) : null}
                   </div>

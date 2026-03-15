@@ -176,6 +176,22 @@ export async function updateFloorDrawing(
   });
 }
 
+export async function updateDeviceXY(
+  id: number | string,
+  positionX: string,
+  positionY: string,
+  options?: { [key: string]: any },
+) {
+  return request(`/api/v1/device/updateTDeviceXY/${id}`, {
+    method: 'PUT',
+    params: {positionX, positionY},
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    ...(options || {}),
+  });
+}
+
 export async function createDevice(
   data: {
     deviceNo: string;
@@ -189,24 +205,24 @@ export async function createDevice(
     port?: number;
     startTime?: string;
     endTime?: string;
-    ch1?: string | number;
-    ch2?: string | number;
-    ch3?: string | number;
-    ch4?: string | number;
-    ch5?: string | number;
-    ch6?: string | number;
-    ch7?: string | number;
-    ch8?: string | number;
-    ch9?: string | number;
-    ch10?: string | number;
-    ch11?: string | number;
-    ch12?: string | number;
-    ch13?: string | number;
-    ch14?: string | number;
-    ch15?: string | number;
-    ch16?: string | number;
-    ch17?: string | number;
-    ch18?: string | number;
+    ch1?: string;
+    ch2?: string;
+    ch3?: string;
+    ch4?: string;
+    ch5?: string;
+    ch6?: string;
+    ch7?: string;
+    ch8?: string;
+    ch9?: string;
+    ch10?: string;
+    ch11?: string;
+    ch12?: string;
+    ch13?: string;
+    ch14?: string;
+    ch15?: string;
+    ch16?: string;
+    ch17?: string;
+    ch18?: string;
   },
   options?: { [key: string]: any },
 ) {
