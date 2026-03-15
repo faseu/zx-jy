@@ -214,6 +214,7 @@ const BuildingDetailPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let resizeHandler: (() => void) | null = null;
     if (!currentFloorDrawing || !isImageDrawing) {
       setDrawingLoading(false);
       if (mapRef.current) {
@@ -229,6 +230,24 @@ const BuildingDetailPage: React.FC = () => {
     image.onload = () => {
       if (cancelled || !mapContainerRef.current) return;
       const extent: [number, number, number, number] = [0, 0, image.width, image.height];
+      const imageWidth = extent[2] - extent[0];
+      const imageHeight = extent[3] - extent[1];
+      const containerWidth = Math.max(mapContainerRef.current.clientWidth, 1);
+      const containerHeight = Math.max(mapContainerRef.current.clientHeight, 1);
+      const initialResolution = Math.max(
+        imageWidth / containerWidth,
+        imageHeight / containerHeight,
+      );
+      const fitByLongestEdge = (targetMap: OlMap) => {
+        const size = targetMap.getSize();
+        if (!size) return;
+        const [containerWidth, containerHeight] = size;
+        if (!containerWidth || !containerHeight) return;
+        const resolution = Math.max(imageWidth / containerWidth, imageHeight / containerHeight);
+        const view = targetMap.getView();
+        view.setCenter(getCenter(extent));
+        view.setResolution(resolution);
+      };
       const projection = new Projection({
         code: 'building-map-image',
         units: 'pixels',
@@ -271,13 +290,24 @@ const BuildingDetailPage: React.FC = () => {
         view: new View({
           projection,
           center: getCenter(extent),
-          zoom: 2,
-          minZoom: 1,
-          maxZoom: 8,
+          resolution: initialResolution,
+          maxResolution: initialResolution * 8,
+          minResolution: Math.max(initialResolution / Math.pow(2, 20), 0.0001),
+          constrainOnlyCenter: true,
+          smoothExtentConstraint: false,
+          zoomFactor: 1.2,
+          minZoom: -8,
+          maxZoom: 28,
           extent,
         }),
       });
-      map.getView().fit(extent, {padding: [12, 12, 12, 12], nearest: true});
+      map.updateSize();
+      fitByLongestEdge(map);
+      resizeHandler = () => {
+        map.updateSize();
+        fitByLongestEdge(map);
+      };
+      window.addEventListener('resize', resizeHandler);
 
       const selectInteraction = new OlSelect({layers: [markerLayer], hitTolerance: 8});
       const translateInteraction = new Translate({
@@ -313,6 +343,10 @@ const BuildingDetailPage: React.FC = () => {
     };
     return () => {
       cancelled = true;
+      if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+        resizeHandler = null;
+      }
       if (mapRef.current) {
         mapRef.current.setTarget(undefined);
         mapRef.current = null;
