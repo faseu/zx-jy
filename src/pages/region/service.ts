@@ -142,6 +142,25 @@ export async function createFloor(
   });
 }
 
+export async function queryFloorDevicePage(
+  params: {
+    floorId: number | string;
+    pageNum: number;
+    pageSize: number;
+    name?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/device/page/floor', {
+    method: 'GET',
+    params,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    ...(options || {}),
+  });
+}
+
 export async function updateFloorDrawing(
   id: number | string,
   filePath: string,

@@ -33,12 +33,14 @@ import Point from 'ol/geom/Point';
 import {defaults as defaultInteractions, Select as OlSelect, Translate} from 'ol/interaction';
 import {Circle as CircleStyle, Fill, Stroke, Style, Text} from 'ol/style';
 import {getCenter} from 'ol/extent';
+import shielder from '@/assets/shielder.png';
 import type {BuildingInfoVO} from '../data.d';
 import {
   createDevice,
   queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
+  queryFloorDevicePage,
   queryPrisonBuildings,
   queryPrisonInfo,
   updateFloorDrawing,
@@ -52,11 +54,7 @@ type DeviceItem = {
   position: DevicePosition | null;
 };
 
-const INITIAL_DEVICES: DeviceItem[] = Array.from({length: 5}, (_, index) => ({
-  id: index + 1,
-  label: String(index + 1),
-  position: null,
-}));
+const INITIAL_DEVICES: DeviceItem[] = [];
 
 const BuildingDetailPage: React.FC = () => {
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
@@ -69,6 +67,7 @@ const BuildingDetailPage: React.FC = () => {
   const [deviceBuildingId, setDeviceBuildingId] = useState<number | null>(null);
   const [devices, setDevices] = useState<DeviceItem[]>(INITIAL_DEVICES);
   const [placingDeviceId, setPlacingDeviceId] = useState<number | null>(null);
+  const [drawingLoading, setDrawingLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OlMap | null>(null);
   const markerSourceRef = useRef<VectorSource | null>(null);
@@ -117,6 +116,18 @@ const BuildingDetailPage: React.FC = () => {
       refreshDeps: [deviceBuildingId],
     },
   );
+  const {data: floorDevicePageData, loading: floorDevicesLoading, refresh: refreshFloorDevices} = useRequest(
+    () =>
+      queryFloorDevicePage({
+        floorId: selectedFloorId as number,
+        pageNum: 1,
+        pageSize: 200,
+      }),
+    {
+      ready: Boolean(selectedFloorId),
+      refreshDeps: [selectedFloorId],
+    },
+  );
 
   const detail: BuildingInfoVO | undefined = detailData;
 
@@ -159,6 +170,17 @@ const BuildingDetailPage: React.FC = () => {
   const currentFloorName = floorFormData?.floorName;
   const currentFloorDeviceNumber = floorFormData?.deviceNumber ?? 0;
   const isImageDrawing = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(currentFloorDrawing ?? '');
+  const floorDeviceRows: any[] = (() => {
+    const raw: any = floorDevicePageData;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.records)) return raw.records;
+    if (Array.isArray(raw?.list)) return raw.list;
+    if (Array.isArray(raw?.rows)) return raw.rows;
+    if (Array.isArray(raw?.data?.records)) return raw.data.records;
+    if (Array.isArray(raw?.data?.list)) return raw.data.list;
+    if (Array.isArray(raw?.data?.rows)) return raw.data.rows;
+    return [];
+  })();
 
   useEffect(() => {
     if (!floorData?.length || selectedFloorId) return;
@@ -209,6 +231,7 @@ const BuildingDetailPage: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     if (!currentFloorDrawing || !isImageDrawing) {
+      setDrawingLoading(false);
       if (mapRef.current) {
         mapRef.current.setTarget(undefined);
         mapRef.current = null;
@@ -216,6 +239,7 @@ const BuildingDetailPage: React.FC = () => {
       markerSourceRef.current = null;
       return;
     }
+    setDrawingLoading(true);
     const image = new window.Image();
     image.src = currentFloorDrawing;
     image.onload = () => {
@@ -293,8 +317,10 @@ const BuildingDetailPage: React.FC = () => {
       });
 
       mapRef.current = map;
+      setDrawingLoading(false);
     };
     image.onerror = () => {
+      setDrawingLoading(false);
       if (mapRef.current) {
         mapRef.current.setTarget(undefined);
         mapRef.current = null;
@@ -346,6 +372,29 @@ const BuildingDetailPage: React.FC = () => {
       source.addFeature(feature);
     });
   }, [devices]);
+
+  useEffect(() => {
+    setDevices((prev) => {
+      const previousPositionMap = new Map<number, DevicePosition | null>(prev.map((item) => [item.id, item.position]));
+      const next = floorDeviceRows.map((item: any, index: number) => {
+        const parsedId = Number(item?.id ?? item?.deviceId);
+        const id = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1;
+        const label = String(item?.name ?? item?.deviceName ?? item?.deviceNo ?? id);
+        return {
+          id,
+          label,
+          position: previousPositionMap.get(id) ?? null,
+        };
+      });
+      return next;
+    });
+  }, [floorDevicePageData]);
+
+  useEffect(() => {
+    if (placingDeviceId === null) return;
+    if (devices.some((item) => item.id === placingDeviceId)) return;
+    setPlacingDeviceId(null);
+  }, [devices, placingDeviceId]);
 
   const normalizeUpload = (event: any) => {
     if (Array.isArray(event)) return event;
@@ -456,6 +505,9 @@ const BuildingDetailPage: React.FC = () => {
       setDeviceModalOpen(false);
       setDeviceStep(0);
       deviceForm.resetFields();
+      if (Number(values.floorId) === Number(selectedFloorId)) {
+        refreshFloorDevices();
+      }
     } catch (error: any) {
       if (error?.errorFields) return;
       message.error('添加失败');
@@ -474,7 +526,7 @@ const BuildingDetailPage: React.FC = () => {
   };
 
   const handleResetMapDevices = () => {
-    setDevices(INITIAL_DEVICES);
+    setDevices((prev) => prev.map((item) => ({...item, position: null})));
     setPlacingDeviceId(null);
   };
 
@@ -536,7 +588,7 @@ const BuildingDetailPage: React.FC = () => {
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                     <span style={{fontSize: 30, color: '#111'}}>当前楼层:</span>
-                    <Select value={selectedFloor} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
+                    <Select value={Number(selectedFloor)} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
                     <span style={{fontSize: 16, color: 'rgba(0,0,0,0.65)'}}>
                       {currentFloorName ? `${currentFloorName} / 设备数 ${currentFloorDeviceNumber}` : ''}
                     </span>
@@ -579,6 +631,21 @@ const BuildingDetailPage: React.FC = () => {
                         <Empty description={currentFloorDrawing ? '当前图纸格式不支持地图渲染' : '当前楼层暂无图纸'} />
                       </div>
                     )}
+                    {drawingLoading ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'rgba(255,255,255,0.72)',
+                          zIndex: 2,
+                        }}
+                      >
+                        <Spin tip="图纸加载中..." />
+                      </div>
+                    ) : null}
                     {placingDeviceId ? (
                       <div
                         style={{
@@ -615,6 +682,9 @@ const BuildingDetailPage: React.FC = () => {
                       </Button>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                      <Spin spinning={floorDevicesLoading}>
+                        {devices.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无设备" /> : null}
+                      </Spin>
                       {devices.map((item) => (
                         <div
                           key={item.id}
@@ -702,7 +772,7 @@ const BuildingDetailPage: React.FC = () => {
         title="添加设备"
         open={deviceModalOpen}
         onCancel={handleDeviceCancel}
-        width={600}
+        width={800}
         footer={
           deviceStep === 0
             ? [
@@ -731,6 +801,7 @@ const BuildingDetailPage: React.FC = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
+                alignItems: 'center',
               }}
             >
               <div
@@ -743,9 +814,10 @@ const BuildingDetailPage: React.FC = () => {
                   justifyContent: 'center',
                   color: 'rgba(0,0,0,0.45)',
                   marginBottom: 12,
+                  overflow: 'hidden',
                 }}
               >
-                设备图片
+                <img src={shielder} alt="" width={164} height={164}/>
               </div>
               <Form.Item label="电源开关" name="powerOff" valuePropName="checked">
                 <Switch checkedChildren="开" unCheckedChildren="关" />
@@ -763,7 +835,7 @@ const BuildingDetailPage: React.FC = () => {
               {deviceStep === 0 ? (
                 <>
                   <Form.Item label="监狱" name="prisonId" rules={[{required: true, message: '请选择监狱'}]}>
-                    <Select options={prisonOptions} onChange={handleDevicePrisonChange} placeholder="请选择监狱" />
+                    <Select options={prisonOptions} disabled onChange={handleDevicePrisonChange} placeholder="请选择监狱" />
                   </Form.Item>
                   <Form.Item label="楼栋" name="buildingId" rules={[{required: true, message: '请选择楼栋'}]}>
                     <Select
@@ -771,7 +843,7 @@ const BuildingDetailPage: React.FC = () => {
                       onChange={handleDeviceBuildingChange}
                       placeholder="请选择楼栋"
                       loading={deviceBuildingsLoading}
-                      disabled={deviceBuildingsLoading}
+                      disabled
                       notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
                     />
                   </Form.Item>
@@ -780,12 +852,12 @@ const BuildingDetailPage: React.FC = () => {
                       options={deviceFloorOptions}
                       placeholder="请选择楼层"
                       loading={deviceFloorsLoading}
-                      disabled={deviceFloorsLoading}
+                      disabled
                       notFoundContent={deviceFloorsLoading ? '加载中...' : '暂无楼层'}
                     />
                   </Form.Item>
                   <Form.Item label="设备编号" name="deviceCode" rules={[{required: true, message: '请输入设备编号'}]}>
-                    <Input placeholder="请输入设备编号" />
+                    <InputNumber min={1} placeholder="请输入设备编号" style={{width: '100%'}} />
                   </Form.Item>
                 </>
               ) : (
