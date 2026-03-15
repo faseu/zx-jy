@@ -184,7 +184,6 @@ export async function createDevice(
     floorId?: number;
     buildingId?: number;
     prisonId?: number;
-    powerConfig?: number;
     powerOff?: number;
     ipAddress?: string;
     port?: number;

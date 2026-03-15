@@ -466,7 +466,7 @@ const BuildingDetailPage: React.FC = () => {
       const values = deviceForm.getFieldsValue(true);
       const formatTime = (value: any) => (value && typeof value.format === 'function' ? value.format('HH:mm') : value);
       const channelPayload = POWER_CHANNEL_KEYS.reduce((acc, key) => {
-        acc[key] = values[key];
+        acc[key] = powerChannelValues[key] ?? 0;
         return acc;
       }, {} as Record<string, any>);
       await createDevice({
@@ -479,7 +479,6 @@ const BuildingDetailPage: React.FC = () => {
         powerOff: values.powerOff ? 0 : 1,
         ipAddress: values.ip,
         port: values.port,
-        powerConfig: values.ch1,
         startTime: formatTime(values.startTime),
         endTime: formatTime(values.stopTime),
         ...channelPayload,
