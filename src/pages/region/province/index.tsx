@@ -15,8 +15,14 @@ import {
   message,
 } from 'antd';
 import React, { useMemo, useState } from 'react';
-import type { PrisonVO, ProvinceDetailVO } from '../data.d';
-import { createPrison, queryProvinceDetail, queryProvincePrisons } from '../service';
+import type { PrisonFormVO, PrisonVO, ProvinceDetailVO } from '../data.d';
+import {
+  createPrison,
+  queryPrisonForm,
+  queryProvinceDetail,
+  queryProvincePrisons,
+  updatePrison,
+} from '../service';
 import gb from '@/assets/gb.png';
 
 type PrisonListItem = PrisonVO & { __isNew?: boolean; id?: number | string };
@@ -27,6 +33,10 @@ const ProvinceDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
   const provinceId = params.id ?? '';
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [editingPrisonId, setEditingPrisonId] = useState<number | undefined>(undefined);
+  const [editingPrisonForm, setEditingPrisonForm] = useState<PrisonFormVO | undefined>(undefined);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [form] = Form.useForm();
 
   const { data: detailData, loading: detailLoading } = useRequest(
@@ -55,20 +65,55 @@ const ProvinceDetailPage: React.FC = () => {
   );
 
   const handleOpenModal = () => {
+    setModalMode('create');
+    setEditingPrisonId(undefined);
+    setEditingPrisonForm(undefined);
+    form.resetFields();
     form.setFieldsValue({ deptId: provinceId ? Number(provinceId) : undefined });
     setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = async (prisonId?: number) => {
+    if (!prisonId) {
+      return;
+    }
+    try {
+      const { data: prisonForm } = await queryPrisonForm(prisonId);
+      setModalMode('edit');
+      setEditingPrisonId(prisonId);
+      setEditingPrisonForm(prisonForm);
+      form.setFieldsValue(prisonForm);
+      setIsModalOpen(true);
+    } catch (error) {
+      message.error('获取监狱表单失败，请重试');
+    }
   };
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
     try {
-      await createPrison(values);
-      message.success('已提交新增监狱信息');
+      setSubmitLoading(true);
+      if (modalMode === 'edit' && editingPrisonId) {
+        const payload: PrisonFormVO = {
+          ...(editingPrisonForm || {}),
+          ...values,
+          id: editingPrisonForm?.id ?? editingPrisonId,
+        };
+        await updatePrison(editingPrisonId, payload);
+        message.success('监狱信息已更新');
+      } else {
+        await createPrison(values);
+        message.success('已提交新增监狱信息');
+      }
       setIsModalOpen(false);
       form.resetFields();
+      setEditingPrisonId(undefined);
+      setEditingPrisonForm(undefined);
       refreshPrisons();
     } catch (error) {
       message.error('提交失败，请重试');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -190,7 +235,14 @@ const ProvinceDetailPage: React.FC = () => {
                           }}
                         >
                           <div style={{ position: 'absolute', top: 12, left: 24 }}>
-                            <Button>编辑</Button>
+                            <Button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleOpenEditModal(item.id as number | undefined);
+                              }}
+                            >
+                              编辑
+                            </Button>
                           </div>
                           <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
                             <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
@@ -215,18 +267,30 @@ const ProvinceDetailPage: React.FC = () => {
       </div>
 
       <Modal
-        title="新增监狱"
+        title={modalMode === 'edit' ? '编辑监狱' : '新增监狱'}
         open={isModalOpen}
+        confirmLoading={submitLoading}
         onOk={handleSubmit}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setEditingPrisonId(undefined);
+          setEditingPrisonForm(undefined);
+          form.resetFields();
+        }}
         destroyOnClose
       >
         <Form form={form} layout="vertical">
           <Form.Item label="监狱等级" name="level">
             <Radio.Group buttonStyle="solid" optionType="button">
-              <Radio.Button value={1}>宽管监狱</Radio.Button>
-              <Radio.Button value={2}>普管监狱</Radio.Button>
-              <Radio.Button value={3}>严管监狱</Radio.Button>
+              <Radio.Button style={{ background: '#cae9f8' }} value={1}>
+                宽管监狱
+              </Radio.Button>
+              <Radio.Button style={{ background: '#f0dd93' }} value={2}>
+                普管监狱
+              </Radio.Button>
+              <Radio.Button style={{ background: '#e8c0c9' }} value={3}>
+                严管监狱
+              </Radio.Button>
             </Radio.Group>
           </Form.Item>
           <Form.Item
@@ -236,15 +300,15 @@ const ProvinceDetailPage: React.FC = () => {
           >
             <Input placeholder="请输入监狱名称" />
           </Form.Item>
+          <Form.Item label="授权人员列表" name="authUsers">
+            <Input placeholder="以逗号分隔" />
+          </Form.Item>
           <Form.Item
             label="监舍数量"
             name="roomNumber"
             rules={[{ required: true, message: '请输入监舍数量' }]}
           >
             <InputNumber min={0} style={{ width: '100%' }} placeholder="请输入监舍数量" />
-          </Form.Item>
-          <Form.Item label="授权人员列表" name="authUsers">
-            <Input placeholder="以逗号分隔" />
           </Form.Item>
           <Form.Item name="deptId" hidden>
             <InputNumber />

@@ -2,6 +2,7 @@ import { request } from '@umijs/max';
 import type {
   BuildingDetailVO,
   BuildingInfoVO,
+  PrisonFormVO,
   PrisonVO,
   PrisonInfoVO,
   ProvinceDetailVO,
@@ -44,6 +45,28 @@ export async function createPrison(
 ) {
   return request('/api/v1/prison', {
     method: 'POST',
+    data,
+    ...(options || {}),
+  });
+}
+
+export async function queryPrisonForm(
+  prisonId: number | string,
+  options?: { [key: string]: any },
+) {
+  return request<PrisonFormVO>(`/api/v1/prison/${prisonId}/form`, {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+export async function updatePrison(
+  prisonId: number | string,
+  data: PrisonFormVO,
+  options?: { [key: string]: any },
+) {
+  return request(`/api/v1/prison/${prisonId}`, {
+    method: 'PUT',
     data,
     ...(options || {}),
   });

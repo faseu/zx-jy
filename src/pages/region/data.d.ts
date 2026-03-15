@@ -22,6 +22,21 @@ export type PrisonVO = {
   totalDevices?: number;
 };
 
+export type PrisonFormVO = {
+  id?: number;
+  name?: string;
+  roomNumber?: number;
+  authUsers?: string;
+  level?: number;
+  deptId?: number;
+  deptName?: string;
+  createBy?: number;
+  createTime?: string;
+  updateBy?: number;
+  updateTime?: string;
+  isDeleted?: number;
+};
+
 export type PrisonInfoVO = {
   id?: number;
   name?: string;
