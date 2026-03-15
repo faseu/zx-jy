@@ -1,6 +1,6 @@
 import {PageContainer} from '@ant-design/pro-components';
 import {history, useParams, useRequest} from '@umijs/max';
-import {Button, Col, Divider, Form, Input, List, Modal, Row, Spin, message} from 'antd';
+import {Button, Col, Divider, Form, Input, InputNumber, List, Modal, Row, Spin, message} from 'antd';
 import React, {useMemo, useState} from 'react';
 import type {BuildingDetailVO, PrisonInfoVO} from '../data.d';
 import {createBuilding, queryPrisonBuildings, queryPrisonInfo} from '../service';
@@ -186,6 +186,12 @@ const PrisonDetailPage: React.FC = () => {
         <Form form={form} layout="vertical">
           <Form.Item label="楼栋名称" name="name" rules={[{required: true, message: '请输入楼栋名称'}]}>
             <Input placeholder="请输入楼栋名称" />
+          </Form.Item>
+          <Form.Item label="地上楼层数" name="groundFloorNum" rules={[{required: true, message: '请输入地上楼层数'}]}>
+            <InputNumber placeholder="请输入地上楼层数" style={{width: '100%'}} min={0} precision={0} />
+          </Form.Item>
+          <Form.Item label="地下楼层数" name="undergroundFloorNum" rules={[{required: true, message: '请输入地下楼层数'}]}>
+            <InputNumber placeholder="请输入地下楼层数" style={{width: '100%'}} min={0} precision={0} />
           </Form.Item>
           <Form.Item name="prisonId" hidden>
             <Input />

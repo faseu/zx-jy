@@ -5,7 +5,6 @@ import {
   Col,
   Divider,
   Form,
-  Image,
   Input,
   InputNumber,
   Modal,
@@ -18,18 +17,45 @@ import {
   Upload,
   message,
 } from 'antd';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import gb from '@/assets/gb.png';
+import built from '@/assets/built.png';
+import 'ol/ol.css';
+import OlMap from 'ol/Map';
+import View from 'ol/View';
+import Projection from 'ol/proj/Projection';
+import Static from 'ol/source/ImageStatic';
+import ImageLayer from 'ol/layer/Image';
+import VectorSource from 'ol/source/Vector';
+import VectorLayer from 'ol/layer/Vector';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import {defaults as defaultInteractions, Select as OlSelect, Translate} from 'ol/interaction';
+import {Circle as CircleStyle, Fill, Stroke, Style, Text} from 'ol/style';
+import {getCenter} from 'ol/extent';
 import type {BuildingInfoVO} from '../data.d';
 import {
   createDevice,
   createFloor,
-  queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
   queryPrisonBuildings,
   queryPrisonInfo,
 } from '../service';
+
+type DevicePosition = [number, number];
+
+type DeviceItem = {
+  id: number;
+  label: string;
+  position: DevicePosition | null;
+};
+
+const INITIAL_DEVICES: DeviceItem[] = Array.from({length: 5}, (_, index) => ({
+  id: index + 1,
+  label: String(index + 1),
+  position: null,
+}));
 
 const BuildingDetailPage: React.FC = () => {
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
@@ -40,6 +66,12 @@ const BuildingDetailPage: React.FC = () => {
   const [deviceStep, setDeviceStep] = useState(0);
   const [devicePrisonId, setDevicePrisonId] = useState<number | null>(null);
   const [deviceBuildingId, setDeviceBuildingId] = useState<number | null>(null);
+  const [devices, setDevices] = useState<DeviceItem[]>(INITIAL_DEVICES);
+  const [placingDeviceId, setPlacingDeviceId] = useState<number | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<OlMap | null>(null);
+  const markerSourceRef = useRef<VectorSource | null>(null);
+  const placingDeviceIdRef = useRef<number | null>(null);
   const [planForm] = Form.useForm();
   const [deviceForm] = Form.useForm();
 
@@ -55,11 +87,6 @@ const BuildingDetailPage: React.FC = () => {
   const {data: floorData, refresh: refreshFloors} = useRequest(() => queryBuildingFloors(buildingId), {
     ready: Boolean(buildingId),
     refreshDeps: [buildingId],
-  });
-
-  const {data: floorFormData, loading: floorFormLoading} = useRequest(() => queryBuildingFloorForm(selectedFloorId as number), {
-    ready: Boolean(selectedFloorId),
-    refreshDeps: [selectedFloorId],
   });
 
   const {data: prisonDetail} = useRequest(() => queryPrisonInfo(prisonId), {
@@ -124,6 +151,172 @@ const BuildingDetailPage: React.FC = () => {
     setSelectedFloorId(floorData[0].id);
     setSelectedFloor(floorData[0].floorNo);
   }, [floorData, selectedFloorId]);
+
+  const clampCoordinate = (coord: DevicePosition): DevicePosition => {
+    const map = mapRef.current;
+    if (!map) return coord;
+    const extent = map.getView().getProjection().getExtent();
+    if (!extent) return coord;
+    return [
+      Math.min(Math.max(coord[0], extent[0]), extent[2]),
+      Math.min(Math.max(coord[1], extent[1]), extent[3]),
+    ];
+  };
+
+  const placeDevice = (deviceId: number, coord: DevicePosition) => {
+    const targetCoord = clampCoordinate(coord);
+    setDevices((prev) =>
+      prev.map((item) => {
+        if (item.id !== deviceId) return item;
+        return {...item, position: targetCoord};
+      }),
+    );
+    setPlacingDeviceId(null);
+  };
+
+  const handleDeviceDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const map = mapRef.current;
+    const mapContainer = mapContainerRef.current;
+    if (!map || !mapContainer) return;
+    const deviceId = Number(event.dataTransfer.getData('text/plain'));
+    if (!deviceId) return;
+    const rect = mapContainer.getBoundingClientRect();
+    const pixel: [number, number] = [event.clientX - rect.left, event.clientY - rect.top];
+    const coord = map.getCoordinateFromPixel(pixel);
+    if (!coord) return;
+    placeDevice(deviceId, coord as DevicePosition);
+  };
+
+  useEffect(() => {
+    placingDeviceIdRef.current = placingDeviceId;
+  }, [placingDeviceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const image = new window.Image();
+    image.src = built;
+    image.onload = () => {
+      if (cancelled || !mapContainerRef.current) return;
+      const extent: [number, number, number, number] = [0, 0, image.width, image.height];
+      const projection = new Projection({
+        code: 'building-map-image',
+        units: 'pixels',
+        extent,
+      });
+
+      const imageLayer = new ImageLayer({
+        source: new Static({
+          url: built,
+          projection,
+          imageExtent: extent,
+        }),
+      });
+
+      const markerSource = new VectorSource();
+      markerSourceRef.current = markerSource;
+      const markerLayer = new VectorLayer({
+        source: markerSource,
+        style: (feature: any) => {
+          const label = String(feature.get('label') ?? '');
+          return new Style({
+            image: new CircleStyle({
+              radius: 14,
+              fill: new Fill({color: '#1677ff'}),
+              stroke: new Stroke({color: '#ffffff', width: 2}),
+            }),
+            text: new Text({
+              text: label,
+              fill: new Fill({color: '#ffffff'}),
+              font: 'bold 14px sans-serif',
+            }),
+          });
+        },
+      });
+
+      const map = new OlMap({
+        target: mapContainerRef.current,
+        layers: [imageLayer, markerLayer],
+        interactions: defaultInteractions({doubleClickZoom: false}),
+        view: new View({
+          projection,
+          center: getCenter(extent),
+          zoom: 2,
+          minZoom: 1,
+          maxZoom: 8,
+          extent,
+        }),
+      });
+      map.getView().fit(extent, {padding: [12, 12, 12, 12], nearest: true});
+
+      const selectInteraction = new OlSelect({layers: [markerLayer], hitTolerance: 8});
+      const translateInteraction = new Translate({
+        features: selectInteraction.getFeatures(),
+        hitTolerance: 8,
+      });
+      translateInteraction.on('translateend', (evt: any) => {
+        const feature = evt.features.item(0);
+        const geometry = feature?.getGeometry();
+        if (!(geometry instanceof Point)) return;
+        const deviceId = Number(feature.get('deviceId'));
+        if (!deviceId) return;
+        placeDevice(deviceId, geometry.getCoordinates() as DevicePosition);
+      });
+      map.addInteraction(selectInteraction);
+      map.addInteraction(translateInteraction);
+
+      map.on('click', (evt: any) => {
+        if (!placingDeviceIdRef.current) return;
+        placeDevice(placingDeviceIdRef.current, evt.coordinate as DevicePosition);
+      });
+
+      mapRef.current = map;
+    };
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.setTarget(undefined);
+        mapRef.current = null;
+      }
+      markerSourceRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const source = markerSourceRef.current;
+    if (!source) return;
+    const nextDeviceMap = new Map<number, DeviceItem>();
+    devices.forEach((item) => {
+      if (item.position) nextDeviceMap.set(item.id, item);
+    });
+
+    source.getFeatures().forEach((feature: any) => {
+      const deviceId = Number(feature.get('deviceId'));
+      const next = nextDeviceMap.get(deviceId);
+      if (!next || !next.position) {
+        source.removeFeature(feature);
+        return;
+      }
+      const geometry = feature.getGeometry();
+      if (geometry instanceof Point) {
+        geometry.setCoordinates(next.position);
+      } else {
+        feature.setGeometry(new Point(next.position));
+      }
+      feature.set('label', next.label);
+      nextDeviceMap.delete(deviceId);
+    });
+
+    nextDeviceMap.forEach((item) => {
+      if (!item.position) return;
+      const feature = new Feature({
+        geometry: new Point(item.position),
+      });
+      feature.set('deviceId', item.id);
+      feature.set('label', item.label);
+      source.addFeature(feature);
+    });
+  }, [devices]);
 
   const normalizeUpload = (event: any) => {
     if (Array.isArray(event)) return event;
@@ -245,6 +438,11 @@ const BuildingDetailPage: React.FC = () => {
     deviceForm.setFieldsValue({floorId: undefined});
   };
 
+  const handleResetMapDevices = () => {
+    setDevices(INITIAL_DEVICES);
+    setPlacingDeviceId(null);
+  };
+
   const stats = [
     {label: '建筑层数', value: detail?.floorNum ?? 0},
     {label: '设备', value: detail?.totalDevices ?? 0},
@@ -313,27 +511,110 @@ const BuildingDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-                <Spin spinning={floorFormLoading}>
+                <div
+                  style={{
+                    minHeight: 520,
+                    padding: '8px 0 24px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 16,
+                  }}
+                >
                   <div
                     style={{
-                      minHeight: 420,
+                      position: 'relative',
+                      flex: 1,
+                      minWidth: 280,
+                      minHeight: 520,
+                      border: '1px solid #f0f0f0',
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      background: '#fafafa',
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={handleDeviceDrop}
+                  >
+                    <div ref={mapContainerRef} style={{width: '100%', height: '100%'}} />
+                    {placingDeviceId ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 12,
+                          top: 12,
+                          padding: '4px 10px',
+                          borderRadius: 14,
+                          background: 'rgba(22,119,255,0.12)',
+                          color: '#1677ff',
+                          fontSize: 12,
+                        }}
+                      >
+                        当前选择设备 {placingDeviceId}：点击地图或拖拽放置
+                      </div>
+                    ) : null}
+                  </div>
+                  <div
+                    style={{
+                      width: 200,
+                      minWidth: 180,
+                      border: '1px solid #f0f0f0',
+                      borderRadius: 8,
+                      padding: 12,
+                      background: '#fff',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '8px 0 24px',
+                      flexDirection: 'column',
                     }}
                   >
-                    {floorFormData ? (
-                      <Image
-                        style={{width: '72%', maxWidth: 820, minWidth: 280}}
-                        src={floorFormData.floorDrawing || '/logo.png'}
-                        alt={floorFormData.floorName || '楼层图纸'}
-                      />
-                    ) : (
-                      <div style={{color: 'rgba(0,0,0,0.45)'}}>暂无楼层信息</div>
-                    )}
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+                      <div style={{fontWeight: 600}}>设备列表</div>
+                      <Button type="link" size="small" onClick={handleResetMapDevices}>
+                        复位
+                      </Button>
+                    </div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: 10}}>
+                      {devices.map((item) => (
+                        <div
+                          key={item.id}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData('text/plain', String(item.id));
+                            setPlacingDeviceId(item.id);
+                          }}
+                          onClick={() => setPlacingDeviceId(item.id)}
+                          style={{
+                            border: placingDeviceId === item.id ? '1px solid #1677ff' : '1px solid #d9d9d9',
+                            borderRadius: 8,
+                            padding: '8px 10px',
+                            cursor: 'grab',
+                            userSelect: 'none',
+                            background: '#fff',
+                          }}
+                        >
+                          <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+                            <span
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: '50%',
+                                background: '#1677ff',
+                                color: '#fff',
+                                fontSize: 12,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {item.label}
+                            </span>
+                            <span style={{fontSize: 13}}>设备 {item.label}</span>
+                          </div>
+                          <div style={{marginTop: 6, fontSize: 12, color: 'rgba(0,0,0,0.45)'}}>
+                            {item.position ? '已放置，可再次拖动' : '未放置，拖到地图'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </Spin>
+                </div>
               </div>
             </Spin>
           </Col>
