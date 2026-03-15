@@ -1,14 +1,17 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams, useRequest } from '@umijs/max';
-import { Button, Col, Divider, Form, Input, InputNumber, List, Modal, Row, Spin, message } from 'antd';
+import { Button, Col, Divider, Form, List, Row, Spin, message } from 'antd';
 import React, { useMemo, useState } from 'react';
+import BuildingFormModal from '../components/BuildingFormModal';
 import PrisonFormModal from '../components/PrisonFormModal';
-import type { BuildingDetailVO, PrisonFormVO, PrisonInfoVO } from '../data.d';
+import type { BuildingDetailVO, BuildingFormVO, PrisonFormVO, PrisonInfoVO } from '../data.d';
 import {
   createBuilding,
+  queryBuildingForm,
   queryPrisonBuildings,
   queryPrisonForm,
   queryPrisonInfo,
+  updateBuilding,
   updatePrison,
 } from '../service';
 import gb from '@/assets/gb.png';
@@ -22,10 +25,18 @@ const PrisonDetailPage: React.FC = () => {
   const prisonId = params.id ?? '';
 
   const [isBuildingModalOpen, setIsBuildingModalOpen] = useState(false);
+  const [buildingModalMode, setBuildingModalMode] = useState<'create' | 'edit'>('create');
+  const [editingBuildingId, setEditingBuildingId] = useState<number | undefined>(undefined);
+  const [editingBuildingForm, setEditingBuildingForm] = useState<BuildingFormVO | undefined>(
+    undefined
+  );
+  const [buildingSubmitLoading, setBuildingSubmitLoading] = useState(false);
+
   const [isPrisonModalOpen, setIsPrisonModalOpen] = useState(false);
   const [editingPrisonForm, setEditingPrisonForm] = useState<PrisonFormVO | undefined>(undefined);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [buildingForm] = Form.useForm();
+  const [prisonSubmitLoading, setPrisonSubmitLoading] = useState(false);
+
+  const [buildingForm] = Form.useForm<BuildingFormVO>();
   const [prisonForm] = Form.useForm<PrisonFormVO>();
 
   const {
@@ -51,12 +62,32 @@ const PrisonDetailPage: React.FC = () => {
 
   const listData = useMemo<BuildingListItem[]>(
     () => [...buildings, { id: 'new', __isNew: true }],
-    [buildings],
+    [buildings]
   );
 
   const handleOpenBuildingModal = () => {
+    setBuildingModalMode('create');
+    setEditingBuildingId(undefined);
+    setEditingBuildingForm(undefined);
+    buildingForm.resetFields();
     buildingForm.setFieldsValue({ prisonId: prisonId ? Number(prisonId) : undefined });
     setIsBuildingModalOpen(true);
+  };
+
+  const handleOpenBuildingEditModal = async (buildingId?: number) => {
+    if (!buildingId) {
+      return;
+    }
+    try {
+      const { data: buildingFormData } = await queryBuildingForm(buildingId);
+      setBuildingModalMode('edit');
+      setEditingBuildingId(buildingId);
+      setEditingBuildingForm(buildingFormData);
+      buildingForm.setFieldsValue(buildingFormData);
+      setIsBuildingModalOpen(true);
+    } catch (error) {
+      message.error('获取楼栋表单失败，请重试');
+    }
   };
 
   const handleOpenPrisonEditModal = async () => {
@@ -75,14 +106,40 @@ const PrisonDetailPage: React.FC = () => {
 
   const handleBuildingSubmit = async () => {
     const values = await buildingForm.validateFields();
+
     try {
-      await createBuilding(values);
-      message.success('已提交新增楼栋信息');
+      setBuildingSubmitLoading(true);
+      if (buildingModalMode === 'edit' && editingBuildingId) {
+        const payload: BuildingFormVO = {
+          ...(editingBuildingForm || {}),
+          ...values,
+          id: editingBuildingForm?.id ?? editingBuildingId,
+        };
+        await updateBuilding(editingBuildingId, payload);
+        message.success('楼栋信息已更新');
+      } else {
+        if (!values.prisonId) {
+          message.error('缺少监狱信息，请刷新页面后重试');
+          return;
+        }
+        await createBuilding({
+          name: values.name || '',
+          prisonId: values.prisonId,
+          groundFloorNum: values.groundFloorNum,
+          undergroundFloorNum: values.undergroundFloorNum,
+        });
+        message.success('已提交新增楼栋信息');
+      }
+
       setIsBuildingModalOpen(false);
+      setEditingBuildingId(undefined);
+      setEditingBuildingForm(undefined);
       buildingForm.resetFields();
       refreshBuildings();
     } catch (error) {
       message.error('提交失败，请重试');
+    } finally {
+      setBuildingSubmitLoading(false);
     }
   };
 
@@ -93,7 +150,7 @@ const PrisonDetailPage: React.FC = () => {
     }
 
     try {
-      setSubmitLoading(true);
+      setPrisonSubmitLoading(true);
       const payload: PrisonFormVO = {
         ...(editingPrisonForm || {}),
         ...values,
@@ -108,7 +165,7 @@ const PrisonDetailPage: React.FC = () => {
     } catch (error) {
       message.error('提交失败，请重试');
     } finally {
-      setSubmitLoading(false);
+      setPrisonSubmitLoading(false);
     }
   };
 
@@ -236,13 +293,22 @@ const PrisonDetailPage: React.FC = () => {
                           }}
                         >
                           <div style={{ position: 'absolute', top: 12, left: 24 }}>
-                            <Button>编辑</Button>
+                            <Button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleOpenBuildingEditModal(item.id as number | undefined);
+                              }}
+                            >
+                              编辑
+                            </Button>
                           </div>
                           <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
                             <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
                               {item.name || '未命名楼栋'}
                             </div>
-                            <div style={{ fontSize: '28px', marginTop: 14 }}>楼数: {item.floorNum ?? 0}</div>
+                            <div style={{ fontSize: '28px', marginTop: 14 }}>
+                              楼数: {item.floorNum ?? 0}
+                            </div>
                             <div style={{ fontSize: '28px', marginTop: 4 }}>
                               设备数: {item.totalDevices ?? 0}
                             </div>
@@ -258,45 +324,24 @@ const PrisonDetailPage: React.FC = () => {
         </Row>
       </div>
 
-      <Modal
-        title="新增楼栋"
+      <BuildingFormModal
+        modalMode={buildingModalMode}
         open={isBuildingModalOpen}
+        confirmLoading={buildingSubmitLoading}
+        form={buildingForm}
         onOk={handleBuildingSubmit}
-        onCancel={() => setIsBuildingModalOpen(false)}
-        destroyOnClose
-      >
-        <Form form={buildingForm} layout="vertical">
-          <Form.Item
-            label="楼栋名称"
-            name="name"
-            rules={[{ required: true, message: '请输入楼栋名称' }]}
-          >
-            <Input placeholder="请输入楼栋名称" />
-          </Form.Item>
-          <Form.Item
-            label="地上楼层数"
-            name="groundFloorNum"
-            rules={[{ required: true, message: '请输入地上楼层数' }]}
-          >
-            <InputNumber placeholder="请输入地上楼层数" style={{ width: '100%' }} min={0} precision={0} />
-          </Form.Item>
-          <Form.Item
-            label="地下楼层数"
-            name="undergroundFloorNum"
-            rules={[{ required: true, message: '请输入地下楼层数' }]}
-          >
-            <InputNumber placeholder="请输入地下楼层数" style={{ width: '100%' }} min={0} precision={0} />
-          </Form.Item>
-          <Form.Item name="prisonId" hidden>
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onCancel={() => {
+          setIsBuildingModalOpen(false);
+          setEditingBuildingId(undefined);
+          setEditingBuildingForm(undefined);
+          buildingForm.resetFields();
+        }}
+      />
 
       <PrisonFormModal
         modalMode="edit"
         open={isPrisonModalOpen}
-        confirmLoading={submitLoading}
+        confirmLoading={prisonSubmitLoading}
         form={prisonForm}
         onOk={handlePrisonSubmit}
         onCancel={() => {

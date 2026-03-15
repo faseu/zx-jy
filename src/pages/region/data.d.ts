@@ -64,6 +64,21 @@ export type BuildingInfoVO = {
   totalAlarms?: number;
 };
 
+export type BuildingFormVO = {
+  id?: number;
+  name?: string;
+  floorNum?: number;
+  prisonId?: number;
+  prisonName?: string;
+  createBy?: number;
+  createTime?: string;
+  updateBy?: number;
+  updateTime?: string;
+  isDeleted?: number;
+  groundFloorNum?: number;
+  undergroundFloorNum?: number;
+};
+
 export type ResultListProvinceVO = {
   code?: string;
   data?: ProvinceVO[];

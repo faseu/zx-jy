@@ -1,6 +1,7 @@
 import { request } from '@umijs/max';
 import type {
   BuildingDetailVO,
+  BuildingFormVO,
   BuildingInfoVO,
   PrisonFormVO,
   PrisonVO,
@@ -138,11 +139,38 @@ export async function queryBuildingFloorForm(
 }
 
 export async function createBuilding(
-  data: { name: string; prisonId: number },
+  data: {
+    name: string;
+    prisonId: number;
+    groundFloorNum?: number;
+    undergroundFloorNum?: number;
+  },
   options?: { [key: string]: any },
 ) {
   return request('/api/v1/building', {
     method: 'POST',
+    data,
+    ...(options || {}),
+  });
+}
+
+export async function queryBuildingForm(
+  buildingId: number | string,
+  options?: { [key: string]: any },
+) {
+  return request<BuildingFormVO>(`/api/v1/building/${buildingId}/form`, {
+    method: 'GET',
+    ...(options || {}),
+  });
+}
+
+export async function updateBuilding(
+  buildingId: number | string,
+  data: BuildingFormVO,
+  options?: { [key: string]: any },
+) {
+  return request(`/api/v1/building/${buildingId}`, {
+    method: 'PUT',
     data,
     ...(options || {}),
   });
