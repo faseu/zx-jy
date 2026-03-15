@@ -36,12 +36,12 @@ import {getCenter} from 'ol/extent';
 import type {BuildingInfoVO} from '../data.d';
 import {
   createDevice,
-  createFloor,
   queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
   queryPrisonBuildings,
   queryPrisonInfo,
+  updateFloorDrawing,
 } from '../service';
 
 type DevicePosition = [number, number];
@@ -89,7 +89,7 @@ const BuildingDetailPage: React.FC = () => {
     ready: Boolean(buildingId),
     refreshDeps: [buildingId],
   });
-  const {data: floorFormData, loading: floorFormLoading} = useRequest(
+  const {data: floorFormData, loading: floorFormLoading, refresh: refreshFloorForm} = useRequest(
     () => queryBuildingFloorForm(selectedFloorId as number),
     {
       ready: Boolean(selectedFloorId),
@@ -123,8 +123,8 @@ const BuildingDetailPage: React.FC = () => {
   const floorOptions =
     floorData?.map((item: any) => ({
       label: item.floorName,
-      value: item.floorNo,
-      id: item.id,
+      value: Number(item.floorNo),
+      id: Number(item.id),
     })) ?? [];
 
   const prisonOptions = prisonId
@@ -148,13 +148,14 @@ const BuildingDetailPage: React.FC = () => {
       value: item.id,
     })) ?? [];
 
-  const planFloorOptions = Array.from({length: 106}, (_, index) => {
-    const value = index - 5;
-    if (value === 0) return null;
-    return {label: `${value}层`, value};
-  }).filter(Boolean) as {label: string; value: number}[];
+  const planFloorOptions =
+    floorData?.map((item: any) => ({
+      label: item.floorName,
+      value: Number(item.id),
+    })) ?? [];
 
-  const currentFloorDrawing = floorFormData?.floorDrawing;
+  const currentFloorFromList = floorData?.find((item: any) => Number(item.id) === Number(selectedFloorId));
+  const currentFloorDrawing = floorFormData?.floorDrawing ?? currentFloorFromList?.floorDrawing;
   const currentFloorName = floorFormData?.floorName;
   const currentFloorDeviceNumber = floorFormData?.deviceNumber ?? 0;
   const isImageDrawing = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(currentFloorDrawing ?? '');
@@ -352,8 +353,8 @@ const BuildingDetailPage: React.FC = () => {
   };
 
   const handleFloorChange = (value: number, option: any) => {
-    setSelectedFloor(value);
-    setSelectedFloorId(option?.id ?? null);
+    setSelectedFloor(Number(value));
+    setSelectedFloorId(option?.id ? Number(option.id) : null);
   };
 
   const handleOpenDeviceModal = () => {
@@ -372,23 +373,29 @@ const BuildingDetailPage: React.FC = () => {
     setDeviceModalOpen(true);
   };
 
+  const handleOpenPlanModal = () => {
+    planForm.setFieldsValue({
+      floor: selectedFloorId ? Number(selectedFloorId) : undefined,
+      image: [],
+    });
+    setPlanModalOpen(true);
+  };
+
   const handlePlanOk = async () => {
     try {
       const values = await planForm.validateFields();
       const fileList = values.image ?? [];
       const file = fileList[0];
       const floorDrawing = file?.response?.data?.url ?? '';
+      const floorId = Number(values.floor);
+      if (!floorId || !floorDrawing) {
+        message.error('请先选择楼层并上传图纸');
+        return;
+      }
       setPlanSubmitting(true);
-      const floorNo = Number(values.floor);
-      const floorName = floorNo < 0 ? `B${Math.abs(floorNo)}` : `F${floorNo}`;
-      await createFloor({
-        floorNo,
-        floorName,
-        buildingId: Number(buildingId),
-        deviceNumber: values.deviceCount ?? 0,
-        floorDrawing,
-      });
-      refreshFloors();
+      await updateFloorDrawing(floorId, floorDrawing);
+      await refreshFloors();
+      await refreshFloorForm();
       message.success('添加成功');
       setPlanModalOpen(false);
       planForm.resetFields();
@@ -535,7 +542,7 @@ const BuildingDetailPage: React.FC = () => {
                     </span>
                   </div>
                   <div style={{display: 'flex', gap: 8}}>
-                    <Button type="primary" onClick={() => setPlanModalOpen(true)}>
+                    <Button type="primary" onClick={handleOpenPlanModal}>
                       添加楼层图纸
                     </Button>
                     <Button onClick={handleOpenDeviceModal}>添加设备</Button>
@@ -665,7 +672,7 @@ const BuildingDetailPage: React.FC = () => {
         onOk={handlePlanOk}
         okButtonProps={{loading: planSubmitting}}
       >
-        <Form form={planForm} layout="vertical" initialValues={{floor: null, deviceCount: null}}>
+        <Form form={planForm} layout="vertical" initialValues={{floor: null}}>
           <Form.Item label="选择楼层" name="floor" rules={[{required: true, message: '请选择楼层'}]}>
             <Select options={planFloorOptions} />
           </Form.Item>

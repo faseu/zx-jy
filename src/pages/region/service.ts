@@ -142,6 +142,21 @@ export async function createFloor(
   });
 }
 
+export async function updateFloorDrawing(
+  id: number | string,
+  filePath: string,
+  options?: { [key: string]: any },
+) {
+  return request(`/api/v1/floor/updateTFloorDraw/${id}`, {
+    method: 'PUT',
+    params: { filePath },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    ...(options || {}),
+  });
+}
+
 export async function createDevice(
   data: {
     deviceNo: string;
