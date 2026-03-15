@@ -4,6 +4,7 @@ import {
   Button,
   Col,
   Divider,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -19,7 +20,6 @@ import {
 } from 'antd';
 import React, {useEffect, useRef, useState} from 'react';
 import gb from '@/assets/gb.png';
-import built from '@/assets/built.png';
 import 'ol/ol.css';
 import OlMap from 'ol/Map';
 import View from 'ol/View';
@@ -37,6 +37,7 @@ import type {BuildingInfoVO} from '../data.d';
 import {
   createDevice,
   createFloor,
+  queryBuildingFloorForm,
   queryBuildingFloors,
   queryBuildingInfo,
   queryPrisonBuildings,
@@ -88,6 +89,13 @@ const BuildingDetailPage: React.FC = () => {
     ready: Boolean(buildingId),
     refreshDeps: [buildingId],
   });
+  const {data: floorFormData, loading: floorFormLoading} = useRequest(
+    () => queryBuildingFloorForm(selectedFloorId as number),
+    {
+      ready: Boolean(selectedFloorId),
+      refreshDeps: [selectedFloorId],
+    },
+  );
 
   const {data: prisonDetail} = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
@@ -146,6 +154,11 @@ const BuildingDetailPage: React.FC = () => {
     return {label: `${value}层`, value};
   }).filter(Boolean) as {label: string; value: number}[];
 
+  const currentFloorDrawing = floorFormData?.floorDrawing;
+  const currentFloorName = floorFormData?.floorName;
+  const currentFloorDeviceNumber = floorFormData?.deviceNumber ?? 0;
+  const isImageDrawing = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(currentFloorDrawing ?? '');
+
   useEffect(() => {
     if (!floorData?.length || selectedFloorId) return;
     setSelectedFloorId(floorData[0].id);
@@ -194,8 +207,16 @@ const BuildingDetailPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    if (!currentFloorDrawing || !isImageDrawing) {
+      if (mapRef.current) {
+        mapRef.current.setTarget(undefined);
+        mapRef.current = null;
+      }
+      markerSourceRef.current = null;
+      return;
+    }
     const image = new window.Image();
-    image.src = built;
+    image.src = currentFloorDrawing;
     image.onload = () => {
       if (cancelled || !mapContainerRef.current) return;
       const extent: [number, number, number, number] = [0, 0, image.width, image.height];
@@ -207,7 +228,7 @@ const BuildingDetailPage: React.FC = () => {
 
       const imageLayer = new ImageLayer({
         source: new Static({
-          url: built,
+          url: currentFloorDrawing,
           projection,
           imageExtent: extent,
         }),
@@ -272,6 +293,13 @@ const BuildingDetailPage: React.FC = () => {
 
       mapRef.current = map;
     };
+    image.onerror = () => {
+      if (mapRef.current) {
+        mapRef.current.setTarget(undefined);
+        mapRef.current = null;
+      }
+      markerSourceRef.current = null;
+    };
     return () => {
       cancelled = true;
       if (mapRef.current) {
@@ -280,7 +308,7 @@ const BuildingDetailPage: React.FC = () => {
       }
       markerSourceRef.current = null;
     };
-  }, []);
+  }, [currentFloorDrawing, isImageDrawing]);
 
   useEffect(() => {
     const source = markerSourceRef.current;
@@ -474,7 +502,7 @@ const BuildingDetailPage: React.FC = () => {
           </Col>
 
           <Col xs={24} xl={18}>
-            <Spin spinning={detailLoading}>
+            <Spin spinning={detailLoading || floorFormLoading}>
               <div style={{minHeight: 680, padding: '18px 26px'}}>
                 <div style={{display: 'flex', justifyContent: 'flex-end'}}>
                   <Button onClick={() => history.back()}>返回</Button>
@@ -502,6 +530,9 @@ const BuildingDetailPage: React.FC = () => {
                   <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                     <span style={{fontSize: 30, color: '#111'}}>当前楼层:</span>
                     <Select value={selectedFloor} onChange={handleFloorChange} options={floorOptions} style={{width: 160}} />
+                    <span style={{fontSize: 16, color: 'rgba(0,0,0,0.65)'}}>
+                      {currentFloorName ? `${currentFloorName} / 设备数 ${currentFloorDeviceNumber}` : ''}
+                    </span>
                   </div>
                   <div style={{display: 'flex', gap: 8}}>
                     <Button type="primary" onClick={() => setPlanModalOpen(true)}>
@@ -534,7 +565,13 @@ const BuildingDetailPage: React.FC = () => {
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={handleDeviceDrop}
                   >
-                    <div ref={mapContainerRef} style={{width: '100%', height: '100%'}} />
+                    {currentFloorDrawing && isImageDrawing ? (
+                      <div ref={mapContainerRef} style={{width: '100%', height: '100%'}} />
+                    ) : (
+                      <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        <Empty description={currentFloorDrawing ? '当前图纸格式不支持地图渲染' : '当前楼层暂无图纸'} />
+                      </div>
+                    )}
                     {placingDeviceId ? (
                       <div
                         style={{
@@ -631,9 +668,6 @@ const BuildingDetailPage: React.FC = () => {
         <Form form={planForm} layout="vertical" initialValues={{floor: null, deviceCount: null}}>
           <Form.Item label="选择楼层" name="floor" rules={[{required: true, message: '请选择楼层'}]}>
             <Select options={planFloorOptions} />
-          </Form.Item>
-          <Form.Item label="设备数量" name="deviceCount">
-            <InputNumber min={0} style={{width: '100%'}} />
           </Form.Item>
           <Form.Item
             label="上传图片"
