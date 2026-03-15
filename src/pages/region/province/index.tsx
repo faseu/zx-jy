@@ -1,21 +1,9 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams, useRequest } from '@umijs/max';
-import {
-  Button,
-  Col,
-  Divider,
-  Form,
-  Input,
-  InputNumber,
-  List,
-  Modal,
-  Radio,
-  Row,
-  Spin,
-  message,
-} from 'antd';
+import { Button, Col, Divider, Form, List, Row, Spin, message } from 'antd';
 import React, { useMemo, useState } from 'react';
 import type { PrisonFormVO, PrisonVO, ProvinceDetailVO } from '../data.d';
+import PrisonFormModal from '../components/PrisonFormModal';
 import {
   createPrison,
   queryPrisonForm,
@@ -266,10 +254,11 @@ const ProvinceDetailPage: React.FC = () => {
         </Row>
       </div>
 
-      <Modal
-        title={modalMode === 'edit' ? '编辑监狱' : '新增监狱'}
+      <PrisonFormModal
+        modalMode={modalMode}
         open={isModalOpen}
         confirmLoading={submitLoading}
+        form={form}
         onOk={handleSubmit}
         onCancel={() => {
           setIsModalOpen(false);
@@ -277,44 +266,7 @@ const ProvinceDetailPage: React.FC = () => {
           setEditingPrisonForm(undefined);
           form.resetFields();
         }}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item label="监狱等级" name="level">
-            <Radio.Group buttonStyle="solid" optionType="button">
-              <Radio.Button style={{ background: '#cae9f8' }} value={1}>
-                宽管监狱
-              </Radio.Button>
-              <Radio.Button style={{ background: '#f0dd93' }} value={2}>
-                普管监狱
-              </Radio.Button>
-              <Radio.Button style={{ background: '#e8c0c9' }} value={3}>
-                严管监狱
-              </Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-          <Form.Item
-            label="监狱名称"
-            name="name"
-            rules={[{ required: true, message: '请输入监狱名称' }]}
-          >
-            <Input placeholder="请输入监狱名称" />
-          </Form.Item>
-          <Form.Item label="授权人员列表" name="authUsers">
-            <Input placeholder="以逗号分隔" />
-          </Form.Item>
-          <Form.Item
-            label="监舍数量"
-            name="roomNumber"
-            rules={[{ required: true, message: '请输入监舍数量' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="请输入监舍数量" />
-          </Form.Item>
-          <Form.Item name="deptId" hidden>
-            <InputNumber />
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
     </PageContainer>
   );
 };
