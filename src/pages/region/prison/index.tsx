@@ -1,21 +1,16 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useParams, useRequest } from '@umijs/max';
-import {
-  Button,
-  Col,
-  Divider,
-  Form,
-  Input,
-  InputNumber,
-  List,
-  Modal,
-  Row,
-  Spin,
-  message,
-} from 'antd';
+import { Button, Col, Divider, Form, Input, InputNumber, List, Modal, Row, Spin, message } from 'antd';
 import React, { useMemo, useState } from 'react';
-import type { BuildingDetailVO, PrisonInfoVO } from '../data.d';
-import { createBuilding, queryPrisonBuildings, queryPrisonInfo } from '../service';
+import PrisonFormModal from '../components/PrisonFormModal';
+import type { BuildingDetailVO, PrisonFormVO, PrisonInfoVO } from '../data.d';
+import {
+  createBuilding,
+  queryPrisonBuildings,
+  queryPrisonForm,
+  queryPrisonInfo,
+  updatePrison,
+} from '../service';
 import gb from '@/assets/gb.png';
 
 type BuildingListItem = BuildingDetailVO & { __isNew?: boolean; id?: number | string };
@@ -25,10 +20,19 @@ const cardColors = ['#fafef3'];
 const PrisonDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
   const prisonId = params.id ?? '';
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form] = Form.useForm();
 
-  const { data: detailData, loading: detailLoading } = useRequest(() => queryPrisonInfo(prisonId), {
+  const [isBuildingModalOpen, setIsBuildingModalOpen] = useState(false);
+  const [isPrisonModalOpen, setIsPrisonModalOpen] = useState(false);
+  const [editingPrisonForm, setEditingPrisonForm] = useState<PrisonFormVO | undefined>(undefined);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [buildingForm] = Form.useForm();
+  const [prisonForm] = Form.useForm<PrisonFormVO>();
+
+  const {
+    data: detailData,
+    loading: detailLoading,
+    refresh: refreshDetail,
+  } = useRequest(() => queryPrisonInfo(prisonId), {
     ready: Boolean(prisonId),
     refreshDeps: [prisonId],
   });
@@ -47,24 +51,64 @@ const PrisonDetailPage: React.FC = () => {
 
   const listData = useMemo<BuildingListItem[]>(
     () => [...buildings, { id: 'new', __isNew: true }],
-    [buildings]
+    [buildings],
   );
 
-  const handleOpenModal = () => {
-    form.setFieldsValue({ prisonId: prisonId ? Number(prisonId) : undefined });
-    setIsModalOpen(true);
+  const handleOpenBuildingModal = () => {
+    buildingForm.setFieldsValue({ prisonId: prisonId ? Number(prisonId) : undefined });
+    setIsBuildingModalOpen(true);
   };
 
-  const handleSubmit = async () => {
-    const values = await form.validateFields();
+  const handleOpenPrisonEditModal = async () => {
+    if (!prisonId) {
+      return;
+    }
+    try {
+      const { data: prisonFormData } = await queryPrisonForm(prisonId);
+      setEditingPrisonForm(prisonFormData);
+      prisonForm.setFieldsValue(prisonFormData);
+      setIsPrisonModalOpen(true);
+    } catch (error) {
+      message.error('获取监狱表单失败，请重试');
+    }
+  };
+
+  const handleBuildingSubmit = async () => {
+    const values = await buildingForm.validateFields();
     try {
       await createBuilding(values);
       message.success('已提交新增楼栋信息');
-      setIsModalOpen(false);
-      form.resetFields();
+      setIsBuildingModalOpen(false);
+      buildingForm.resetFields();
       refreshBuildings();
     } catch (error) {
       message.error('提交失败，请重试');
+    }
+  };
+
+  const handlePrisonSubmit = async () => {
+    const values = await prisonForm.validateFields();
+    if (!prisonId) {
+      return;
+    }
+
+    try {
+      setSubmitLoading(true);
+      const payload: PrisonFormVO = {
+        ...(editingPrisonForm || {}),
+        ...values,
+        id: editingPrisonForm?.id ?? Number(prisonId),
+      };
+      await updatePrison(prisonId, payload);
+      message.success('监狱信息已更新');
+      setIsPrisonModalOpen(false);
+      setEditingPrisonForm(undefined);
+      prisonForm.resetFields();
+      refreshDetail();
+    } catch (error) {
+      message.error('提交失败，请重试');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -85,7 +129,7 @@ const PrisonDetailPage: React.FC = () => {
               style={{
                 position: 'relative',
                 height: 'calc(100vh - 128px)',
-                backgroundImage: 'url(' + gb + ')',
+                backgroundImage: `url(${gb})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 display: 'flex',
@@ -93,7 +137,12 @@ const PrisonDetailPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{ position: 'absolute', top: 12, right: 12 }}>编辑</Button>
+              <Button
+                style={{ position: 'absolute', top: 12, right: 12 }}
+                onClick={handleOpenPrisonEditModal}
+              >
+                编辑
+              </Button>
               <div
                 style={{
                   fontSize: 48,
@@ -108,6 +157,7 @@ const PrisonDetailPage: React.FC = () => {
               </div>
             </div>
           </Col>
+
           <Col xs={24} xl={18}>
             <Spin spinning={detailLoading || buildingsLoading}>
               <div style={{ minHeight: 680, padding: '18px 26px' }}>
@@ -148,7 +198,7 @@ const PrisonDetailPage: React.FC = () => {
                     <List.Item style={{ marginBottom: 0 }}>
                       {item.__isNew ? (
                         <div
-                          onClick={handleOpenModal}
+                          onClick={handleOpenBuildingModal}
                           style={{
                             minHeight: 220,
                             border: '1px solid #cdcdcd',
@@ -192,9 +242,7 @@ const PrisonDetailPage: React.FC = () => {
                             <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
                               {item.name || '未命名楼栋'}
                             </div>
-                            <div style={{ fontSize: '28px', marginTop: 14 }}>
-                              楼数: {item.floorNum ?? 0}
-                            </div>
+                            <div style={{ fontSize: '28px', marginTop: 14 }}>楼数: {item.floorNum ?? 0}</div>
                             <div style={{ fontSize: '28px', marginTop: 4 }}>
                               设备数: {item.totalDevices ?? 0}
                             </div>
@@ -212,12 +260,12 @@ const PrisonDetailPage: React.FC = () => {
 
       <Modal
         title="新增楼栋"
-        open={isModalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setIsModalOpen(false)}
+        open={isBuildingModalOpen}
+        onOk={handleBuildingSubmit}
+        onCancel={() => setIsBuildingModalOpen(false)}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form form={buildingForm} layout="vertical">
           <Form.Item
             label="楼栋名称"
             name="name"
@@ -230,30 +278,33 @@ const PrisonDetailPage: React.FC = () => {
             name="groundFloorNum"
             rules={[{ required: true, message: '请输入地上楼层数' }]}
           >
-            <InputNumber
-              placeholder="请输入地上楼层数"
-              style={{ width: '100%' }}
-              min={0}
-              precision={0}
-            />
+            <InputNumber placeholder="请输入地上楼层数" style={{ width: '100%' }} min={0} precision={0} />
           </Form.Item>
           <Form.Item
             label="地下楼层数"
             name="undergroundFloorNum"
             rules={[{ required: true, message: '请输入地下楼层数' }]}
           >
-            <InputNumber
-              placeholder="请输入地下楼层数"
-              style={{ width: '100%' }}
-              min={0}
-              precision={0}
-            />
+            <InputNumber placeholder="请输入地下楼层数" style={{ width: '100%' }} min={0} precision={0} />
           </Form.Item>
           <Form.Item name="prisonId" hidden>
             <Input />
           </Form.Item>
         </Form>
       </Modal>
+
+      <PrisonFormModal
+        modalMode="edit"
+        open={isPrisonModalOpen}
+        confirmLoading={submitLoading}
+        form={prisonForm}
+        onOk={handlePrisonSubmit}
+        onCancel={() => {
+          setIsPrisonModalOpen(false);
+          setEditingPrisonForm(undefined);
+          prisonForm.resetFields();
+        }}
+      />
     </PageContainer>
   );
 };
