@@ -1,5 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { CaretDownOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
 import { Button, Col, Row, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React from 'react';
@@ -87,7 +88,11 @@ const MachinePage: React.FC = () => {
             </div>
             <div className={styles.machineGrid}>
               {machineCards.map((name, index) => (
-                <div key={`${name}-${index}`} className={styles.machineCard}>
+                <div
+                  key={`${name}-${index}`}
+                  className={styles.machineCard}
+                  onClick={() => history.push(`/machine/province/${encodeURIComponent(name)}`)}
+                >
                   {name}
                 </div>
               ))}

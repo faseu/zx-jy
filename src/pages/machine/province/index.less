@@ -1,0 +1,190 @@
+.pageShell {
+  margin: -8px -8px 0;
+  min-height: calc(100vh - 128px);
+  background: #efefef;
+}
+
+.contentRow {
+  min-height: calc(100vh - 128px);
+}
+
+.leftPane {
+  min-height: calc(100vh - 128px);
+  border-right: 1px solid #e1e1e1;
+  background: #fff;
+  padding: 28px 18px;
+}
+
+.orgTree {
+  background: transparent;
+  color: #3e4d5b;
+  font-size: 24px;
+  line-height: 1.85;
+
+  :global {
+    .ant-tree-node-content-wrapper {
+      min-height: 44px;
+      padding: 0 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .ant-tree-switcher {
+      width: 20px;
+      line-height: 44px;
+    }
+  }
+}
+
+.rightPane {
+  min-height: calc(100vh - 128px);
+  background: #fff;
+  padding: 24px 16px 20px 22px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+
+  :global {
+    .ant-btn {
+      min-width: 86px;
+      height: 42px;
+      font-size: 19px;
+      border-radius: 6px;
+    }
+  }
+}
+
+.searchArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+
+  :global {
+    .ant-input {
+      width: 220px;
+      height: 42px;
+      font-size: 17px;
+    }
+  }
+}
+
+.tableWrap {
+  border: 1px solid #d4d6db;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.deviceTable {
+  width: 100%;
+  min-width: 1280px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: 1px solid #d4d6db;
+    padding: 10px 8px;
+    vertical-align: middle;
+    font-size: 18px;
+  }
+
+  th {
+    background: #fff;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+.leftMergedCell {
+  min-width: 130px;
+}
+
+.provinceCell {
+  background: #fff !important;
+}
+
+.floorCell {
+  min-width: 96px;
+}
+
+.switchGroup {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  gap: 4px;
+}
+
+.rowPink td {
+  background: #e7bcc5;
+}
+
+.rowBlue td {
+  background: #b9d8e8;
+}
+
+.checkCell {
+  text-align: center;
+  width: 44px;
+}
+
+.backBar {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1600px) {
+  .orgTree {
+    font-size: 19px;
+  }
+
+  .toolbar {
+    :global {
+      .ant-btn {
+        min-width: 76px;
+        height: 36px;
+        font-size: 15px;
+      }
+    }
+  }
+
+  .searchArea {
+    :global {
+      .ant-input {
+        width: 180px;
+        height: 36px;
+      }
+    }
+  }
+
+  .deviceTable {
+    th,
+    td {
+      font-size: 14px;
+      padding: 8px 6px;
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .leftPane {
+    min-height: auto;
+  }
+
+  .rightPane {
+    min-height: auto;
+    padding-top: 14px;
+  }
+
+  .searchArea {
+    margin-left: 0;
+    width: 100%;
+  }
+}
