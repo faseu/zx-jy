@@ -1,13 +1,13 @@
-import {LockOutlined, UserOutlined} from '@ant-design/icons';
-import {FormattedMessage, Helmet, useIntl} from '@umijs/max';
-import {Alert, App, Button, Form, Input, Radio} from 'antd';
-import React, {useState} from 'react';
-import {login} from '@/services/ant-design-pro/api';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { FormattedMessage, Helmet, useIntl } from '@umijs/max';
+import { Alert, App, Button, Form, Input, Radio } from 'antd';
+import React, { useState } from 'react';
+import { login } from '@/services/ant-design-pro/api';
 import './index.less';
 
 const LoginMessage: React.FC<{
   content: string;
-}> = ({content}) => {
+}> = ({ content }) => {
   return <Alert className="login-error" message={content} type="error" showIcon />;
 };
 
@@ -16,12 +16,12 @@ const Login: React.FC = () => {
   const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
   const [type] = useState<string>('account');
   const [lang, setLang] = useState<string>('arabic');
-  const {message} = App.useApp();
+  const { message } = App.useApp();
   const intl = useIntl();
 
   const handleSubmit = async (values: API.LoginParams) => {
     try {
-      const msg = await login({...values, type});
+      const msg = await login({ ...values, type });
       if (msg.code === '00000') {
         const token = msg?.data?.accessToken;
         if (token) {
@@ -46,7 +46,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const {status, type: loginType} = userLoginState;
+  const { status, type: loginType } = userLoginState;
 
   return (
     <div className="login-page">
@@ -74,7 +74,7 @@ const Login: React.FC = () => {
             </div>
           </div>
           <div className="login-right">
-            <h1 className="login-title">Log In</h1>
+            <h2 className="login-title">Log In</h2>
             <Form<API.LoginParams>
               form={form}
               className="login-form"

@@ -19,6 +19,7 @@ export type PrisonVO = {
   id?: number;
   name?: string;
   buildingNum?: number;
+  level?: number;
   totalDevices?: number;
 };
 
@@ -79,37 +80,56 @@ export type BuildingFormVO = {
   undergroundFloorNum?: number;
 };
 
+export type DeviceFormVO = {
+  id?: number;
+  deviceNo?: string;
+  deviceName?: string;
+  entireNo?: string;
+  floorName?: string;
+  floorId?: number;
+  buildingId?: number;
+  buildingName?: string;
+  prisonId?: number;
+  prisonName?: string;
+  powerOff?: number;
+  powerConfig?: number;
+  ipAddress?: string;
+  port?: number;
+  createBy?: number;
+  createTime?: string;
+  updateBy?: number;
+  updateTime?: string;
+  isDeleted?: number;
+  parameters?: string;
+  startTime?: string;
+  endTime?: string;
+  positionX?: string;
+  positionY?: string;
+  voltage?: string;
+  electric_current?: string;
+  radio_frequency?: string;
+  ch1?: string;
+  ch2?: string;
+  ch3?: string;
+  ch4?: string;
+  ch5?: string;
+  ch6?: string;
+  ch7?: string;
+  ch8?: string;
+  ch9?: string;
+  ch10?: string;
+  ch11?: string;
+  ch12?: string;
+  ch13?: string;
+  ch14?: string;
+  ch15?: string;
+  ch16?: string;
+  ch17?: string;
+  ch18?: string;
+};
+
 export type ResultListProvinceVO = {
   code?: string;
   data?: ProvinceVO[];
-  msg?: string;
-};
-
-export type ResultProvinceDetailVO = {
-  code?: string;
-  data?: ProvinceDetailVO;
-  msg?: string;
-};
-
-export type ResultListPrisonVO = {
-  code?: string;
-  data?: PrisonVO[];
-  msg?: string;
-};
-
-export type ResultPrisonInfoVO = {
-  code?: string;
-  data?: PrisonInfoVO;
-  msg?: string;
-};
-
-export type ResultListBuildingDetailVO = {
-  code?: string;
-  data?: BuildingDetailVO[];
-  msg?: string;
-};
-
-export type ResultObject = {
-  code?: string;
   msg?: string;
 };

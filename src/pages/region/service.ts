@@ -3,6 +3,7 @@ import type {
   BuildingDetailVO,
   BuildingFormVO,
   BuildingInfoVO,
+  DeviceFormVO,
   PrisonFormVO,
   PrisonVO,
   PrisonInfoVO,
@@ -280,6 +281,16 @@ export async function createDevice(
   return request('/api/v1/device', {
     method: 'POST',
     data,
+    ...(options || {}),
+  });
+}
+
+export async function queryDeviceForm(
+  deviceId: number | string,
+  options?: { [key: string]: any },
+) {
+  return request<DeviceFormVO>(`/api/v1/device/${deviceId}/form`, {
+    method: 'GET',
     ...(options || {}),
   });
 }

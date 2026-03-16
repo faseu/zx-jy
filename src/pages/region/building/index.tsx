@@ -6,16 +6,10 @@ import {
   Divider,
   Empty,
   Form,
-  Input,
-  InputNumber,
   Modal,
   Row,
   Select,
-  Slider,
   Spin,
-  Steps,
-  Switch,
-  TimePicker,
   Upload,
   message,
 } from 'antd';
@@ -34,8 +28,9 @@ import Point from 'ol/geom/Point';
 import { defaults as defaultInteractions, Select as OlSelect, Translate } from 'ol/interaction';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 import { getCenter } from 'ol/extent';
-import shielder from '@/assets/shielder.png';
 import type { BuildingInfoVO } from '../data.d';
+import AddDeviceModal from '../components/AddDeviceModal';
+import DeviceDetailModal from '../components/DeviceDetailModal';
 import {
   createDevice,
   queryBuildingFloorForm,
@@ -75,7 +70,6 @@ const BuildingDetailPage: React.FC = () => {
   const [planSubmitting, setPlanSubmitting] = useState(false);
   const [deviceStep, setDeviceStep] = useState(0);
   const [devicePrisonId, setDevicePrisonId] = useState<number | null>(null);
-  const [deviceBuildingId, setDeviceBuildingId] = useState<number | null>(null);
   const [devices, setDevices] = useState<DeviceItem[]>(INITIAL_DEVICES);
   const [powerChannelValues, setPowerChannelValues] = useState<Record<string, number>>({
     ...INITIAL_POWER_CHANNEL_VALUES,
@@ -84,6 +78,8 @@ const BuildingDetailPage: React.FC = () => {
   const [markerAction, setMarkerAction] = useState<MarkerActionState | null>(null);
   const [drawingLoading, setDrawingLoading] = useState(false);
   const [markerSyncVersion, setMarkerSyncVersion] = useState(0);
+  const [deviceDetailOpen, setDeviceDetailOpen] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<OlMap | null>(null);
   const markerSourceRef = useRef<VectorSource | null>(null);
@@ -176,8 +172,6 @@ const BuildingDetailPage: React.FC = () => {
     (item: any) => Number(item.id) === Number(selectedFloorId)
   );
   const currentFloorDrawing = floorFormData?.floorDrawing ?? currentFloorFromList?.floorDrawing;
-  const currentFloorName = floorFormData?.floorName;
-  const currentFloorDeviceNumber = floorFormData?.deviceNumber ?? 0;
   const isImageDrawing = /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(currentFloorDrawing ?? '');
   const floorDeviceRows: any[] = (() => {
     const raw: any = floorDevicePageData;
@@ -524,7 +518,6 @@ const BuildingDetailPage: React.FC = () => {
     const nextPrisonId = prisonId ? Number(prisonId) : null;
     const nextBuildingId = buildingId ? Number(buildingId) : null;
     setDevicePrisonId(nextPrisonId);
-    setDeviceBuildingId(nextBuildingId);
     setDeviceStep(0);
     deviceForm.setFieldsValue({
       prisonId: nextPrisonId ?? undefined,
@@ -633,12 +626,10 @@ const BuildingDetailPage: React.FC = () => {
 
   const handleDevicePrisonChange = (value: number | null) => {
     setDevicePrisonId(value ?? null);
-    setDeviceBuildingId(null);
     deviceForm.setFieldsValue({ buildingId: undefined, floorId: undefined });
   };
 
   const handleDeviceBuildingChange = (value: number | null) => {
-    setDeviceBuildingId(value ?? null);
     deviceForm.setFieldsValue({ floorId: undefined });
   };
 
@@ -648,33 +639,14 @@ const BuildingDetailPage: React.FC = () => {
     setPlacingDeviceId(null);
   };
 
-  const getDeviceRowById = (deviceId: number) =>
-    floorDeviceRows.find((item: any) => {
-      const parsedId = Number(item?.id ?? item?.deviceId);
-      return Number.isFinite(parsedId) && parsedId === deviceId;
-    });
-
   const handleViewDeviceDetail = (deviceId: number) => {
-    const row = getDeviceRowById(deviceId);
-    Modal.info({
-      title: `设备详情 - ${row?.deviceName ?? row?.deviceNo ?? deviceId}`,
-      width: 520,
-      content: (
-        <div style={{ lineHeight: 1.9 }}>
-          <div>设备ID: {row?.id ?? deviceId}</div>
-          <div>设备编号: {row?.deviceNo ?? '-'}</div>
-          <div>设备名称: {row?.deviceName ?? '-'}</div>
-          <div>全网编号: {row?.entireNo ?? '-'}</div>
-          <div>IP: {row?.ipAddress ?? '-'}</div>
-          <div>端口: {row?.port ?? '-'}</div>
-          <div>开始时间: {row?.startTime ?? '-'}</div>
-          <div>结束时间: {row?.endTime ?? '-'}</div>
-          <div>
-            坐标: {row?.positionX ?? '-'}, {row?.positionY ?? '-'}
-          </div>
-        </div>
-      ),
-    });
+    setSelectedDeviceId(deviceId);
+    setDeviceDetailOpen(true);
+  };
+
+  const handleCloseDeviceDetail = () => {
+    setDeviceDetailOpen(false);
+    setSelectedDeviceId(null);
   };
 
   const handleAdjustDevicePosition = (deviceId: number) => {
@@ -1012,190 +984,31 @@ const BuildingDetailPage: React.FC = () => {
         </Form>
       </Modal>
 
-      <Modal
-        title="添加设备"
+      <AddDeviceModal
         open={deviceModalOpen}
+        step={deviceStep}
+        form={deviceForm}
+        powerChannelKeys={POWER_CHANNEL_KEYS}
+        powerChannelValues={powerChannelValues}
+        prisonOptions={prisonOptions}
+        buildingOptions={deviceBuildingOptions}
+        floorOptions={floorOptions}
+        deviceBuildingsLoading={deviceBuildingsLoading}
         onCancel={handleDeviceCancel}
-        width={1000}
-        footer={
-          deviceStep === 0
-            ? [
-                <Button key="cancel" onClick={handleDeviceCancel}>
-                  取消
-                </Button>,
-                <Button key="next" type="primary" onClick={handleDeviceNext}>
-                  下一步
-                </Button>,
-              ]
-            : [
-                <Button key="prev" onClick={handleDevicePrev}>
-                  上一步
-                </Button>,
-                <Button key="finish" type="primary" onClick={handleDeviceFinish}>
-                  完成
-                </Button>,
-              ]
+        onNext={handleDeviceNext}
+        onPrev={handleDevicePrev}
+        onFinish={handleDeviceFinish}
+        onPrisonChange={handleDevicePrisonChange}
+        onBuildingChange={handleDeviceBuildingChange}
+        onPowerChannelChange={(key, value) =>
+          setPowerChannelValues((prev) => ({ ...prev, [key]: value }))
         }
-      >
-        <Form
-          form={deviceForm}
-          layout="horizontal"
-          labelCol={{ span: 3 }}
-          initialValues={{ powerOff: true }}
-        >
-          <Row gutter={16}>
-            <Col
-              flex="180px"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <div
-                style={{
-                  height: 160,
-                  border: '1px dashed #d9d9d9',
-                  borderRadius: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'rgba(0,0,0,0.45)',
-                  marginBottom: 12,
-                  overflow: 'hidden',
-                }}
-              >
-                <img src={shielder} alt="" width={164} height={164} />
-              </div>
-              <Form.Item name="powerOff" valuePropName="checked">
-                <Switch checkedChildren="开" unCheckedChildren="关" />
-              </Form.Item>
-            </Col>
-
-            <Col flex="1">
-              <Steps
-                size="small"
-                current={deviceStep}
-                items={[{ title: '基础信息' }, { title: '其他信息' }]}
-                style={{ marginBottom: 16 }}
-              />
-
-              {deviceStep === 0 ? (
-                <>
-                  <Form.Item
-                    label="监狱"
-                    name="prisonId"
-                    rules={[{ required: true, message: '请选择监狱' }]}
-                  >
-                    <Select
-                      options={prisonOptions}
-                      disabled
-                      onChange={handleDevicePrisonChange}
-                      placeholder="请选择监狱"
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    label="楼栋"
-                    name="buildingId"
-                    rules={[{ required: true, message: '请选择楼栋' }]}
-                  >
-                    <Select
-                      options={deviceBuildingOptions}
-                      onChange={handleDeviceBuildingChange}
-                      placeholder="请选择楼栋"
-                      loading={deviceBuildingsLoading}
-                      disabled
-                      notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    label="楼层"
-                    name="floorId"
-                    rules={[{ required: true, message: '请选择楼层' }]}
-                  >
-                    <Select options={floorOptions} placeholder="请选择楼层" disabled />
-                  </Form.Item>
-                  <Form.Item
-                    label="设备编号"
-                    name="deviceCode"
-                    rules={[{ required: true, message: '请输入设备编号' }]}
-                  >
-                    <InputNumber min={1} placeholder="请输入设备编号" style={{ width: '100%' }} />
-                  </Form.Item>
-                </>
-              ) : (
-                <>
-                  <Form.Item
-                    label="全网编号"
-                    name="networkCode"
-                    rules={[{ required: true, message: '请输入全网编号' }]}
-                  >
-                    <Input placeholder="请输入全网编号" />
-                  </Form.Item>
-                  <Form.Item
-                    label="IP"
-                    name="ip"
-                    rules={[{ required: true, message: '请输入 IP' }]}
-                  >
-                    <Input placeholder="请输入 IP" />
-                  </Form.Item>
-                  <Form.Item
-                    label="端口"
-                    name="port"
-                    rules={[{ required: true, message: '请输入端口' }]}
-                  >
-                    <InputNumber min={0} max={65535} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Form.Item label="功率调节">
-                    <Row gutter={[12, 8]}>
-                      {POWER_CHANNEL_KEYS.map((key, index) => (
-                        <Col span={8} key={key}>
-                          <Form.Item
-                            name={key}
-                            label={`CH${index + 1}`}
-                            style={{ marginBottom: 0 }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ minWidth: 24, textAlign: 'right' }}>
-                                {powerChannelValues[key] ?? 0}
-                              </span>
-                              <Slider
-                                min={0}
-                                max={100}
-                                style={{ flex: 1, margin: 0 }}
-                                tooltip={{ open: false }}
-                                onChange={(value) => {
-                                  const nextValue = Array.isArray(value) ? value[0] : value;
-                                  setPowerChannelValues((prev) => ({ ...prev, [key]: nextValue }));
-                                }}
-                              />
-                            </div>
-                          </Form.Item>
-                        </Col>
-                      ))}
-                    </Row>
-                  </Form.Item>
-                  <Form.Item
-                    label="开始时间"
-                    name="startTime"
-                    rules={[{ required: true, message: '请选择开始时间' }]}
-                  >
-                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Form.Item
-                    label="停止时间"
-                    name="stopTime"
-                    rules={[{ required: true, message: '请选择停止时间' }]}
-                  >
-                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
-                  </Form.Item>
-                </>
-              )}
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
+      />
+      <DeviceDetailModal
+        open={deviceDetailOpen}
+        deviceId={selectedDeviceId}
+        onCancel={handleCloseDeviceDetail}
+      />
     </PageContainer>
   );
 };

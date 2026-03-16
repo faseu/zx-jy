@@ -15,7 +15,7 @@ import gb from '@/assets/gb.png';
 
 type PrisonListItem = PrisonVO & { __isNew?: boolean; id?: number | string };
 
-const cardColors = ['#e8c0c9', '#e8c0c9', '#f0dd93', '#f0dd93', '#cae9f8'];
+const cardColors = ['#cae9f8', '#f0dd93', '#e8c0c9'];
 
 const ProvinceDetailPage: React.FC = () => {
   const params = useParams<{ id: string }>();
@@ -213,7 +213,7 @@ const ProvinceDetailPage: React.FC = () => {
                           style={{
                             minHeight: 220,
                             border: '1px solid #c5c5c5',
-                            background: cardColors[index % cardColors.length],
+                            background: cardColors[item?.level || 1 - 1],
                             padding: '12px',
                             boxSizing: 'border-box',
                             marginTop: '12px',
