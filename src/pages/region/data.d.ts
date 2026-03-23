@@ -1,3 +1,9 @@
+export type ResultData<T> = {
+  code?: string;
+  data?: T;
+  msg?: string;
+};
+
 export type ProvinceVO = {
   provinceId?: number;
   provinceName?: string;

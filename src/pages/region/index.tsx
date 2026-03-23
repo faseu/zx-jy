@@ -8,14 +8,15 @@ import SaudiMap from '@/components/SaudiMap';
 import './index.less';
 const RegionPage: React.FC = () => {
   const { data, loading } = useRequest(queryProvinceList);
+  const provinceList = data ?? [];
 
   const handleProvinceClick = (provinceName: string) => {
-    if (!data || data.length === 0) {
+    if (provinceList.length === 0) {
       message.warning('省份数据加载中，请稍后再试');
       return;
     }
 
-    const matched = data.find((item) => item.provinceName === provinceName);
+    const matched = provinceList.find((item: ProvinceVO) => item.provinceName === provinceName);
     if (matched?.provinceId === undefined || matched?.provinceId === null) {
       message.warning(`未找到 ${provinceName} 的省份信息`);
       return;
@@ -33,7 +34,7 @@ const RegionPage: React.FC = () => {
             rowKey={(record) => record.provinceId ?? record.provinceName ?? ''}
             loading={loading}
             size="small"
-            dataSource={data ?? []}
+            dataSource={provinceList}
             columns={[
               {
                 title: '省份',

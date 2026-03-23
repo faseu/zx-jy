@@ -16,7 +16,7 @@ import {
 } from '../service';
 import gb from '@/assets/gb.png';
 
-type BuildingListItem = BuildingDetailVO & { __isNew?: boolean; id?: number | string };
+type BuildingListItem = Omit<BuildingDetailVO, 'id'> & { __isNew?: boolean; id?: number | string };
 
 const cardColors = ['#fafef3'];
 
@@ -80,6 +80,10 @@ const PrisonDetailPage: React.FC = () => {
     }
     try {
       const { data: buildingFormData } = await queryBuildingForm(buildingId);
+      if (!buildingFormData) {
+        message.error('获取楼栋表单失败，请重试');
+        return;
+      }
       setBuildingModalMode('edit');
       setEditingBuildingId(buildingId);
       setEditingBuildingForm(buildingFormData);
@@ -96,6 +100,10 @@ const PrisonDetailPage: React.FC = () => {
     }
     try {
       const { data: prisonFormData } = await queryPrisonForm(prisonId);
+      if (!prisonFormData) {
+        message.error('获取监狱表单失败，请重试');
+        return;
+      }
       setEditingPrisonForm(prisonFormData);
       prisonForm.setFieldsValue(prisonFormData);
       setIsPrisonModalOpen(true);

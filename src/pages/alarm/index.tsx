@@ -124,7 +124,7 @@ const AlarmPage: React.FC = () => {
 
       setProvincePrisons((prev) => ({
         ...prev,
-        [provinceKey]: (prisonList ?? []) as PrisonVO[],
+        [provinceKey]: (prisonList.data ?? []) as PrisonVO[],
       }));
 
       return;
@@ -141,7 +141,7 @@ const AlarmPage: React.FC = () => {
 
       setPrisonBuildings((prev) => ({
         ...prev,
-        [prisonKey]: (buildingList ?? []) as BuildingDetailVO[],
+        [prisonKey]: (buildingList.data ?? []) as BuildingDetailVO[],
       }));
     }
   };

@@ -13,7 +13,7 @@ import {
 } from '../service';
 import gb from '@/assets/gb.png';
 
-type PrisonListItem = PrisonVO & { __isNew?: boolean; id?: number | string };
+type PrisonListItem = Omit<PrisonVO, 'id'> & { __isNew?: boolean; id?: number | string };
 
 const cardColors = ['#cae9f8', '#f0dd93', '#e8c0c9'];
 
@@ -67,6 +67,10 @@ const ProvinceDetailPage: React.FC = () => {
     }
     try {
       const { data: prisonForm } = await queryPrisonForm(prisonId);
+      if (!prisonForm) {
+        message.error('获取监狱表单失败，请重试');
+        return;
+      }
       setModalMode('edit');
       setEditingPrisonId(prisonId);
       setEditingPrisonForm(prisonForm);

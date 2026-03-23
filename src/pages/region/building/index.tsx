@@ -148,8 +148,8 @@ const BuildingDetailPage: React.FC = () => {
   const detail: BuildingInfoVO | undefined = detailData;
 
   const prisonOptions = prisonId
-    ? [
-        {
+      ? [
+          {
           label: prisonDetail?.name || `监狱${prisonId}`,
           value: Number(prisonId),
         },
