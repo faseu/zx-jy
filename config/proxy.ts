@@ -13,7 +13,7 @@ export default {
   // 如果需要自定义本地开发服务器  请取消注释按需调整
   dev: {
     '/api/': {
-      target: 'http://47.84.22.103:8990',
+      target: 'http://8.136.16.12:7680',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },
@@ -25,14 +25,14 @@ export default {
   test: {
     // localhost:8000/api/** -> https://preview.pro.ant.design/api/**
     '/api/': {
-      target: 'http://47.84.22.103:8990',
+      target: 'http://8.136.16.12:7680',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },
   },
   pre: {
     '/api/': {
-      target: 'http://47.84.22.103:8990',
+      target: 'http://8.136.16.12:7680',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },
