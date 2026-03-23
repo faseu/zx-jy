@@ -1,8 +1,11 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { CaretDownOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Table, Tree } from 'antd';
+import { useRequest } from '@umijs/max';
+import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Spin, Table, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React from 'react';
+import type { BuildingDetailVO, PrisonVO, ProvinceVO } from '../region/data.d';
+import { queryPrisonBuildings, queryProvinceList, queryProvincePrisons } from '../region/service';
 import styles from './index.less';
 
 type AlarmRow = {
@@ -15,45 +18,6 @@ type AlarmRow = {
   advice: string;
 };
 
-const orgTreeData: DataNode[] = [
-  {
-    title: '全国',
-    key: '0',
-    children: [
-      {
-        title: 'Riyadh',
-        key: '0-1',
-        children: [
-          {
-            title: 'AAA监狱',
-            key: '0-1-1',
-            children: [
-              {
-                title: 'AABB楼',
-                key: '0-1-1-1',
-                children: [
-                  { title: '1楼', key: '0-1-1-1-1' },
-                  { title: '2楼', key: '0-1-1-1-2' },
-                ],
-              },
-              { title: 'BBCC楼', key: '0-1-1-2' },
-              { title: 'BBBB楼', key: '0-1-1-3' },
-            ],
-          },
-        ],
-      },
-      { title: 'Mecca', key: '0-2' },
-      { title: 'Riyadh', key: '0-3' },
-      { title: 'Buraydah', key: '0-4' },
-      { title: 'Medina', key: '0-5' },
-      { title: 'Mecca', key: '0-6' },
-      { title: 'Riyadh', key: '0-7' },
-      { title: 'Buraydah', key: '0-8' },
-      { title: 'Medina', key: '0-9' },
-    ],
-  },
-];
-
 const alarmRows: AlarmRow[] = Array.from({ length: 10 }, (_, index) => ({
   key: `${index}`,
   prison: 'AAA监狱',
@@ -64,19 +28,144 @@ const alarmRows: AlarmRow[] = Array.from({ length: 10 }, (_, index) => ({
   advice: '重启',
 }));
 
+type AlarmTreeNode = Omit<DataNode, 'children'> & {
+  nodeType: 'country' | 'province' | 'prison' | 'building';
+  provinceId?: number | string;
+  prisonId?: number | string;
+  buildingId?: number | string;
+  children?: AlarmTreeNode[];
+};
+
+const buildBuildingNodes = (buildingList: BuildingDetailVO[]): AlarmTreeNode[] =>
+  buildingList.map((building, index) => ({
+    title: building.name ?? '-',
+    key: `building-${building.id ?? index}`,
+    nodeType: 'building',
+    buildingId: building.id,
+    isLeaf: true,
+  }));
+
+const buildPrisonNodes = (prisonList: PrisonVO[]): AlarmTreeNode[] =>
+  prisonList.map((prison, index) => ({
+    title: prison.name ?? '-',
+    key: `prison-${prison.id ?? index}`,
+    nodeType: 'prison',
+    prisonId: prison.id,
+    isLeaf: !(prison.buildingNum && prison.buildingNum > 0),
+    children: prison.buildingNum && prison.buildingNum > 0 ? [] : undefined,
+  }));
+
+const buildProvinceNodes = (provinceList: ProvinceVO[]): AlarmTreeNode[] => [
+  {
+    title: '全国',
+    key: 'country',
+    nodeType: 'country',
+    children: provinceList.map((province, index) => ({
+      title: province.provinceName ?? '-',
+      key: `province-${province.provinceId ?? province.provinceName ?? index}`,
+      nodeType: 'province',
+      provinceId: province.provinceId,
+      isLeaf: !(province.totalPrisons && province.totalPrisons > 0),
+      children: province.totalPrisons && province.totalPrisons > 0 ? [] : undefined,
+    })),
+  },
+];
+
 const AlarmPage: React.FC = () => {
+  const { data, loading: provinceLoading } = useRequest(queryProvinceList);
+  const provinceList = (data ?? []) as ProvinceVO[];
+  const [provincePrisons, setProvincePrisons] = React.useState<Record<string, PrisonVO[]>>({});
+  const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>({});
+
+  const orgTreeData = React.useMemo<AlarmTreeNode[]>(
+    () =>
+      buildProvinceNodes(provinceList).map((rootNode) => ({
+        ...rootNode,
+        children: rootNode.children?.map((provinceNode) => {
+          const provinceKey = String(provinceNode.provinceId ?? provinceNode.key);
+          const prisonList = provincePrisons[provinceKey];
+
+          if (!prisonList) {
+            return provinceNode;
+          }
+
+          return {
+            ...provinceNode,
+            children: buildPrisonNodes(prisonList).map((prisonNode) => {
+              const prisonKey = String(prisonNode.prisonId ?? prisonNode.key);
+              const buildingList = prisonBuildings[prisonKey];
+
+              if (!buildingList) {
+                return prisonNode;
+              }
+
+              return {
+                ...prisonNode,
+                children: buildBuildingNodes(buildingList),
+              };
+            }),
+          };
+        }),
+      })),
+    [provinceList, provincePrisons, prisonBuildings],
+  );
+
+  const handleLoadData = async (treeNode: AlarmTreeNode): Promise<void> => {
+    const currentNode = treeNode;
+
+    if (currentNode.nodeType === 'province') {
+      const provinceKey = String(currentNode.provinceId ?? currentNode.key);
+
+      if (provincePrisons[provinceKey] || !currentNode.provinceId) {
+        return;
+      }
+
+      const prisonList = await queryProvincePrisons(currentNode.provinceId);
+
+      setProvincePrisons((prev) => ({
+        ...prev,
+        [provinceKey]: (prisonList ?? []) as PrisonVO[],
+      }));
+
+      return;
+    }
+
+    if (currentNode.nodeType === 'prison') {
+      const prisonKey = String(currentNode.prisonId ?? currentNode.key);
+
+      if (prisonBuildings[prisonKey] || !currentNode.prisonId) {
+        return;
+      }
+
+      const buildingList = await queryPrisonBuildings(currentNode.prisonId);
+
+      setPrisonBuildings((prev) => ({
+        ...prev,
+        [prisonKey]: (buildingList ?? []) as BuildingDetailVO[],
+      }));
+    }
+  };
+
   return (
     <PageContainer title={false}>
       <div className={styles.pageShell}>
         <Row gutter={0} className={styles.contentRow}>
           <Col xs={24} xl={6} className={styles.leftPane}>
-            <Tree
-              className={styles.orgTree}
-              treeData={orgTreeData}
-              defaultExpandAll
-              selectable={false}
-              switcherIcon={({ expanded }) => <CaretDownOutlined rotate={expanded ? 0 : -90} />}
-            />
+            <Spin spinning={provinceLoading} className={styles.treeSpin}>
+              <Tree<AlarmTreeNode>
+                className={styles.orgTree}
+                treeData={orgTreeData}
+                defaultExpandedKeys={['country']}
+                loadData={handleLoadData}
+                selectable={false}
+                switcherIcon={({ expanded }) => (
+                  <CaretDownOutlined
+                    className={styles.treeSwitcherIcon}
+                    rotate={expanded ? 0 : -90}
+                  />
+                )}
+              />
+            </Spin>
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
             <div className={styles.alarmTabRow}>
