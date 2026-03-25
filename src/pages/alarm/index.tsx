@@ -1,80 +1,16 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { CaretDownOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useRequest } from '@umijs/max';
-import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Spin, Table, Tree } from 'antd';
+import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
-import type { DataNode } from 'antd/es/tree';
 import React from 'react';
+import OrgTree from '@/components/OrgTree';
 import type { AlarmPageParams, AlarmVO } from './data.d';
 import { queryAlarmPage } from './service';
-import type { BuildingDetailVO, PrisonVO, ProvinceVO } from '../region/data.d';
-import {
-  queryBuildingFloors,
-  queryPrisonBuildings,
-  queryProvinceList,
-  queryProvincePrisons,
-} from '../region/service';
+import type { ProvinceVO } from '../region/data.d';
+import { queryProvinceList } from '../region/service';
+import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import styles from './index.less';
-
-type AlarmTreeNode = Omit<DataNode, 'children'> & {
-  nodeType: 'country' | 'province' | 'prison' | 'building' | 'floor';
-  provinceId?: number | string;
-  prisonId?: number | string;
-  buildingId?: number | string;
-  floorId?: number | string;
-  children?: AlarmTreeNode[];
-};
-
-type FloorVO = {
-  id?: number | string;
-  floorName?: string;
-  floorNo?: number | string;
-};
-
-const buildBuildingNodes = (buildingList: BuildingDetailVO[]): AlarmTreeNode[] =>
-  buildingList.map((building, index) => ({
-    title: building.name ?? '-',
-    key: `building-${building.id ?? index}`,
-    nodeType: 'building',
-    buildingId: building.id,
-    isLeaf: false,
-    children: [],
-  }));
-
-const buildFloorNodes = (floorList: FloorVO[]): AlarmTreeNode[] =>
-  floorList.map((floor, index) => ({
-    title: floor.floorName ?? '-',
-    key: `floor-${floor.id ?? floor.floorNo ?? index}`,
-    nodeType: 'floor',
-    floorId: floor.id,
-    isLeaf: true,
-  }));
-
-const buildPrisonNodes = (prisonList: PrisonVO[]): AlarmTreeNode[] =>
-  prisonList.map((prison, index) => ({
-    title: prison.name ?? '-',
-    key: `prison-${prison.id ?? index}`,
-    nodeType: 'prison',
-    prisonId: prison.id,
-    isLeaf: !(prison.buildingNum && prison.buildingNum > 0),
-    children: prison.buildingNum && prison.buildingNum > 0 ? [] : undefined,
-  }));
-
-const buildProvinceNodes = (provinceList: ProvinceVO[]): AlarmTreeNode[] => [
-  {
-    title: '全国',
-    key: 'country',
-    nodeType: 'country',
-    children: provinceList.map((province, index) => ({
-      title: province.provinceName ?? '-',
-      key: `province-${province.provinceId ?? province.provinceName ?? index}`,
-      nodeType: 'province',
-      provinceId: province.provinceId,
-      isLeaf: !(province.totalPrisons && province.totalPrisons > 0),
-      children: province.totalPrisons && province.totalPrisons > 0 ? [] : undefined,
-    })),
-  },
-];
 
 const AlarmPage: React.FC = () => {
   const [pageNum, setPageNum] = React.useState(1);
@@ -83,6 +19,9 @@ const AlarmPage: React.FC = () => {
   const [endDate, setEndDate] = React.useState<Dayjs | null>(null);
   const [deviceName, setDeviceName] = React.useState('');
   const [alarmType, setAlarmType] = React.useState<string>('');
+  const [orgSelection, setOrgSelection] = React.useState<OrgTreeSelectionParams>({
+    nodeType: 'country',
+  });
 
   const { data, loading: provinceLoading } = useRequest(queryProvinceList);
   const {
@@ -91,9 +30,6 @@ const AlarmPage: React.FC = () => {
     run: runQueryAlarmPage,
   } = useRequest(queryAlarmPage, { manual: true });
   const provinceList = (data ?? []) as ProvinceVO[];
-  const [provincePrisons, setProvincePrisons] = React.useState<Record<string, PrisonVO[]>>({});
-  const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>({});
-  const [buildingFloors, setBuildingFloors] = React.useState<Record<string, FloorVO[]>>({});
 
   const alarmList = (alarmPageData?.list ?? []) as AlarmVO[];
   const alarmTotal = alarmPageData?.total ?? 0;
@@ -117,10 +53,22 @@ const AlarmPage: React.FC = () => {
       if (alarmType) {
         params.type = alarmType;
       }
+      if (orgSelection.provinceId) {
+        params.provinceId = orgSelection.provinceId;
+      }
+      if (orgSelection.prisonId) {
+        params.prisonId = orgSelection.prisonId;
+      }
+      if (orgSelection.buildingId) {
+        params.buildingId = orgSelection.buildingId;
+      }
+      if (orgSelection.floorId) {
+        params.floorId = orgSelection.floorId;
+      }
 
       runQueryAlarmPage(params);
     },
-    [alarmType, deviceName, endDate, runQueryAlarmPage, startDate],
+    [alarmType, deviceName, endDate, orgSelection, runQueryAlarmPage, startDate],
   );
 
   React.useEffect(() => {
@@ -135,124 +83,24 @@ const AlarmPage: React.FC = () => {
     runAlarmSearch(1, pageSize);
   };
 
-  const orgTreeData = React.useMemo<AlarmTreeNode[]>(
-    () =>
-      buildProvinceNodes(provinceList).map((rootNode) => ({
-        ...rootNode,
-        children: rootNode.children?.map((provinceNode) => {
-          const provinceKey = String(provinceNode.provinceId ?? provinceNode.key);
-          const prisonList = provincePrisons[provinceKey];
-
-          if (!prisonList) {
-            return provinceNode;
-          }
-
-          return {
-            ...provinceNode,
-            children: buildPrisonNodes(prisonList).map((prisonNode) => {
-              const prisonKey = String(prisonNode.prisonId ?? prisonNode.key);
-              const buildingList = prisonBuildings[prisonKey];
-
-              if (!buildingList) {
-                return prisonNode;
-              }
-
-              return {
-                ...prisonNode,
-                children: buildBuildingNodes(buildingList).map((buildingNode) => {
-                  const buildingKey = String(buildingNode.buildingId ?? buildingNode.key);
-                  const floorList = buildingFloors[buildingKey];
-
-                  if (!floorList) {
-                    return buildingNode;
-                  }
-
-                  return {
-                    ...buildingNode,
-                    children: buildFloorNodes(floorList),
-                  };
-                }),
-              };
-            }),
-          };
-        }),
-      })),
-    [buildingFloors, provinceList, provincePrisons, prisonBuildings],
-  );
-
-  const handleLoadData = async (treeNode: AlarmTreeNode): Promise<void> => {
-    const currentNode = treeNode;
-
-    if (currentNode.nodeType === 'province') {
-      const provinceKey = String(currentNode.provinceId ?? currentNode.key);
-
-      if (provincePrisons[provinceKey] || !currentNode.provinceId) {
-        return;
-      }
-
-      const prisonList = await queryProvincePrisons(currentNode.provinceId);
-
-      setProvincePrisons((prev) => ({
-        ...prev,
-        [provinceKey]: (prisonList.data ?? []) as PrisonVO[],
-      }));
-
-      return;
-    }
-
-    if (currentNode.nodeType === 'prison') {
-      const prisonKey = String(currentNode.prisonId ?? currentNode.key);
-
-      if (prisonBuildings[prisonKey] || !currentNode.prisonId) {
-        return;
-      }
-
-      const buildingList = await queryPrisonBuildings(currentNode.prisonId);
-
-      setPrisonBuildings((prev) => ({
-        ...prev,
-        [prisonKey]: (buildingList.data ?? []) as BuildingDetailVO[],
-      }));
-
-      return;
-    }
-
-    if (currentNode.nodeType === 'building') {
-      const buildingKey = String(currentNode.buildingId ?? currentNode.key);
-
-      if (buildingFloors[buildingKey] || !currentNode.buildingId) {
-        return;
-      }
-
-      const floorList = await queryBuildingFloors(currentNode.buildingId);
-
-      setBuildingFloors((prev) => ({
-        ...prev,
-        [buildingKey]: (floorList.data ?? []) as FloorVO[],
-      }));
-    }
-  };
-
   return (
     <PageContainer title={false}>
       <div className={styles.pageShell}>
         <Row gutter={0} className={styles.contentRow}>
           <Col xs={24} xl={6} className={styles.leftPane}>
-            <Spin spinning={provinceLoading} className={styles.treeSpin}>
-              <Tree<AlarmTreeNode>
-                className={styles.orgTree}
-                treeData={orgTreeData}
-                defaultExpandedKeys={['country']}
-                loadData={handleLoadData}
-                selectable={false}
-                switcherIcon={({ expanded }) => (
-                  <CaretDownOutlined
-                    className={styles.treeSwitcherIcon}
-                    rotate={expanded ? 0 : -90}
-                  />
-                )}
-              />
-            </Spin>
+            <OrgTree
+              provinceList={provinceList}
+              loading={provinceLoading}
+              maxLevel={4}
+              onSelectionChange={(params) => {
+                setOrgSelection(params);
+                if (pageNum !== 1) {
+                  setPageNum(1);
+                  return;
+                }
+                runAlarmSearch(1, pageSize);
+              }}
+            />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
             <div className={styles.alarmTabRow}>

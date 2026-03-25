@@ -13,6 +13,10 @@ export type AlarmPageParams = {
   type?: string;
   processingStatus?: number;
   blocked?: number;
+  provinceId?: number | string;
+  prisonId?: number | string;
+  buildingId?: number | string;
+  floorId?: number | string;
 };
 
 export type AlarmVO = {

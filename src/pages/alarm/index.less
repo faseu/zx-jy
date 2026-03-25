@@ -15,21 +15,6 @@
   padding: 28px 18px;
 }
 
-.orgTree {
-  background: transparent;
-  color: #2a2a2a;
-  font-size: 22px;
-  line-height: 1.9;
-}
-
-.treeSpin {
-  width: 100%;
-}
-
-.treeSwitcherIcon {
-  font-size: 18px;
-}
-
 .rightPane {
   min-height: calc(100vh - 128px);
   background: #fff;
@@ -162,48 +147,7 @@
   font-size: 20px;
 }
 
-.orgTree {
-  :global {
-    .ant-tree-treenode {
-      align-items: center;
-    }
-
-    .ant-tree-node-content-wrapper {
-      min-height: 44px;
-      padding: 0 8px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-
-    .ant-tree-switcher {
-      width: 32px;
-      height: 32px;
-      margin-right: 8px;
-      border-radius: 8px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-      align-self: center;
-      transition: background-color 0.2s ease;
-    }
-
-    .ant-tree-switcher:hover {
-      background: #f1f3f5;
-    }
-
-    .ant-tree-switcher-noop {
-      visibility: hidden;
-    }
-  }
-}
-
 @media (max-width: 1600px) {
-  .orgTree {
-    font-size: 18px;
-  }
-
   .queryTitle {
     font-size: 20px;
   }
