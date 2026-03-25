@@ -8,15 +8,27 @@ import React from 'react';
 import type { AlarmPageParams, AlarmVO } from './data.d';
 import { queryAlarmPage } from './service';
 import type { BuildingDetailVO, PrisonVO, ProvinceVO } from '../region/data.d';
-import { queryPrisonBuildings, queryProvinceList, queryProvincePrisons } from '../region/service';
+import {
+  queryBuildingFloors,
+  queryPrisonBuildings,
+  queryProvinceList,
+  queryProvincePrisons,
+} from '../region/service';
 import styles from './index.less';
 
 type AlarmTreeNode = Omit<DataNode, 'children'> & {
-  nodeType: 'country' | 'province' | 'prison' | 'building';
+  nodeType: 'country' | 'province' | 'prison' | 'building' | 'floor';
   provinceId?: number | string;
   prisonId?: number | string;
   buildingId?: number | string;
+  floorId?: number | string;
   children?: AlarmTreeNode[];
+};
+
+type FloorVO = {
+  id?: number | string;
+  floorName?: string;
+  floorNo?: number | string;
 };
 
 const buildBuildingNodes = (buildingList: BuildingDetailVO[]): AlarmTreeNode[] =>
@@ -25,6 +37,16 @@ const buildBuildingNodes = (buildingList: BuildingDetailVO[]): AlarmTreeNode[] =
     key: `building-${building.id ?? index}`,
     nodeType: 'building',
     buildingId: building.id,
+    isLeaf: false,
+    children: [],
+  }));
+
+const buildFloorNodes = (floorList: FloorVO[]): AlarmTreeNode[] =>
+  floorList.map((floor, index) => ({
+    title: floor.floorName ?? '-',
+    key: `floor-${floor.id ?? floor.floorNo ?? index}`,
+    nodeType: 'floor',
+    floorId: floor.id,
     isLeaf: true,
   }));
 
@@ -71,6 +93,7 @@ const AlarmPage: React.FC = () => {
   const provinceList = (data ?? []) as ProvinceVO[];
   const [provincePrisons, setProvincePrisons] = React.useState<Record<string, PrisonVO[]>>({});
   const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>({});
+  const [buildingFloors, setBuildingFloors] = React.useState<Record<string, FloorVO[]>>({});
 
   const alarmList = (alarmPageData?.list ?? []) as AlarmVO[];
   const alarmTotal = alarmPageData?.total ?? 0;
@@ -136,13 +159,25 @@ const AlarmPage: React.FC = () => {
 
               return {
                 ...prisonNode,
-                children: buildBuildingNodes(buildingList),
+                children: buildBuildingNodes(buildingList).map((buildingNode) => {
+                  const buildingKey = String(buildingNode.buildingId ?? buildingNode.key);
+                  const floorList = buildingFloors[buildingKey];
+
+                  if (!floorList) {
+                    return buildingNode;
+                  }
+
+                  return {
+                    ...buildingNode,
+                    children: buildFloorNodes(floorList),
+                  };
+                }),
               };
             }),
           };
         }),
       })),
-    [provinceList, provincePrisons, prisonBuildings],
+    [buildingFloors, provinceList, provincePrisons, prisonBuildings],
   );
 
   const handleLoadData = async (treeNode: AlarmTreeNode): Promise<void> => {
@@ -177,6 +212,23 @@ const AlarmPage: React.FC = () => {
       setPrisonBuildings((prev) => ({
         ...prev,
         [prisonKey]: (buildingList.data ?? []) as BuildingDetailVO[],
+      }));
+
+      return;
+    }
+
+    if (currentNode.nodeType === 'building') {
+      const buildingKey = String(currentNode.buildingId ?? currentNode.key);
+
+      if (buildingFloors[buildingKey] || !currentNode.buildingId) {
+        return;
+      }
+
+      const floorList = await queryBuildingFloors(currentNode.buildingId);
+
+      setBuildingFloors((prev) => ({
+        ...prev,
+        [buildingKey]: (floorList.data ?? []) as FloorVO[],
       }));
     }
   };

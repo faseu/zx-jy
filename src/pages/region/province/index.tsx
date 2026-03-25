@@ -217,7 +217,7 @@ const ProvinceDetailPage: React.FC = () => {
                           style={{
                             minHeight: 220,
                             border: '1px solid #c5c5c5',
-                            background: cardColors[item?.level || 1 - 1],
+                            background: cardColors[item?.level - 1 || 0],
                             padding: '12px',
                             boxSizing: 'border-box',
                             marginTop: '12px',
