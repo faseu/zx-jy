@@ -1,12 +1,13 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { useRequest } from '@umijs/max';
-import { Button, Checkbox, Col, Input, Row, message } from 'antd';
+import { Button, Checkbox, Col, Form, Input, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { ProvinceTreeVO } from './data.d';
+import AddDeviceModal from '../region/components/AddDeviceModal';
 import type { ProvinceVO } from '../region/data.d';
-import { queryProvinceList } from '../region/service';
+import { createDevice, queryProvinceList } from '../region/service';
 import { queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
@@ -20,8 +21,13 @@ type ProvinceCard = {
 
 type DeviceRow = {
   id: string | number;
+  prisonId?: number | string;
+  buildingId?: number | string;
+  floorId?: number | string;
   prisonKey: string;
   buildingKey: string;
+  floorKey: string;
+  rowType: 'device' | 'add';
   hasDevice: boolean;
   floor?: string;
   prisonName: string;
@@ -35,7 +41,22 @@ type DeviceRow = {
   color: 'pink' | 'blue';
 };
 
+type AddDeviceContext = {
+  prisonId: number;
+  prisonName: string;
+  buildingId: number;
+  buildingName: string;
+  floorId: number;
+  floorName: string;
+};
+
+const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
+const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
+  POWER_CHANNEL_KEYS.map((key) => [key, 0]),
+) as Record<string, number>;
+
 const MachinePage: React.FC = () => {
+  const [deviceForm] = Form.useForm();
   const { data, loading } = useRequest(queryProvinceList);
   const { run: runQueryProvinceDevicePage, loading: provinceDeviceLoading } = useRequest(
     queryProvinceDevicePage,
@@ -51,6 +72,12 @@ const MachinePage: React.FC = () => {
     },
   );
   const provinceList = (data ?? []) as ProvinceVO[];
+  const [deviceModalOpen, setDeviceModalOpen] = React.useState(false);
+  const [deviceStep, setDeviceStep] = React.useState(0);
+  const [powerChannelValues, setPowerChannelValues] = React.useState<Record<string, number>>({
+    ...INITIAL_POWER_CHANNEL_VALUES,
+  });
+  const [addDeviceContext, setAddDeviceContext] = React.useState<AddDeviceContext | null>(null);
   const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
@@ -102,13 +129,19 @@ const MachinePage: React.FC = () => {
 
         floorList.forEach((floor, floorIndex) => {
           const floorName = floor.floorName || '-';
+          const floorKey = `${buildingKey}-floor-${floor.floorId ?? floorIndex}`;
           const deviceList = floor.deviceList ?? [];
 
           if (deviceList.length === 0) {
             rows.push({
-              id: `${buildingKey}-floor-${floor.floorId ?? floorIndex}-empty`,
+              id: `${floorKey}-empty`,
+              prisonId: prison.prisonId,
+              buildingId: building.buildingId,
+              floorId: floor.floorId,
               prisonKey,
               buildingKey,
+              floorKey,
+              rowType: 'device',
               hasDevice: false,
               prisonName,
               buildingName,
@@ -121,6 +154,30 @@ const MachinePage: React.FC = () => {
               workTime: '-',
               color: rows.length % 2 === 0 ? 'pink' : 'blue',
             });
+
+            if (floorName !== '-') {
+              rows.push({
+                id: `${floorKey}-add`,
+                prisonId: prison.prisonId,
+                buildingId: building.buildingId,
+                floorId: floor.floorId,
+                prisonKey,
+                buildingKey,
+                floorKey,
+                rowType: 'add',
+                hasDevice: false,
+                prisonName,
+                buildingName,
+                floor: floorName,
+                deviceNo: '',
+                networkNo: '',
+                on: '',
+                power: '',
+                band: '',
+                workTime: '',
+                color: rows.length % 2 === 0 ? 'pink' : 'blue',
+              });
+            }
             return;
           }
 
@@ -128,9 +185,14 @@ const MachinePage: React.FC = () => {
             const workTime =
               device.startTime && device.endTime ? `${device.startTime}-${device.endTime}` : '-';
             rows.push({
-              id: String(device.id ?? `${buildingKey}-floor-${floor.floorId ?? floorIndex}-${deviceIndex}`),
+              id: String(device.id ?? `${floorKey}-${deviceIndex}`),
+              prisonId: prison.prisonId,
+              buildingId: building.buildingId,
+              floorId: floor.floorId,
               prisonKey,
               buildingKey,
+              floorKey,
+              rowType: 'device',
               hasDevice: true,
               prisonName,
               buildingName,
@@ -144,6 +206,30 @@ const MachinePage: React.FC = () => {
               color: rows.length % 2 === 0 ? 'pink' : 'blue',
             });
           });
+
+          if (floorName !== '-') {
+            rows.push({
+              id: `${floorKey}-add`,
+              prisonId: prison.prisonId,
+              buildingId: building.buildingId,
+              floorId: floor.floorId,
+              prisonKey,
+              buildingKey,
+              floorKey,
+              rowType: 'add',
+              hasDevice: false,
+              prisonName,
+              buildingName,
+              floor: floorName,
+              deviceNo: '',
+              networkNo: '',
+              on: '',
+              power: '',
+              band: '',
+              workTime: '',
+              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+            });
+          }
         });
       });
     });
@@ -167,6 +253,28 @@ const MachinePage: React.FC = () => {
     selectedNode.provinceId !== undefined &&
     selectedNode.provinceId !== null;
 
+  const prisonOptions = React.useMemo(
+    () =>
+      addDeviceContext
+        ? [{ label: addDeviceContext.prisonName, value: addDeviceContext.prisonId }]
+        : [],
+    [addDeviceContext],
+  );
+
+  const buildingOptions = React.useMemo(
+    () =>
+      addDeviceContext
+        ? [{ label: addDeviceContext.buildingName, value: addDeviceContext.buildingId }]
+        : [],
+    [addDeviceContext],
+  );
+
+  const floorOptions = React.useMemo(
+    () =>
+      addDeviceContext ? [{ label: addDeviceContext.floorName, value: addDeviceContext.floorId }] : [],
+    [addDeviceContext],
+  );
+
   const provinceTitle = React.useMemo(() => {
     if (provinceTreeData?.provinceName) {
       return provinceTreeData.provinceName;
@@ -182,6 +290,109 @@ const MachinePage: React.FC = () => {
 
     return currentProvince?.provinceName || `省份-${selectedNode.provinceId}`;
   }, [isProvinceView, provinceList, provinceTreeData?.provinceName, selectedNode.provinceId]);
+
+  const handleOpenAddDeviceModal = React.useCallback(
+    (row: DeviceRow) => {
+      const prisonId = Number(row.prisonId);
+      const buildingId = Number(row.buildingId);
+      const floorId = Number(row.floorId);
+
+      if (!prisonId || !buildingId || !floorId) {
+        message.warning('当前楼层信息不完整，无法添加设备');
+        return;
+      }
+
+      setAddDeviceContext({
+        prisonId,
+        prisonName: row.prisonName,
+        buildingId,
+        buildingName: row.buildingName,
+        floorId,
+        floorName: row.floor || `楼层-${floorId}`,
+      });
+      setDeviceStep(0);
+      setPowerChannelValues({ ...INITIAL_POWER_CHANNEL_VALUES });
+      deviceForm.setFieldsValue({
+        prisonId,
+        buildingId,
+        floorId,
+        deviceCode: undefined,
+        networkCode: undefined,
+        ip: undefined,
+        port: undefined,
+        startTime: undefined,
+        stopTime: undefined,
+        powerOff: true,
+        ...Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, undefined])),
+      });
+      setDeviceModalOpen(true);
+    },
+    [deviceForm],
+  );
+
+  const handleDeviceCancel = React.useCallback(() => {
+    setDeviceModalOpen(false);
+    setDeviceStep(0);
+    setAddDeviceContext(null);
+    deviceForm.resetFields();
+  }, [deviceForm]);
+
+  const handleDeviceNext = React.useCallback(async () => {
+    try {
+      await deviceForm.validateFields(['prisonId', 'buildingId', 'floorId', 'deviceCode']);
+      setDeviceStep(1);
+    } catch {
+      return;
+    }
+  }, [deviceForm]);
+
+  const handleDevicePrev = React.useCallback(() => {
+    setDeviceStep(0);
+  }, []);
+
+  const handleDeviceFinish = React.useCallback(async () => {
+    try {
+      await deviceForm.validateFields(['networkCode', 'ip', 'port', 'startTime', 'stopTime']);
+      const values = deviceForm.getFieldsValue(true);
+      const formatTime = (value: any) =>
+        value && typeof value.format === 'function' ? value.format('HH:mm') : value;
+      const channelPayload = POWER_CHANNEL_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = powerChannelValues[key] ?? 0;
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
+
+      await createDevice({
+        deviceNo: values.deviceCode,
+        deviceName: values.deviceCode,
+        entireNo: values.networkCode,
+        floorId: values.floorId,
+        buildingId: values.buildingId,
+        prisonId: values.prisonId,
+        powerOff: values.powerOff ? 0 : 1,
+        ipAddress: values.ip,
+        port: values.port,
+        startTime: formatTime(values.startTime),
+        endTime: formatTime(values.stopTime),
+        ...channelPayload,
+      });
+
+      message.success('添加成功');
+      setDeviceModalOpen(false);
+      setDeviceStep(0);
+      setAddDeviceContext(null);
+      deviceForm.resetFields();
+
+      if (selectedNode.provinceId !== undefined && selectedNode.provinceId !== null) {
+        loadProvinceDevicePage(selectedNode.provinceId);
+      }
+    } catch (error: any) {
+      if (error?.errorFields) return;
+      message.error('添加失败');
+    }
+  }, [deviceForm, loadProvinceDevicePage, powerChannelValues, selectedNode.provinceId]);
 
   const renderRows = () => {
     if (tableRows.length === 0) {
@@ -204,14 +415,20 @@ const MachinePage: React.FC = () => {
       acc[row.buildingKey] = (acc[row.buildingKey] || 0) + 1;
       return acc;
     }, {});
+    const floorRowSpanMap = tableRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.floorKey] = (acc[row.floorKey] || 0) + 1;
+      return acc;
+    }, {});
     const prisonRendered = new Set<string>();
     const buildingRendered = new Set<string>();
+    const floorRendered = new Set<string>();
     const rows: React.ReactNode[] = [];
     let provinceRendered = false;
 
     tableRows.forEach((row) => {
       const shouldRenderPrison = !prisonRendered.has(row.prisonKey);
       const shouldRenderBuilding = !buildingRendered.has(row.buildingKey);
+      const shouldRenderFloor = !floorRendered.has(row.floorKey);
 
       rows.push(
         <tr key={String(row.id)} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
@@ -238,24 +455,40 @@ const MachinePage: React.FC = () => {
               </div>
             </td>
           )}
-          <td className={styles.floorCell}>
-            {row.floor || ''}
-            {row.floor && row.floor !== '-' && (
-              <div className={styles.switchGroup}>
-                <Checkbox>全开</Checkbox>
-                <Checkbox>全关</Checkbox>
-              </div>
-            )}
-          </td>
-          <td>{row.deviceNo}</td>
-          <td>{row.networkNo}</td>
-          <td>{row.on}</td>
-          <td>{row.power}</td>
-          <td>{row.band}</td>
-          <td>{row.workTime}</td>
-          <td className={styles.checkCell}>
-            <Checkbox disabled={!row.hasDevice} />
-          </td>
+          {shouldRenderFloor && (
+            <td rowSpan={floorRowSpanMap[row.floorKey]} className={styles.floorCell}>
+              {row.floor || ''}
+              {row.floor && row.floor !== '-' && (
+                <div className={styles.switchGroup}>
+                  <Checkbox>全开</Checkbox>
+                  <Checkbox>全关</Checkbox>
+                </div>
+              )}
+            </td>
+          )}
+          {row.rowType === 'add' ? (
+            <td colSpan={7} className={styles.addDeviceRow}>
+              <Button
+                type="link"
+                className={styles.floorAddButton}
+                onClick={() => handleOpenAddDeviceModal(row)}
+              >
+                添加设备
+              </Button>
+            </td>
+          ) : (
+            <>
+              <td>{row.deviceNo}</td>
+              <td>{row.networkNo}</td>
+              <td>{row.on}</td>
+              <td>{row.power}</td>
+              <td>{row.band}</td>
+              <td>{row.workTime}</td>
+              <td className={styles.checkCell}>
+                <Checkbox disabled={!row.hasDevice} />
+              </td>
+            </>
+          )}
         </tr>,
       );
 
@@ -265,6 +498,9 @@ const MachinePage: React.FC = () => {
       }
       if (shouldRenderBuilding) {
         buildingRendered.add(row.buildingKey);
+      }
+      if (shouldRenderFloor) {
+        floorRendered.add(row.floorKey);
       }
     });
 
@@ -360,6 +596,26 @@ const MachinePage: React.FC = () => {
           </Col>
         </Row>
       </div>
+      <AddDeviceModal
+        open={deviceModalOpen}
+        step={deviceStep}
+        form={deviceForm}
+        powerChannelKeys={POWER_CHANNEL_KEYS}
+        powerChannelValues={powerChannelValues}
+        prisonOptions={prisonOptions}
+        buildingOptions={buildingOptions}
+        floorOptions={floorOptions}
+        deviceBuildingsLoading={false}
+        onCancel={handleDeviceCancel}
+        onNext={handleDeviceNext}
+        onPrev={handleDevicePrev}
+        onFinish={handleDeviceFinish}
+        onPrisonChange={() => {}}
+        onBuildingChange={() => {}}
+        onPowerChannelChange={(key, value) =>
+          setPowerChannelValues((prev) => ({ ...prev, [key]: value }))
+        }
+      />
     </PageContainer>
   );
 };
