@@ -162,8 +162,8 @@ const tableData: BuildingGroup[] = [
 const toolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理'];
 
 const ProvinceMachinePage: React.FC = () => {
-  const params = useParams<{ name: string }>();
-  const provinceName = decodeURIComponent(params.name || '');
+  const params = useParams<{ id: string }>();
+  const provinceId = decodeURIComponent(params.id || '');
 
   const renderRows = () => {
     const totalRows = tableData.reduce((sum, group) => sum + group.rows.length, 0);
@@ -176,7 +176,7 @@ const ProvinceMachinePage: React.FC = () => {
           <tr key={row.id} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
             {!provinceRendered && (
               <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
-                {provinceName || 'Riyadh'}
+                {provinceId || '-'}
               </td>
             )}
 

@@ -91,7 +91,7 @@ export default [
         component: './machine',
       },
       {
-        path: '/machine/province/:name',
+        path: '/machine/province/:id',
         component: './machine/province',
       },
     ],
@@ -145,4 +145,3 @@ export default [
     path: '/*',
   },
 ];
-

@@ -1,82 +1,64 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { CaretDownOutlined } from '@ant-design/icons';
-import { history } from '@umijs/max';
-import { Button, Col, Row, Tree } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { history, useRequest } from '@umijs/max';
+import { Button, Col, Row } from 'antd';
 import React from 'react';
+import OrgTree from '@/components/OrgTree';
+import type { OrgTreeSelectionParams } from '@/components/OrgTree';
+import type { ProvinceVO } from '../region/data.d';
+import { queryProvinceList } from '../region/service';
 import styles from './index.less';
-
-const orgTreeData: DataNode[] = [
-  {
-    title: '全国',
-    key: '0',
-    children: [
-      {
-        title: 'Riyadh',
-        key: '0-1',
-        children: [
-          {
-            title: 'AAA监狱',
-            key: '0-1-1',
-            children: [
-              {
-                title: 'AABB楼',
-                key: '0-1-1-1',
-                children: [
-                  { title: '1楼', key: '0-1-1-1-1' },
-                  { title: '2楼', key: '0-1-1-1-2' },
-                ],
-              },
-              { title: 'BBCC楼', key: '0-1-1-2' },
-              { title: 'BBBB楼', key: '0-1-1-3' },
-            ],
-          },
-        ],
-      },
-      { title: 'Mecca', key: '0-2' },
-      { title: 'Riyadh', key: '0-3' },
-      { title: 'Buraydah', key: '0-4' },
-      { title: 'Medina', key: '0-5' },
-      { title: 'Mecca', key: '0-6' },
-      { title: 'Riyadh', key: '0-7' },
-      { title: 'Buraydah', key: '0-8' },
-      { title: 'Medina', key: '0-9' },
-    ],
-  },
-];
 
 const toolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理', '查找'];
 
-const machineCards = [
-  'Riyadh',
-  'Mecca',
-  'Medina',
-  'Buraydah',
-  'Riyadh',
-  'Mecca',
-  'Medina',
-  'Buraydah',
-  'Riyadh',
-  'Mecca',
-  'Medina',
-  'Buraydah',
-  'Riyadh',
-  'Mecca',
-  'Medina',
-];
+type ProvinceCard = {
+  id: number | string;
+  name: string;
+};
 
 const MachinePage: React.FC = () => {
+  const { data, loading } = useRequest(queryProvinceList);
+  const provinceList = (data ?? []) as ProvinceVO[];
+  const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
+    nodeType: 'country',
+  });
+
+  const machineCards = React.useMemo<ProvinceCard[]>(() => {
+    if (selectedNode.nodeType === 'province' && selectedNode.provinceId !== undefined) {
+      const currentProvince = provinceList.find(
+        (item) => String(item.provinceId) === String(selectedNode.provinceId)
+      );
+
+      if (
+        currentProvince?.provinceId === undefined ||
+        currentProvince?.provinceId === null ||
+        !currentProvince.provinceName
+      ) {
+        return [];
+      }
+
+      return [{ id: currentProvince.provinceId, name: currentProvince.provinceName }];
+    }
+
+    return provinceList
+      .filter((item) => item.provinceId !== undefined && item.provinceName)
+      .map((item) => ({
+        id: item.provinceId as number | string,
+        name: item.provinceName as string,
+      }));
+  }, [provinceList, selectedNode]);
+
   return (
     <PageContainer title={false}>
       <div className={styles.pageShell}>
         <Row gutter={0} className={styles.contentRow}>
           <Col xs={24} xl={6} className={styles.leftPane}>
-            <Tree
-              className={styles.orgTree}
-              treeData={orgTreeData}
-              defaultExpandAll
-              selectable={false}
-              switcherIcon={({ expanded }) => <CaretDownOutlined rotate={expanded ? 0 : -90} />}
+            <OrgTree
+              provinceList={provinceList}
+              loading={loading}
+              maxLevel={4}
+              onSelectionChange={(params) => {
+                setSelectedNode(params);
+              }}
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
@@ -87,13 +69,15 @@ const MachinePage: React.FC = () => {
               ))}
             </div>
             <div className={styles.machineGrid}>
-              {machineCards.map((name, index) => (
+              {machineCards.map((item, index) => (
                 <div
-                  key={`${name}-${index}`}
+                  key={`${item.id}-${index}`}
                   className={styles.machineCard}
-                  onClick={() => history.push(`/machine/province/${encodeURIComponent(name)}`)}
+                  onClick={() =>
+                    history.push(`/machine/province/${encodeURIComponent(String(item.id))}`)
+                  }
                 >
-                  {name}
+                  {item.name}
                 </div>
               ))}
             </div>
