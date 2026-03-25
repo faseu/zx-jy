@@ -1,11 +1,13 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { useRequest } from '@umijs/max';
-import { Button, Checkbox, Col, Input, Row } from 'antd';
+import { Button, Checkbox, Col, Input, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
+import type { ProvinceTreeVO } from './data.d';
 import type { ProvinceVO } from '../region/data.d';
 import { queryProvinceList } from '../region/service';
+import { queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
 const countryToolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理', '查找'];
@@ -17,8 +19,13 @@ type ProvinceCard = {
 };
 
 type DeviceRow = {
-  id: string;
+  id: string | number;
+  prisonKey: string;
+  buildingKey: string;
+  hasDevice: boolean;
   floor?: string;
+  prisonName: string;
+  buildingName: string;
   deviceNo: string;
   networkNo: string;
   on: string;
@@ -28,114 +35,121 @@ type DeviceRow = {
   color: 'pink' | 'blue';
 };
 
-type BuildingGroup = {
-  prisonName: string;
-  buildingName: string;
-  rows: DeviceRow[];
-};
-
-const tableData: BuildingGroup[] = [
-  {
-    prisonName: 'AAAA监狱',
-    buildingName: 'AABB楼',
-    rows: [
-      {
-        id: 'a-1',
-        floor: '1楼',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-      {
-        id: 'a-2',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-      {
-        id: 'a-3',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-      {
-        id: 'a-4',
-        floor: '2楼',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-    ],
-  },
-  {
-    prisonName: 'AAAA监狱',
-    buildingName: 'BBCC楼',
-    rows: [
-      {
-        id: 'b-1',
-        floor: '1楼',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-      {
-        id: 'b-2',
-        floor: '2楼',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'pink',
-      },
-    ],
-  },
-  {
-    prisonName: 'BBBB监狱',
-    buildingName: 'AABB楼',
-    rows: [
-      {
-        id: 'c-1',
-        floor: '1楼',
-        deviceNo: '1',
-        networkNo: 'S11001',
-        on: 'On',
-        power: '20W',
-        band: '全频段',
-        workTime: '8:00-20:00',
-        color: 'blue',
-      },
-    ],
-  },
-];
-
 const MachinePage: React.FC = () => {
   const { data, loading } = useRequest(queryProvinceList);
+  const { run: runQueryProvinceDevicePage, loading: provinceDeviceLoading } = useRequest(
+    queryProvinceDevicePage,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        const resolved = (result as { data?: ProvinceTreeVO })?.data ?? (result as ProvinceTreeVO);
+        setProvinceTreeData(resolved);
+      },
+      onError: () => {
+        message.error('加载省份设备数据失败，请重试');
+      },
+    },
+  );
   const provinceList = (data ?? []) as ProvinceVO[];
   const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
+  const [provinceTreeData, setProvinceTreeData] = React.useState<ProvinceTreeVO>();
+
+  const loadProvinceDevicePage = React.useCallback(
+    (provinceId: number | string) => {
+      runQueryProvinceDevicePage({
+        provinceId,
+        pageNum: 1,
+        pageSize: 1000,
+      });
+    },
+    [runQueryProvinceDevicePage],
+  );
+
+  const handleProvinceSelect = React.useCallback(
+    (provinceId: number | string) => {
+      setSelectedNode({
+        nodeType: 'province',
+        provinceId,
+      });
+      loadProvinceDevicePage(provinceId);
+    },
+    [loadProvinceDevicePage],
+  );
+
+  const tableRows = React.useMemo<DeviceRow[]>(() => {
+    if (!provinceTreeData?.prisonList?.length) {
+      return [];
+    }
+
+    const rows: DeviceRow[] = [];
+    provinceTreeData.prisonList.forEach((prison, prisonIndex) => {
+      const prisonKey = `prison-${prison.prisonId ?? prisonIndex}`;
+      const prisonName = prison.prisonName || '-';
+      const buildingList =
+        prison.buildingList && prison.buildingList.length > 0
+          ? prison.buildingList
+          : [{ buildingId: `${prisonKey}-empty`, buildingName: '-', floorList: [] }];
+
+      buildingList.forEach((building, buildingIndex) => {
+        const buildingKey = `${prisonKey}-building-${building.buildingId ?? buildingIndex}`;
+        const buildingName = building.buildingName || '-';
+        const floorList =
+          building.floorList && building.floorList.length > 0
+            ? building.floorList
+            : [{ floorId: `${buildingKey}-empty`, floorName: '-', deviceList: [] }];
+
+        floorList.forEach((floor, floorIndex) => {
+          const floorName = floor.floorName || '-';
+          const deviceList = floor.deviceList ?? [];
+
+          if (deviceList.length === 0) {
+            rows.push({
+              id: `${buildingKey}-floor-${floor.floorId ?? floorIndex}-empty`,
+              prisonKey,
+              buildingKey,
+              hasDevice: false,
+              prisonName,
+              buildingName,
+              floor: floorName,
+              deviceNo: '-',
+              networkNo: '-',
+              on: '-',
+              power: '-',
+              band: '-',
+              workTime: '-',
+              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+            });
+            return;
+          }
+
+          deviceList.forEach((device, deviceIndex) => {
+            const workTime =
+              device.startTime && device.endTime ? `${device.startTime}-${device.endTime}` : '-';
+            rows.push({
+              id: String(device.id ?? `${buildingKey}-floor-${floor.floorId ?? floorIndex}-${deviceIndex}`),
+              prisonKey,
+              buildingKey,
+              hasDevice: true,
+              prisonName,
+              buildingName,
+              floor: floorName,
+              deviceNo: device.deviceNo || '-',
+              networkNo: device.entireNo || '-',
+              on: device.powerOff === 0 ? 'On' : device.powerOff === 1 ? 'Off' : '-',
+              power: device.powerConfig || '-',
+              band: device.radio_frequency || '-',
+              workTime,
+              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+            });
+          });
+        });
+      });
+    });
+
+    return rows;
+  }, [provinceTreeData]);
 
   const machineCards = React.useMemo<ProvinceCard[]>(
     () =>
@@ -154,6 +168,10 @@ const MachinePage: React.FC = () => {
     selectedNode.provinceId !== null;
 
   const provinceTitle = React.useMemo(() => {
+    if (provinceTreeData?.provinceName) {
+      return provinceTreeData.provinceName;
+    }
+
     if (!isProvinceView) {
       return '-';
     }
@@ -163,65 +181,91 @@ const MachinePage: React.FC = () => {
     );
 
     return currentProvince?.provinceName || `省份-${selectedNode.provinceId}`;
-  }, [isProvinceView, provinceList, selectedNode.provinceId]);
+  }, [isProvinceView, provinceList, provinceTreeData?.provinceName, selectedNode.provinceId]);
 
   const renderRows = () => {
-    const totalRows = tableData.reduce((sum, group) => sum + group.rows.length, 0);
+    if (tableRows.length === 0) {
+      return (
+        <tr>
+          <td className={`${styles.leftMergedCell} ${styles.provinceCell}`}>{provinceTitle}</td>
+          <td colSpan={10} style={{ textAlign: 'center' }}>
+            {provinceDeviceLoading ? '加载中...' : '暂无数据'}
+          </td>
+        </tr>
+      );
+    }
+
+    const totalRows = tableRows.length;
+    const prisonRowSpanMap = tableRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.prisonKey] = (acc[row.prisonKey] || 0) + 1;
+      return acc;
+    }, {});
+    const buildingRowSpanMap = tableRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.buildingKey] = (acc[row.buildingKey] || 0) + 1;
+      return acc;
+    }, {});
+    const prisonRendered = new Set<string>();
+    const buildingRendered = new Set<string>();
     const rows: React.ReactNode[] = [];
     let provinceRendered = false;
 
-    tableData.forEach((group) => {
-      group.rows.forEach((row, index) => {
-        rows.push(
-          <tr key={row.id} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
-            {!provinceRendered && (
-              <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
-                {provinceTitle}
-              </td>
-            )}
+    tableRows.forEach((row) => {
+      const shouldRenderPrison = !prisonRendered.has(row.prisonKey);
+      const shouldRenderBuilding = !buildingRendered.has(row.buildingKey);
 
-            {index === 0 && (
-              <td rowSpan={group.rows.length} className={styles.leftMergedCell}>
-                {group.prisonName}
-                <div className={styles.switchGroup}>
-                  <Checkbox>全开</Checkbox>
-                  <Checkbox>全关</Checkbox>
-                </div>
-              </td>
-            )}
-
-            {index === 0 && (
-              <td rowSpan={group.rows.length} className={styles.leftMergedCell}>
-                {group.buildingName}
-                <div className={styles.switchGroup}>
-                  <Checkbox>全开</Checkbox>
-                  <Checkbox>全关</Checkbox>
-                </div>
-              </td>
-            )}
-
-            <td className={styles.floorCell}>
-              {row.floor || ''}
-              {row.floor && (
-                <div className={styles.switchGroup}>
-                  <Checkbox>全开</Checkbox>
-                  <Checkbox>全关</Checkbox>
-                </div>
-              )}
+      rows.push(
+        <tr key={String(row.id)} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
+          {!provinceRendered && (
+            <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
+              {provinceTitle}
             </td>
-            <td>{row.deviceNo}</td>
-            <td>{row.networkNo}</td>
-            <td>{row.on}</td>
-            <td>{row.power}</td>
-            <td>{row.band}</td>
-            <td>{row.workTime}</td>
-            <td className={styles.checkCell}>
-              <Checkbox />
+          )}
+          {shouldRenderPrison && (
+            <td rowSpan={prisonRowSpanMap[row.prisonKey]} className={styles.leftMergedCell}>
+              {row.prisonName}
+              <div className={styles.switchGroup}>
+                <Checkbox>全开</Checkbox>
+                <Checkbox>全关</Checkbox>
+              </div>
             </td>
-          </tr>,
-        );
-        provinceRendered = true;
-      });
+          )}
+          {shouldRenderBuilding && (
+            <td rowSpan={buildingRowSpanMap[row.buildingKey]} className={styles.leftMergedCell}>
+              {row.buildingName}
+              <div className={styles.switchGroup}>
+                <Checkbox>全开</Checkbox>
+                <Checkbox>全关</Checkbox>
+              </div>
+            </td>
+          )}
+          <td className={styles.floorCell}>
+            {row.floor || ''}
+            {row.floor && row.floor !== '-' && (
+              <div className={styles.switchGroup}>
+                <Checkbox>全开</Checkbox>
+                <Checkbox>全关</Checkbox>
+              </div>
+            )}
+          </td>
+          <td>{row.deviceNo}</td>
+          <td>{row.networkNo}</td>
+          <td>{row.on}</td>
+          <td>{row.power}</td>
+          <td>{row.band}</td>
+          <td>{row.workTime}</td>
+          <td className={styles.checkCell}>
+            <Checkbox disabled={!row.hasDevice} />
+          </td>
+        </tr>,
+      );
+
+      provinceRendered = true;
+      if (shouldRenderPrison) {
+        prisonRendered.add(row.prisonKey);
+      }
+      if (shouldRenderBuilding) {
+        buildingRendered.add(row.buildingKey);
+      }
     });
 
     return rows;
@@ -238,6 +282,13 @@ const MachinePage: React.FC = () => {
               maxLevel={1}
               onSelectionChange={(params) => {
                 setSelectedNode(params);
+                if (
+                  params.nodeType === 'province' &&
+                  params.provinceId !== undefined &&
+                  params.provinceId !== null
+                ) {
+                  loadProvinceDevicePage(params.provinceId);
+                }
               }}
             />
           </Col>
@@ -255,12 +306,7 @@ const MachinePage: React.FC = () => {
                     <div
                       key={`${item.id}-${index}`}
                       className={styles.machineCard}
-                      onClick={() =>
-                        setSelectedNode({
-                          nodeType: 'province',
-                          provinceId: item.id,
-                        })
-                      }
+                      onClick={() => handleProvinceSelect(item.id)}
                     >
                       {item.name}
                     </div>
@@ -303,6 +349,7 @@ const MachinePage: React.FC = () => {
                   <Button
                     onClick={() => {
                       setSelectedNode({ nodeType: 'country' });
+                      setProvinceTreeData(undefined);
                     }}
                   >
                     返回

@@ -12,32 +12,37 @@ export type ProvinceDevicePageParams = {
 };
 
 export type DeviceVO = {
-  id?: number;
+  id?: number | string;
   deviceNo?: string;
   deviceName?: string;
   entireNo?: string;
+  powerOff?: number | null;
+  powerConfig?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  radio_frequency?: string | null;
 };
 
 export type FloorTreeVO = {
-  floorId?: number;
+  floorId?: number | string;
   floorName?: string;
   deviceList?: DeviceVO[];
 };
 
 export type BuildingTreeVO = {
-  buildingId?: number;
+  buildingId?: number | string;
   buildingName?: string;
   floorList?: FloorTreeVO[];
 };
 
 export type PrisonTreeVO = {
-  prisonId?: number;
+  prisonId?: number | string;
   prisonName?: string;
   buildingList?: BuildingTreeVO[];
 };
 
 export type ProvinceTreeVO = {
-  provinceId?: number;
+  provinceId?: number | string;
   provinceName?: string;
   prisonList?: PrisonTreeVO[];
 };
