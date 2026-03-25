@@ -2,31 +2,14 @@ import { PageContainer } from '@ant-design/pro-components';
 import { CaretDownOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useRequest } from '@umijs/max';
 import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Spin, Table, Tree } from 'antd';
+import type { Dayjs } from 'dayjs';
 import type { DataNode } from 'antd/es/tree';
 import React from 'react';
+import type { AlarmPageParams, AlarmVO } from './data.d';
+import { queryAlarmPage } from './service';
 import type { BuildingDetailVO, PrisonVO, ProvinceVO } from '../region/data.d';
 import { queryPrisonBuildings, queryProvinceList, queryProvincePrisons } from '../region/service';
 import styles from './index.less';
-
-type AlarmRow = {
-  key: string;
-  prison: string;
-  deviceId: string;
-  deviceName: string;
-  content: string;
-  alarmTime: string;
-  advice: string;
-};
-
-const alarmRows: AlarmRow[] = Array.from({ length: 10 }, (_, index) => ({
-  key: `${index}`,
-  prison: 'AAA监狱',
-  deviceId: 'S11001',
-  deviceName: '屏蔽仪',
-  content: '温度过高',
-  alarmTime: '2025-12-12 12:00:00',
-  advice: '重启',
-}));
 
 type AlarmTreeNode = Omit<DataNode, 'children'> & {
   nodeType: 'country' | 'province' | 'prison' | 'building';
@@ -72,10 +55,62 @@ const buildProvinceNodes = (provinceList: ProvinceVO[]): AlarmTreeNode[] => [
 ];
 
 const AlarmPage: React.FC = () => {
+  const [pageNum, setPageNum] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [startDate, setStartDate] = React.useState<Dayjs | null>(null);
+  const [endDate, setEndDate] = React.useState<Dayjs | null>(null);
+  const [deviceName, setDeviceName] = React.useState('');
+  const [alarmType, setAlarmType] = React.useState<string>('');
+
   const { data, loading: provinceLoading } = useRequest(queryProvinceList);
+  const {
+    data: alarmPageData,
+    loading: alarmLoading,
+    run: runQueryAlarmPage,
+  } = useRequest(queryAlarmPage, { manual: true });
   const provinceList = (data ?? []) as ProvinceVO[];
   const [provincePrisons, setProvincePrisons] = React.useState<Record<string, PrisonVO[]>>({});
   const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>({});
+
+  const alarmList = (alarmPageData?.list ?? []) as AlarmVO[];
+  const alarmTotal = alarmPageData?.total ?? 0;
+
+  const runAlarmSearch = React.useCallback(
+    (nextPageNum: number, nextPageSize: number) => {
+      const params: AlarmPageParams = {
+        pageNum: nextPageNum,
+        pageSize: nextPageSize,
+      };
+
+      if (startDate) {
+        params.startDate = startDate.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
+      if (endDate) {
+        params.endDate = endDate.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
+      if (deviceName.trim()) {
+        params.deviceName = deviceName.trim();
+      }
+      if (alarmType) {
+        params.type = alarmType;
+      }
+
+      runQueryAlarmPage(params);
+    },
+    [alarmType, deviceName, endDate, runQueryAlarmPage, startDate],
+  );
+
+  React.useEffect(() => {
+    runAlarmSearch(pageNum, pageSize);
+  }, [pageNum, pageSize, runAlarmSearch]);
+
+  const handleSearch = () => {
+    if (pageNum !== 1) {
+      setPageNum(1);
+      return;
+    }
+    runAlarmSearch(1, pageSize);
+  };
 
   const orgTreeData = React.useMemo<AlarmTreeNode[]>(
     () =>
@@ -177,19 +212,43 @@ const AlarmPage: React.FC = () => {
             <div className={styles.queryRow}>
               <div className={styles.queryItem}>
                 <span className={styles.queryLabel}>时间</span>
-                <DatePicker placeholder="开始日期" />
+                <DatePicker
+                  placeholder="开始日期"
+                  value={startDate}
+                  format="YYYY-MM-DD"
+                  onChange={(value) => setStartDate(value)}
+                />
                 <span className={styles.middleLabel}>至</span>
-                <DatePicker placeholder="结束日期" />
+                <DatePicker
+                  placeholder="结束日期"
+                  value={endDate}
+                  format="YYYY-MM-DD"
+                  onChange={(value) => setEndDate(value)}
+                />
               </div>
               <div className={styles.queryItem}>
                 <span className={styles.queryLabel}>设备名称</span>
-                <Input placeholder="请输入" />
+                <Input
+                  value={deviceName}
+                  placeholder="请输入"
+                  onChange={(event) => setDeviceName(event.target.value)}
+                  onPressEnter={handleSearch}
+                />
               </div>
               <div className={styles.queryItem}>
                 <span className={styles.queryLabel}>告警类型</span>
-                <Select defaultValue="全部" options={[{ label: '全部', value: '全部' }]} />
+                <Select
+                  value={alarmType}
+                  options={[{ label: '全部', value: '' }]}
+                  onChange={(value) => setAlarmType(value)}
+                />
               </div>
-              <Button type="primary" icon={<SearchOutlined />} className={styles.queryButton}>
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                className={styles.queryButton}
+                onClick={handleSearch}
+              >
                 查询
               </Button>
             </div>
@@ -201,28 +260,39 @@ const AlarmPage: React.FC = () => {
               </Space>
               <Button icon={<DownloadOutlined />}>导出</Button>
             </div>
-            <Table<AlarmRow>
+            <Table<AlarmVO>
               className={styles.alarmTable}
-              rowKey="key"
+              loading={alarmLoading}
+              rowKey={(record) =>
+                String(
+                  record.id ??
+                    record.entireNo ??
+                    `${record.deviceId ?? ''}-${record.alarmTime ?? ''}-${record.createTime ?? ''}`,
+                )
+              }
               pagination={false}
-              dataSource={alarmRows}
+              dataSource={alarmList}
               columns={[
-                { title: '告警监狱', dataIndex: 'prison' },
+                { title: '告警监狱', dataIndex: 'prisonName' },
                 { title: '告警设备ID', dataIndex: 'deviceId' },
                 { title: '告警设备名称', dataIndex: 'deviceName' },
                 { title: '告警内容', dataIndex: 'content' },
                 { title: '告警发生时间', dataIndex: 'alarmTime' },
-                { title: '排查建议', dataIndex: 'advice' },
+                { title: '排查建议', dataIndex: 'suggestions' },
               ]}
             />
             <div className={styles.paginationRow}>
-              <span className={styles.totalText}>共 658 条</span>
+              <span className={styles.totalText}>共 {alarmTotal} 条</span>
               <Pagination
                 simple
-                current={48}
-                total={658}
-                pageSize={10}
+                current={pageNum}
+                total={alarmTotal}
+                pageSize={pageSize}
                 showSizeChanger={false}
+                onChange={(nextPageNum, nextPageSize) => {
+                  setPageNum(nextPageNum);
+                  setPageSize(nextPageSize);
+                }}
                 itemRender={(_, type, element) => {
                   if (type === 'prev') {
                     return <span className={styles.pageArrow}>‹</span>;
