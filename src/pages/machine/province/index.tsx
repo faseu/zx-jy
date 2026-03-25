@@ -1,49 +1,11 @@
-import { CaretDownOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useParams } from '@umijs/max';
-import { Button, Checkbox, Col, Input, Row, Tree } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { history, useParams, useRequest } from '@umijs/max';
+import { Button, Checkbox, Col, Input, Row } from 'antd';
 import React from 'react';
+import OrgTree from '@/components/OrgTree';
+import type { ProvinceVO } from '@/pages/region/data.d';
+import { queryProvinceList } from '@/pages/region/service';
 import styles from './index.less';
-
-const orgTreeData: DataNode[] = [
-  {
-    title: '全国',
-    key: '0',
-    children: [
-      {
-        title: 'Riyadh',
-        key: '0-1',
-        children: [
-          {
-            title: 'AAAA监狱',
-            key: '0-1-1',
-            children: [
-              {
-                title: 'AABB楼',
-                key: '0-1-1-1',
-                children: [
-                  { title: '1楼', key: '0-1-1-1-1' },
-                  { title: '2楼', key: '0-1-1-1-2' },
-                ],
-              },
-              { title: 'BBCC楼', key: '0-1-1-2' },
-              { title: 'BBBB楼', key: '0-1-1-3' },
-            ],
-          },
-        ],
-      },
-      { title: 'Mecca', key: '0-2' },
-      { title: 'Riyadh', key: '0-3' },
-      { title: 'Buraydah', key: '0-4' },
-      { title: 'Medina', key: '0-5' },
-      { title: 'Mecca', key: '0-6' },
-      { title: 'Riyadh', key: '0-7' },
-      { title: 'Buraydah', key: '0-8' },
-      { title: 'Medina', key: '0-9' },
-    ],
-  },
-];
 
 type DeviceRow = {
   id: string;
@@ -163,7 +125,16 @@ const toolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管
 
 const ProvinceMachinePage: React.FC = () => {
   const params = useParams<{ id: string }>();
-  const provinceId = decodeURIComponent(params.id || '');
+  const provinceId = decodeURIComponent(params.id || '').trim();
+  const validProvinceId =
+    /^\d+$/.test(provinceId) && Number.isFinite(Number(provinceId)) ? Number(provinceId) : undefined;
+  const { data: provinceData, loading: provinceLoading } = useRequest(queryProvinceList);
+  const provinceList = (provinceData ?? []) as ProvinceVO[];
+  const currentProvince = provinceList.find(
+    (item) => String(item.provinceId) === String(validProvinceId),
+  );
+  const provinceTitle = currentProvince?.provinceName || (provinceId ? `省份-${provinceId}` : '-');
+  const orgProvinceList = currentProvince ? [currentProvince] : [];
 
   const renderRows = () => {
     const totalRows = tableData.reduce((sum, group) => sum + group.rows.length, 0);
@@ -176,7 +147,7 @@ const ProvinceMachinePage: React.FC = () => {
           <tr key={row.id} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
             {!provinceRendered && (
               <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
-                {provinceId || '-'}
+                {provinceTitle}
               </td>
             )}
 
@@ -232,13 +203,7 @@ const ProvinceMachinePage: React.FC = () => {
       <div className={styles.pageShell}>
         <Row gutter={0} className={styles.contentRow}>
           <Col xs={24} xl={6} className={styles.leftPane}>
-            <Tree
-              className={styles.orgTree}
-              treeData={orgTreeData}
-              defaultExpandAll
-              selectable={false}
-              switcherIcon={({ expanded }) => <CaretDownOutlined rotate={expanded ? 0 : -90} />}
-            />
+            <OrgTree provinceList={orgProvinceList} loading={provinceLoading} maxLevel={4} />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
             <div className={styles.toolbar}>
