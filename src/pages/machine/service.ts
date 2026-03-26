@@ -1,5 +1,13 @@
 import { request } from '@umijs/max';
-import type { PrisonDevicePageParams, PrisonTreeVO, ProvinceDevicePageParams, ProvinceTreeVO, ResultData } from './data.d';
+import type {
+  BuildingDevicePageParams,
+  BuildingTreeVO,
+  PrisonDevicePageParams,
+  PrisonTreeVO,
+  ProvinceDevicePageParams,
+  ProvinceTreeVO,
+  ResultData,
+} from './data.d';
 
 const wrapResult = <T>(result: T | ResultData<T>): ResultData<T> => {
   if (result && typeof result === 'object' && 'data' in result) {
@@ -45,4 +53,23 @@ export async function queryPrisonDevicePage(
   );
 
   return wrapResult<PrisonTreeVO>(result);
+}
+
+export async function queryBuildingDevicePage(
+  params: BuildingDevicePageParams,
+  options?: { [key: string]: any },
+): Promise<ResultData<BuildingTreeVO>> {
+  const result = await request<BuildingTreeVO | ResultData<BuildingTreeVO>>(
+    '/api/v1/device/page/building',
+    {
+      method: 'GET',
+      params,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      ...(options || {}),
+    },
+  );
+
+  return wrapResult<BuildingTreeVO>(result);
 }

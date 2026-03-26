@@ -1,20 +1,9 @@
-﻿import {
-  FileTextOutlined,
-  GlobalOutlined,
-  LogoutOutlined,
-} from '@ant-design/icons';
+﻿import { FileTextOutlined, GlobalOutlined, LogoutOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import { SettingDrawer } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import {
-  getLocale,
-  history,
-  setLocale,
-} from '@umijs/max';
-import {
-  Button,
-  Dropdown,
-} from 'antd';
+import { getLocale, history, setLocale } from '@umijs/max';
+import { Button, Dropdown } from 'antd';
 import React from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
@@ -39,7 +28,8 @@ const LANGUAGE_MAP: Record<string, string> = {
 
 const getActiveNavPath = (pathname: string) => {
   return (
-    NAV_TABS.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))?.path ?? '/region'
+    NAV_TABS.find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))?.path ??
+    '/region'
   );
 };
 
@@ -49,7 +39,11 @@ const CustomTopNav: React.FC = () => {
   return (
     <div className="custom-top-nav">
       <div className="custom-top-nav__header">
-        <button className="custom-top-nav__brand" onClick={() => history.push('/region')} type="button">
+        <button
+          className="custom-top-nav__brand"
+          onClick={() => history.push('/region')}
+          type="button"
+        >
           <img alt="logo" src="/logo.png" style={{ width: '40px', height: '40px' }} />
           <span>Srill Jamming Management System</span>
         </button>
@@ -65,9 +59,7 @@ const CustomTopNav: React.FC = () => {
             }}
             trigger={['click']}
           >
-            <Button icon={<GlobalOutlined />}>
-              {LANGUAGE_MAP[getLocale()] ?? 'Language'}
-            </Button>
+            <Button icon={<GlobalOutlined />}>{LANGUAGE_MAP[getLocale()] ?? 'Language'}</Button>
           </Dropdown>
           <Button type="primary" icon={<FileTextOutlined />} onClick={() => history.push('/data')}>
             Report
@@ -164,7 +156,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  // baseURL: 'http://8.136.16.12:7680',
-  baseURL: 'http://47.84.22.103:8990',
+  baseURL: 'http://8.136.16.12:7680',
+  // baseURL: 'http://47.84.22.103:8990',
   ...errorConfig,
 };

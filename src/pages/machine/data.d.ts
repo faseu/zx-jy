@@ -18,6 +18,13 @@ export type PrisonDevicePageParams = {
   name?: string;
 };
 
+export type BuildingDevicePageParams = {
+  buildingId: number | string;
+  pageNum: number;
+  pageSize: number;
+  name?: string;
+};
+
 export type DeviceVO = {
   id?: number | string;
   deviceNo?: string;

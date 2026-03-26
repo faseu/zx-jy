@@ -4,11 +4,11 @@ import { Button, Checkbox, Col, Form, Input, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
-import type { PrisonTreeVO, ProvinceTreeVO } from './data.d';
+import type { BuildingTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
 import type { ProvinceVO } from '../region/data.d';
 import { createDevice, queryProvinceList } from '../region/service';
-import { queryPrisonDevicePage, queryProvinceDevicePage } from './service';
+import { queryBuildingDevicePage, queryPrisonDevicePage, queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
 const countryToolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理', '查找'];
@@ -55,6 +55,22 @@ const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0]),
 ) as Record<string, number>;
 
+const normalizeBuildingTreeToPrisonTree = (
+  buildingTree: BuildingTreeVO | undefined,
+  params: OrgTreeSelectionParams,
+): PrisonTreeVO => ({
+  prisonId: params.prisonId,
+  prisonName: params.prisonId ? `监狱-${params.prisonId}` : '-',
+  buildingList: buildingTree
+    ? [
+        {
+          ...buildingTree,
+          buildingId: buildingTree.buildingId ?? params.buildingId,
+        },
+      ]
+    : [],
+});
+
 const MachinePage: React.FC = () => {
   const [deviceForm] = Form.useForm();
   const { data, loading } = useRequest(queryProvinceList);
@@ -84,6 +100,21 @@ const MachinePage: React.FC = () => {
       },
     },
   );
+  const { run: runQueryBuildingDevicePage, loading: buildingDeviceLoading } = useRequest(
+    queryBuildingDevicePage,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        const resolved = (result as { data?: BuildingTreeVO })?.data ?? (result as BuildingTreeVO);
+        setPrisonTreeData(
+          normalizeBuildingTreeToPrisonTree(resolved, buildingRequestSelectionRef.current),
+        );
+      },
+      onError: () => {
+        message.error('加载楼宇设备数据失败，请重试');
+      },
+    },
+  );
   const provinceList = (data ?? []) as ProvinceVO[];
   const [deviceModalOpen, setDeviceModalOpen] = React.useState(false);
   const [deviceStep, setDeviceStep] = React.useState(0);
@@ -96,6 +127,9 @@ const MachinePage: React.FC = () => {
   });
   const [provinceTreeData, setProvinceTreeData] = React.useState<ProvinceTreeVO>();
   const [prisonTreeData, setPrisonTreeData] = React.useState<PrisonTreeVO>();
+  const buildingRequestSelectionRef = React.useRef<OrgTreeSelectionParams>({
+    nodeType: 'building',
+  });
 
   const loadProvinceDevicePage = React.useCallback(
     (provinceId: number | string) => {
@@ -119,6 +153,22 @@ const MachinePage: React.FC = () => {
     [runQueryPrisonDevicePage],
   );
 
+  const loadBuildingDevicePage = React.useCallback(
+    (params: OrgTreeSelectionParams) => {
+      if (params.buildingId === undefined || params.buildingId === null) {
+        return;
+      }
+
+      buildingRequestSelectionRef.current = params;
+      runQueryBuildingDevicePage({
+        buildingId: params.buildingId,
+        pageNum: 1,
+        pageSize: 1000,
+      });
+    },
+    [runQueryBuildingDevicePage],
+  );
+
   const handleProvinceSelect = React.useCallback(
     (provinceId: number | string) => {
       setSelectedNode({
@@ -133,7 +183,12 @@ const MachinePage: React.FC = () => {
   );
 
   const tableRows = React.useMemo<DeviceRow[]>(() => {
-    const prisonList = selectedNode.nodeType === 'prison' ? (prisonTreeData ? [prisonTreeData] : []) : (provinceTreeData?.prisonList ?? []);
+    const prisonList =
+      selectedNode.nodeType === 'province'
+        ? provinceTreeData?.prisonList ?? []
+        : prisonTreeData
+          ? [prisonTreeData]
+          : [];
 
     if (!prisonList.length) {
       return [];
@@ -285,7 +340,11 @@ const MachinePage: React.FC = () => {
     selectedNode.nodeType === 'prison' &&
     selectedNode.prisonId !== undefined &&
     selectedNode.prisonId !== null;
-  const isDetailView = isProvinceView || isPrisonView;
+  const isBuildingView =
+    selectedNode.nodeType === 'building' &&
+    selectedNode.buildingId !== undefined &&
+    selectedNode.buildingId !== null;
+  const isDetailView = isProvinceView || isPrisonView || isBuildingView;
 
   const prisonOptions = React.useMemo(
     () =>
@@ -334,8 +393,12 @@ const MachinePage: React.FC = () => {
       return `监狱-${selectedNode.prisonId}`;
     }
 
+    if (isBuildingView && selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
+      return `监狱-${selectedNode.prisonId}`;
+    }
+
     return '-';
-  }, [isPrisonView, prisonTreeData?.prisonName, selectedNode.prisonId]);
+  }, [isBuildingView, isPrisonView, prisonTreeData?.prisonName, selectedNode.prisonId]);
 
   const handleOpenAddDeviceModal = React.useCallback(
     (row: DeviceRow) => {
@@ -437,14 +500,28 @@ const MachinePage: React.FC = () => {
       if (selectedNode.nodeType === 'prison' && selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
         loadPrisonDevicePage(selectedNode.prisonId);
       }
+      if (
+        selectedNode.nodeType === 'building' &&
+        selectedNode.buildingId !== undefined &&
+        selectedNode.buildingId !== null
+      ) {
+        loadBuildingDevicePage(selectedNode);
+      }
     } catch (error: any) {
       if (error?.errorFields) return;
       message.error('添加失败');
     }
-  }, [deviceForm, loadPrisonDevicePage, loadProvinceDevicePage, powerChannelValues, selectedNode]);
+  }, [
+    deviceForm,
+    loadBuildingDevicePage,
+    loadPrisonDevicePage,
+    loadProvinceDevicePage,
+    powerChannelValues,
+    selectedNode,
+  ]);
 
   const renderRows = () => {
-    const detailLoading = provinceDeviceLoading || prisonDeviceLoading;
+    const detailLoading = provinceDeviceLoading || prisonDeviceLoading || buildingDeviceLoading;
 
     if (tableRows.length === 0) {
       return (
@@ -569,7 +646,7 @@ const MachinePage: React.FC = () => {
             <OrgTree
               provinceList={provinceList}
               loading={loading}
-              maxLevel={2}
+              maxLevel={3}
               onSelectionChange={(params) => {
                 setSelectedNode(params);
                 if (
@@ -590,6 +667,16 @@ const MachinePage: React.FC = () => {
                   setProvinceTreeData(undefined);
                   setPrisonTreeData(undefined);
                   loadPrisonDevicePage(params.prisonId);
+                  return;
+                }
+                if (
+                  params.nodeType === 'building' &&
+                  params.buildingId !== undefined &&
+                  params.buildingId !== null
+                ) {
+                  setProvinceTreeData(undefined);
+                  setPrisonTreeData(undefined);
+                  loadBuildingDevicePage(params);
                   return;
                 }
                 setProvinceTreeData(undefined);
