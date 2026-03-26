@@ -1,85 +1,70 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { CaretDownOutlined } from '@ant-design/icons';
-import { Button, Col, Form, Input, Modal, Row, Select, Space, Table, Tree } from 'antd';
-import type { DataNode } from 'antd/es/tree';
-import React, { useState } from 'react';
+import { useRequest } from '@umijs/max';
+import { Button, Col, Form, Input, Modal, Row, Select, Space, Table, message } from 'antd';
+import React, { useCallback, useEffect, useState } from 'react';
+import OrgTree from '@/components/OrgTree';
+import type { ProvinceVO } from '@/pages/region/data.d';
+import type { OrgTreeSelectionParams } from '@/components/OrgTree';
+import { queryProvinceList } from '@/pages/region/service';
+import type { ProvinceAdminPageParams, ProvinceAdminVO } from './data.d';
+import { queryProvinceAdminPage } from './service';
 import styles from './index.less';
-
-type AdminRecord = {
-  username: string;
-  nickname: string;
-  area: string;
-};
-
-const dataSource: AdminRecord[] = [
-  { username: '101', nickname: 'mohammed', area: '全国' },
-  { username: '102', nickname: 'Ahmed', area: 'Riyadh、Buraydah' },
-  { username: '103', nickname: 'mohammed', area: '全国' },
-  { username: '104', nickname: 'Ahmed', area: 'Riyadh、Buraydah' },
-];
 
 const areaOptions = ['华北', '华东', '华南', '华中', '西南', '西北'];
 const featureOptions = ['查看', '编辑', '导出', '审批', '审计', '配置'];
 
-const orgTreeData: DataNode[] = [
-  {
-    title: '一级组织 1',
-    key: '1',
-    children: [
-      {
-        title: '二级组织',
-        key: '1-1',
-        children: [
-          {
-            title: '三级组织',
-            key: '1-1-1',
-            children: [
-              { title: '四级组织 1', key: '1-1-1-1' },
-              { title: '四级组织 2', key: '1-1-1-2' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    title: '一级组织 2',
-    key: '2',
-    children: [
-      {
-        title: '二级组织 1',
-        key: '2-1',
-        children: [{ title: '三级组织', key: '2-1-1' }],
-      },
-      {
-        title: '二级组织 2',
-        key: '2-2',
-        children: [
-          { title: '三级组织 1', key: '2-2-1' },
-          { title: '三级组织 2', key: '2-2-2' },
-        ],
-      },
-    ],
-  },
-  {
-    title: '一级组织 3',
-    key: '3',
-    children: [
-      {
-        title: '二级组织',
-        key: '3-1',
-        children: [
-          { title: '三级组织 1', key: '3-1-1' },
-          { title: '三级组织 2', key: '3-1-2' },
-        ],
-      },
-    ],
-  },
-];
+const getAreaText = (record: ProvinceAdminVO): string => {
+  if (record.area && record.area.trim()) {
+    return record.area;
+  }
+  if (record.manageArea && record.manageArea.trim()) {
+    return record.manageArea;
+  }
+  if (Array.isArray(record.manageAreas) && record.manageAreas.length > 0) {
+    return record.manageAreas.filter(Boolean).join('、');
+  }
+
+  return '-';
+};
 
 const ProvinceAdminListPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProvinceId, setSelectedProvinceId] = useState<number | string>();
   const [form] = Form.useForm();
+  const { data: provinceData, loading: provinceLoading } = useRequest(queryProvinceList);
+  const {
+    data: provinceAdminPageData,
+    loading: provinceAdminLoading,
+    run: runQueryProvinceAdminPage,
+  } = useRequest(queryProvinceAdminPage, {
+    manual: true,
+    onError: () => {
+      message.error('省级管理员列表加载失败，请稍后重试');
+    },
+  });
+
+  const provinceList = (provinceData ?? []) as ProvinceVO[];
+  const provinceAdminList = provinceAdminPageData?.list ?? [];
+
+  const runSearch = useCallback(
+    (provinceId?: number | string) => {
+      const params: ProvinceAdminPageParams = {
+        pageNum: 1,
+        pageSize: 10,
+      };
+
+      if (provinceId !== undefined && provinceId !== null) {
+        params.provinceId = provinceId;
+      }
+
+      runQueryProvinceAdminPage(params);
+    },
+    [runQueryProvinceAdminPage],
+  );
+
+  useEffect(() => {
+    runSearch(selectedProvinceId);
+  }, [runSearch, selectedProvinceId]);
 
   const handleOk = async () => {
     await form.validateFields();
@@ -97,12 +82,19 @@ const ProvinceAdminListPage: React.FC = () => {
       <div className={styles.pageShell}>
         <Row gutter={0} className={styles.contentRow}>
           <Col xs={24} xl={6} className={styles.leftPane}>
-            <Tree
-              className={styles.orgTree}
-              treeData={orgTreeData}
-              defaultExpandAll
-              selectable={false}
-              switcherIcon={({ expanded }) => <CaretDownOutlined rotate={expanded ? 0 : -90} />}
+            <OrgTree
+              provinceList={provinceList}
+              loading={provinceLoading}
+              maxLevel={1}
+              onSelectionChange={(params: OrgTreeSelectionParams) => {
+                if (params.nodeType === 'province') {
+                  setSelectedProvinceId(params.provinceId);
+                  return;
+                }
+                if (params.nodeType === 'country') {
+                  setSelectedProvinceId(undefined);
+                }
+              }}
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
@@ -111,10 +103,11 @@ const ProvinceAdminListPage: React.FC = () => {
               <Button className={styles.backButton}>返回</Button>
             </div>
             <div className={styles.tableWrap}>
-              <Table<AdminRecord>
+              <Table<ProvinceAdminVO>
                 className={styles.adminTable}
-                rowKey="username"
-                dataSource={dataSource}
+                loading={provinceAdminLoading}
+                rowKey={(record) => String(record.id ?? record.username ?? '')}
+                dataSource={provinceAdminList}
                 pagination={false}
                 columns={[
                   {
@@ -128,7 +121,7 @@ const ProvinceAdminListPage: React.FC = () => {
                   {
                     title: '管理区域',
                     dataIndex: 'area',
-                    render: (value) => <Button type="link">{value}</Button>,
+                    render: (_, record) => <Button type="link">{getAreaText(record)}</Button>,
                   },
                   {
                     title: '功能授权',
@@ -161,7 +154,11 @@ const ProvinceAdminListPage: React.FC = () => {
                   },
                 ]}
               />
-              <Button type="primary" onClick={() => setIsModalOpen(true)} className={styles.createButton}>
+              <Button
+                type="primary"
+                onClick={() => setIsModalOpen(true)}
+                className={styles.createButton}
+              >
                 新建
               </Button>
             </div>
@@ -177,23 +174,43 @@ const ProvinceAdminListPage: React.FC = () => {
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="账号名" name="username" rules={[{ required: true, message: '请输入账号名' }]}>
+          <Form.Item
+            label="账号名"
+            name="username"
+            rules={[{ required: true, message: '请输入账号名' }]}
+          >
             <Input placeholder="请输入账号名" />
           </Form.Item>
-          <Form.Item label="昵称" name="nickname" rules={[{ required: true, message: '请输入昵称' }]}>
+          <Form.Item
+            label="昵称"
+            name="nickname"
+            rules={[{ required: true, message: '请输入昵称' }]}
+          >
             <Input placeholder="请输入昵称" />
           </Form.Item>
-          <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
+          <Form.Item
+            label="密码"
+            name="password"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
             <Input.Password placeholder="请输入密码" />
           </Form.Item>
-          <Form.Item label="管理区域" name="areas" rules={[{ required: true, message: '请选择管理区域' }]}>
+          <Form.Item
+            label="管理区域"
+            name="areas"
+            rules={[{ required: true, message: '请选择管理区域' }]}
+          >
             <Select
               mode="multiple"
               placeholder="请选择管理区域"
               options={areaOptions.map((value) => ({ label: value, value }))}
             />
           </Form.Item>
-          <Form.Item label="功能授权" name="features" rules={[{ required: true, message: '请选择功能授权' }]}>
+          <Form.Item
+            label="功能授权"
+            name="features"
+            rules={[{ required: true, message: '请选择功能授权' }]}
+          >
             <Select
               mode="multiple"
               placeholder="请选择功能授权"

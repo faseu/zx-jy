@@ -1,5 +1,5 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { FormattedMessage, Helmet, useIntl } from '@umijs/max';
+import { FormattedMessage, Helmet, history, useIntl } from '@umijs/max';
 import { Alert, App, Button, Form, Input, Radio } from 'antd';
 import React, { useState } from 'react';
 import { login } from '@/services/ant-design-pro/api';
@@ -32,7 +32,7 @@ const Login: React.FC = () => {
           defaultMessage: '登录成功！',
         });
         message.success(defaultLoginSuccessMessage);
-        window.location.href = '/region';
+        history.push(`/region`);
         return;
       }
       setUserLoginState(msg);
