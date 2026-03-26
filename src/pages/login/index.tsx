@@ -138,9 +138,6 @@ const Login: React.FC = () => {
                   })}
                 />
               </Form.Item>
-              <Form.Item className="login-field">
-                <Input prefix={<LockOutlined />} placeholder="Random Code" />
-              </Form.Item>
               <div className="login-language-row">
                 <Radio.Group value={lang} onChange={(e) => setLang(e.target.value)}>
                   <Radio value="arabic">Arabic</Radio>

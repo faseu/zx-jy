@@ -52,6 +52,7 @@ export type BuildingTreeVO = {
 export type PrisonTreeVO = {
   prisonId?: number | string;
   prisonName?: string;
+  level?: number;
   buildingList?: BuildingTreeVO[];
 };
 

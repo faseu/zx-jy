@@ -6,13 +6,13 @@ import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { BuildingTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
-import type { ProvinceVO } from '../region/data.d';
-import { createDevice, queryProvinceList } from '../region/service';
+import type { PrisonVO, ProvinceVO } from '../region/data.d';
+import { createDevice, queryProvinceList, queryProvincePrisons } from '../region/service';
 import { queryBuildingDevicePage, queryPrisonDevicePage, queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
-const countryToolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理', '查找'];
-const provinceToolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理'];
+const countryToolbarButtons = ['添加设备', '修改', '删除', '管理', '查找'];
+const provinceToolbarButtons = ['添加设备', '修改', '删除', '管理'];
 
 type ProvinceCard = {
   id: number | string;
@@ -38,7 +38,7 @@ type DeviceRow = {
   power: string;
   band: string;
   workTime: string;
-  color: 'pink' | 'blue';
+  backgroundColor: string;
 };
 
 type AddDeviceContext = {
@@ -52,15 +52,23 @@ type AddDeviceContext = {
 
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
-  POWER_CHANNEL_KEYS.map((key) => [key, 0]),
+  POWER_CHANNEL_KEYS.map((key) => [key, 0])
 ) as Record<string, number>;
+const PRISON_LEVEL_ROW_COLORS: Record<number, string> = {
+  1: '#cae9f8',
+  2: '#f0dd93',
+  3: '#e8c0c9',
+};
+const DEFAULT_ROW_COLORS = ['#e7bcc5', '#dbe7f5'];
 
 const normalizeBuildingTreeToPrisonTree = (
   buildingTree: BuildingTreeVO | undefined,
   params: OrgTreeSelectionParams,
+  prisonMeta?: Pick<PrisonVO, 'name' | 'level'>
 ): PrisonTreeVO => ({
   prisonId: params.prisonId,
-  prisonName: params.prisonId ? `监狱-${params.prisonId}` : '-',
+  prisonName: prisonMeta?.name ?? (params.prisonId ? `监狱-${params.prisonId}` : '-'),
+  level: prisonMeta?.level,
   buildingList: buildingTree
     ? [
         {
@@ -85,7 +93,7 @@ const MachinePage: React.FC = () => {
       onError: () => {
         message.error('加载省份设备数据失败，请重试');
       },
-    },
+    }
   );
   const { run: runQueryPrisonDevicePage, loading: prisonDeviceLoading } = useRequest(
     queryPrisonDevicePage,
@@ -98,7 +106,7 @@ const MachinePage: React.FC = () => {
       onError: () => {
         message.error('加载监狱设备数据失败，请重试');
       },
-    },
+    }
   );
   const { run: runQueryBuildingDevicePage, loading: buildingDeviceLoading } = useRequest(
     queryBuildingDevicePage,
@@ -107,13 +115,17 @@ const MachinePage: React.FC = () => {
       onSuccess: (result) => {
         const resolved = (result as { data?: BuildingTreeVO })?.data ?? (result as BuildingTreeVO);
         setPrisonTreeData(
-          normalizeBuildingTreeToPrisonTree(resolved, buildingRequestSelectionRef.current),
+          normalizeBuildingTreeToPrisonTree(
+            resolved,
+            buildingRequestSelectionRef.current,
+            resolvePrisonMeta(buildingRequestSelectionRef.current)
+          )
         );
       },
       onError: () => {
         message.error('加载楼宇设备数据失败，请重试');
       },
-    },
+    }
   );
   const provinceList = (data ?? []) as ProvinceVO[];
   const [deviceModalOpen, setDeviceModalOpen] = React.useState(false);
@@ -127,9 +139,20 @@ const MachinePage: React.FC = () => {
   });
   const [provinceTreeData, setProvinceTreeData] = React.useState<ProvinceTreeVO>();
   const [prisonTreeData, setPrisonTreeData] = React.useState<PrisonTreeVO>();
+  const provincePrisonsRef = React.useRef<Record<string, PrisonVO[]>>({});
   const buildingRequestSelectionRef = React.useRef<OrgTreeSelectionParams>({
     nodeType: 'building',
   });
+
+  const resolvePrisonMeta = React.useCallback((params: OrgTreeSelectionParams) => {
+    if (params.provinceId === undefined || params.provinceId === null) {
+      return undefined;
+    }
+
+    const provincePrisons = provincePrisonsRef.current[String(params.provinceId)] ?? [];
+
+    return provincePrisons.find((item) => String(item.id) === String(params.prisonId));
+  }, []);
 
   const loadProvinceDevicePage = React.useCallback(
     (provinceId: number | string) => {
@@ -139,7 +162,7 @@ const MachinePage: React.FC = () => {
         pageSize: 1000,
       });
     },
-    [runQueryProvinceDevicePage],
+    [runQueryProvinceDevicePage]
   );
 
   const loadPrisonDevicePage = React.useCallback(
@@ -150,13 +173,26 @@ const MachinePage: React.FC = () => {
         pageSize: 1000,
       });
     },
-    [runQueryPrisonDevicePage],
+    [runQueryPrisonDevicePage]
   );
 
   const loadBuildingDevicePage = React.useCallback(
-    (params: OrgTreeSelectionParams) => {
+    async (params: OrgTreeSelectionParams) => {
       if (params.buildingId === undefined || params.buildingId === null) {
         return;
+      }
+
+      if (
+        params.provinceId !== undefined &&
+        params.provinceId !== null &&
+        !provincePrisonsRef.current[String(params.provinceId)]
+      ) {
+        try {
+          const result = await queryProvincePrisons(params.provinceId);
+          provincePrisonsRef.current[String(params.provinceId)] = (result.data ?? []) as PrisonVO[];
+        } catch {
+          message.warning('加载监狱等级失败，将使用默认颜色显示');
+        }
       }
 
       buildingRequestSelectionRef.current = params;
@@ -166,7 +202,7 @@ const MachinePage: React.FC = () => {
         pageSize: 1000,
       });
     },
-    [runQueryBuildingDevicePage],
+    [runQueryBuildingDevicePage]
   );
 
   const handleProvinceSelect = React.useCallback(
@@ -179,13 +215,13 @@ const MachinePage: React.FC = () => {
       setPrisonTreeData(undefined);
       loadProvinceDevicePage(provinceId);
     },
-    [loadProvinceDevicePage],
+    [loadProvinceDevicePage]
   );
 
   const tableRows = React.useMemo<DeviceRow[]>(() => {
     const prisonList =
       selectedNode.nodeType === 'province'
-        ? provinceTreeData?.prisonList ?? []
+        ? (provinceTreeData?.prisonList ?? [])
         : prisonTreeData
           ? [prisonTreeData]
           : [];
@@ -198,6 +234,9 @@ const MachinePage: React.FC = () => {
     prisonList.forEach((prison, prisonIndex) => {
       const prisonKey = `prison-${prison.prisonId ?? prisonIndex}`;
       const prisonName = prison.prisonName || '-';
+      const prisonBackgroundColor =
+        PRISON_LEVEL_ROW_COLORS[prison.level ?? 0] ??
+        DEFAULT_ROW_COLORS[prisonIndex % DEFAULT_ROW_COLORS.length];
       const buildingList =
         prison.buildingList && prison.buildingList.length > 0
           ? prison.buildingList
@@ -236,7 +275,7 @@ const MachinePage: React.FC = () => {
               power: '-',
               band: '-',
               workTime: '-',
-              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+              backgroundColor: prisonBackgroundColor,
             });
 
             if (floorName !== '-') {
@@ -259,7 +298,7 @@ const MachinePage: React.FC = () => {
                 power: '',
                 band: '',
                 workTime: '',
-                color: rows.length % 2 === 0 ? 'pink' : 'blue',
+                backgroundColor: prisonBackgroundColor,
               });
             }
             return;
@@ -287,7 +326,7 @@ const MachinePage: React.FC = () => {
               power: device.powerConfig || '-',
               band: device.radio_frequency || '-',
               workTime,
-              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+              backgroundColor: prisonBackgroundColor,
             });
           });
 
@@ -311,7 +350,7 @@ const MachinePage: React.FC = () => {
               power: '',
               band: '',
               workTime: '',
-              color: rows.length % 2 === 0 ? 'pink' : 'blue',
+              backgroundColor: prisonBackgroundColor,
             });
           }
         });
@@ -324,12 +363,14 @@ const MachinePage: React.FC = () => {
   const machineCards = React.useMemo<ProvinceCard[]>(
     () =>
       provinceList
-        .filter((item) => item.provinceId !== undefined && item.provinceId !== null && item.provinceName)
+        .filter(
+          (item) => item.provinceId !== undefined && item.provinceId !== null && item.provinceName
+        )
         .map((item) => ({
           id: item.provinceId as number | string,
           name: item.provinceName as string,
         })),
-    [provinceList],
+    [provinceList]
   );
 
   const isProvinceView =
@@ -351,7 +392,7 @@ const MachinePage: React.FC = () => {
       addDeviceContext
         ? [{ label: addDeviceContext.prisonName, value: addDeviceContext.prisonId }]
         : [],
-    [addDeviceContext],
+    [addDeviceContext]
   );
 
   const buildingOptions = React.useMemo(
@@ -359,13 +400,15 @@ const MachinePage: React.FC = () => {
       addDeviceContext
         ? [{ label: addDeviceContext.buildingName, value: addDeviceContext.buildingId }]
         : [],
-    [addDeviceContext],
+    [addDeviceContext]
   );
 
   const floorOptions = React.useMemo(
     () =>
-      addDeviceContext ? [{ label: addDeviceContext.floorName, value: addDeviceContext.floorId }] : [],
-    [addDeviceContext],
+      addDeviceContext
+        ? [{ label: addDeviceContext.floorName, value: addDeviceContext.floorId }]
+        : [],
+    [addDeviceContext]
   );
 
   const provinceTitle = React.useMemo(() => {
@@ -378,7 +421,7 @@ const MachinePage: React.FC = () => {
     }
 
     const currentProvince = provinceList.find(
-      (item) => String(item.provinceId) === String(selectedNode.provinceId),
+      (item) => String(item.provinceId) === String(selectedNode.provinceId)
     );
 
     return currentProvince?.provinceName || `省份-${selectedNode.provinceId}`;
@@ -436,7 +479,7 @@ const MachinePage: React.FC = () => {
       });
       setDeviceModalOpen(true);
     },
-    [deviceForm],
+    [deviceForm]
   );
 
   const handleDeviceCancel = React.useCallback(() => {
@@ -470,7 +513,7 @@ const MachinePage: React.FC = () => {
           acc[key] = powerChannelValues[key] ?? 0;
           return acc;
         },
-        {} as Record<string, any>,
+        {} as Record<string, any>
       );
 
       await createDevice({
@@ -494,10 +537,18 @@ const MachinePage: React.FC = () => {
       setAddDeviceContext(null);
       deviceForm.resetFields();
 
-      if (selectedNode.nodeType === 'province' && selectedNode.provinceId !== undefined && selectedNode.provinceId !== null) {
+      if (
+        selectedNode.nodeType === 'province' &&
+        selectedNode.provinceId !== undefined &&
+        selectedNode.provinceId !== null
+      ) {
         loadProvinceDevicePage(selectedNode.provinceId);
       }
-      if (selectedNode.nodeType === 'prison' && selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
+      if (
+        selectedNode.nodeType === 'prison' &&
+        selectedNode.prisonId !== undefined &&
+        selectedNode.prisonId !== null
+      ) {
         loadPrisonDevicePage(selectedNode.prisonId);
       }
       if (
@@ -560,16 +611,21 @@ const MachinePage: React.FC = () => {
       const shouldRenderPrison = !prisonRendered.has(row.prisonKey);
       const shouldRenderBuilding = !buildingRendered.has(row.buildingKey);
       const shouldRenderFloor = !floorRendered.has(row.floorKey);
+      const cellStyle = { backgroundColor: row.backgroundColor };
 
       rows.push(
-        <tr key={String(row.id)} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
+        <tr key={String(row.id)}>
           {isProvinceView && !provinceRendered && (
             <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
               {provinceTitle}
             </td>
           )}
           {shouldRenderPrison && (
-            <td rowSpan={prisonRowSpanMap[row.prisonKey]} className={styles.leftMergedCell}>
+            <td
+              rowSpan={prisonRowSpanMap[row.prisonKey]}
+              className={styles.leftMergedCell}
+              style={cellStyle}
+            >
               {row.prisonName}
               <div className={styles.switchGroup}>
                 <Checkbox>全开</Checkbox>
@@ -578,7 +634,11 @@ const MachinePage: React.FC = () => {
             </td>
           )}
           {shouldRenderBuilding && (
-            <td rowSpan={buildingRowSpanMap[row.buildingKey]} className={styles.leftMergedCell}>
+            <td
+              rowSpan={buildingRowSpanMap[row.buildingKey]}
+              className={styles.leftMergedCell}
+              style={cellStyle}
+            >
               {row.buildingName}
               <div className={styles.switchGroup}>
                 <Checkbox>全开</Checkbox>
@@ -587,7 +647,11 @@ const MachinePage: React.FC = () => {
             </td>
           )}
           {shouldRenderFloor && (
-            <td rowSpan={floorRowSpanMap[row.floorKey]} className={styles.floorCell}>
+            <td
+              rowSpan={floorRowSpanMap[row.floorKey]}
+              className={styles.floorCell}
+              style={cellStyle}
+            >
               {row.floor || ''}
               {row.floor && row.floor !== '-' && (
                 <div className={styles.switchGroup}>
@@ -598,7 +662,7 @@ const MachinePage: React.FC = () => {
             </td>
           )}
           {row.rowType === 'add' ? (
-            <td colSpan={7} className={styles.addDeviceRow}>
+            <td colSpan={7} className={styles.addDeviceRow} style={cellStyle}>
               <Button
                 type="link"
                 className={styles.floorAddButton}
@@ -609,18 +673,18 @@ const MachinePage: React.FC = () => {
             </td>
           ) : (
             <>
-              <td>{row.deviceNo}</td>
-              <td>{row.networkNo}</td>
-              <td>{row.on}</td>
-              <td>{row.power}</td>
-              <td>{row.band}</td>
-              <td>{row.workTime}</td>
-              <td className={styles.checkCell}>
+              <td style={cellStyle}>{row.deviceNo}</td>
+              <td style={cellStyle}>{row.networkNo}</td>
+              <td style={cellStyle}>{row.on}</td>
+              <td style={cellStyle}>{row.power}</td>
+              <td style={cellStyle}>{row.band}</td>
+              <td style={cellStyle}>{row.workTime}</td>
+              <td className={styles.checkCell} style={cellStyle}>
                 <Checkbox disabled={!row.hasDevice} />
               </td>
             </>
           )}
-        </tr>,
+        </tr>
       );
 
       provinceRendered = true;
