@@ -4,11 +4,11 @@ import { Button, Checkbox, Col, Form, Input, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
-import type { ProvinceTreeVO } from './data.d';
+import type { PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
 import type { ProvinceVO } from '../region/data.d';
 import { createDevice, queryProvinceList } from '../region/service';
-import { queryProvinceDevicePage } from './service';
+import { queryPrisonDevicePage, queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
 const countryToolbarButtons = ['添加设备', '批量添加', '修改', '删除', '管理', '查找'];
@@ -71,6 +71,19 @@ const MachinePage: React.FC = () => {
       },
     },
   );
+  const { run: runQueryPrisonDevicePage, loading: prisonDeviceLoading } = useRequest(
+    queryPrisonDevicePage,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        const resolved = (result as { data?: PrisonTreeVO })?.data ?? (result as PrisonTreeVO);
+        setPrisonTreeData(resolved);
+      },
+      onError: () => {
+        message.error('加载监狱设备数据失败，请重试');
+      },
+    },
+  );
   const provinceList = (data ?? []) as ProvinceVO[];
   const [deviceModalOpen, setDeviceModalOpen] = React.useState(false);
   const [deviceStep, setDeviceStep] = React.useState(0);
@@ -82,6 +95,7 @@ const MachinePage: React.FC = () => {
     nodeType: 'country',
   });
   const [provinceTreeData, setProvinceTreeData] = React.useState<ProvinceTreeVO>();
+  const [prisonTreeData, setPrisonTreeData] = React.useState<PrisonTreeVO>();
 
   const loadProvinceDevicePage = React.useCallback(
     (provinceId: number | string) => {
@@ -94,24 +108,39 @@ const MachinePage: React.FC = () => {
     [runQueryProvinceDevicePage],
   );
 
+  const loadPrisonDevicePage = React.useCallback(
+    (prisonId: number | string) => {
+      runQueryPrisonDevicePage({
+        prisonId,
+        pageNum: 1,
+        pageSize: 1000,
+      });
+    },
+    [runQueryPrisonDevicePage],
+  );
+
   const handleProvinceSelect = React.useCallback(
     (provinceId: number | string) => {
       setSelectedNode({
         nodeType: 'province',
         provinceId,
       });
+      setProvinceTreeData(undefined);
+      setPrisonTreeData(undefined);
       loadProvinceDevicePage(provinceId);
     },
     [loadProvinceDevicePage],
   );
 
   const tableRows = React.useMemo<DeviceRow[]>(() => {
-    if (!provinceTreeData?.prisonList?.length) {
+    const prisonList = selectedNode.nodeType === 'prison' ? (prisonTreeData ? [prisonTreeData] : []) : (provinceTreeData?.prisonList ?? []);
+
+    if (!prisonList.length) {
       return [];
     }
 
     const rows: DeviceRow[] = [];
-    provinceTreeData.prisonList.forEach((prison, prisonIndex) => {
+    prisonList.forEach((prison, prisonIndex) => {
       const prisonKey = `prison-${prison.prisonId ?? prisonIndex}`;
       const prisonName = prison.prisonName || '-';
       const buildingList =
@@ -235,7 +264,7 @@ const MachinePage: React.FC = () => {
     });
 
     return rows;
-  }, [provinceTreeData]);
+  }, [provinceTreeData?.prisonList, prisonTreeData, selectedNode.nodeType]);
 
   const machineCards = React.useMemo<ProvinceCard[]>(
     () =>
@@ -252,6 +281,11 @@ const MachinePage: React.FC = () => {
     selectedNode.nodeType === 'province' &&
     selectedNode.provinceId !== undefined &&
     selectedNode.provinceId !== null;
+  const isPrisonView =
+    selectedNode.nodeType === 'prison' &&
+    selectedNode.prisonId !== undefined &&
+    selectedNode.prisonId !== null;
+  const isDetailView = isProvinceView || isPrisonView;
 
   const prisonOptions = React.useMemo(
     () =>
@@ -290,6 +324,18 @@ const MachinePage: React.FC = () => {
 
     return currentProvince?.provinceName || `省份-${selectedNode.provinceId}`;
   }, [isProvinceView, provinceList, provinceTreeData?.provinceName, selectedNode.provinceId]);
+
+  const prisonTitle = React.useMemo(() => {
+    if (prisonTreeData?.prisonName) {
+      return prisonTreeData.prisonName;
+    }
+
+    if (isPrisonView) {
+      return `监狱-${selectedNode.prisonId}`;
+    }
+
+    return '-';
+  }, [isPrisonView, prisonTreeData?.prisonName, selectedNode.prisonId]);
 
   const handleOpenAddDeviceModal = React.useCallback(
     (row: DeviceRow) => {
@@ -385,22 +431,30 @@ const MachinePage: React.FC = () => {
       setAddDeviceContext(null);
       deviceForm.resetFields();
 
-      if (selectedNode.provinceId !== undefined && selectedNode.provinceId !== null) {
+      if (selectedNode.nodeType === 'province' && selectedNode.provinceId !== undefined && selectedNode.provinceId !== null) {
         loadProvinceDevicePage(selectedNode.provinceId);
+      }
+      if (selectedNode.nodeType === 'prison' && selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
+        loadPrisonDevicePage(selectedNode.prisonId);
       }
     } catch (error: any) {
       if (error?.errorFields) return;
       message.error('添加失败');
     }
-  }, [deviceForm, loadProvinceDevicePage, powerChannelValues, selectedNode.provinceId]);
+  }, [deviceForm, loadPrisonDevicePage, loadProvinceDevicePage, powerChannelValues, selectedNode]);
 
   const renderRows = () => {
+    const detailLoading = provinceDeviceLoading || prisonDeviceLoading;
+
     if (tableRows.length === 0) {
       return (
         <tr>
-          <td className={`${styles.leftMergedCell} ${styles.provinceCell}`}>{provinceTitle}</td>
-          <td colSpan={10} style={{ textAlign: 'center' }}>
-            {provinceDeviceLoading ? '加载中...' : '暂无数据'}
+          {isProvinceView && (
+            <td className={`${styles.leftMergedCell} ${styles.provinceCell}`}>{provinceTitle}</td>
+          )}
+          <td className={styles.leftMergedCell}>{isPrisonView ? prisonTitle : '-'}</td>
+          <td colSpan={isProvinceView ? 9 : 8} style={{ textAlign: 'center' }}>
+            {detailLoading ? '加载中...' : '暂无数据'}
           </td>
         </tr>
       );
@@ -432,7 +486,7 @@ const MachinePage: React.FC = () => {
 
       rows.push(
         <tr key={String(row.id)} className={row.color === 'pink' ? styles.rowPink : styles.rowBlue}>
-          {!provinceRendered && (
+          {isProvinceView && !provinceRendered && (
             <td rowSpan={totalRows} className={`${styles.leftMergedCell} ${styles.provinceCell}`}>
               {provinceTitle}
             </td>
@@ -515,7 +569,7 @@ const MachinePage: React.FC = () => {
             <OrgTree
               provinceList={provinceList}
               loading={loading}
-              maxLevel={1}
+              maxLevel={2}
               onSelectionChange={(params) => {
                 setSelectedNode(params);
                 if (
@@ -523,13 +577,28 @@ const MachinePage: React.FC = () => {
                   params.provinceId !== undefined &&
                   params.provinceId !== null
                 ) {
+                  setProvinceTreeData(undefined);
+                  setPrisonTreeData(undefined);
                   loadProvinceDevicePage(params.provinceId);
+                  return;
                 }
+                if (
+                  params.nodeType === 'prison' &&
+                  params.prisonId !== undefined &&
+                  params.prisonId !== null
+                ) {
+                  setProvinceTreeData(undefined);
+                  setPrisonTreeData(undefined);
+                  loadPrisonDevicePage(params.prisonId);
+                  return;
+                }
+                setProvinceTreeData(undefined);
+                setPrisonTreeData(undefined);
               }}
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
-            {!isProvinceView ? (
+            {!isDetailView ? (
               <>
                 <div className={styles.toolbar}>
                   <Button type="primary">所有设备</Button>
@@ -565,7 +634,7 @@ const MachinePage: React.FC = () => {
                   <table className={styles.deviceTable}>
                     <thead>
                       <tr>
-                        <th>省份</th>
+                        {isProvinceView && <th>省份</th>}
                         <th>监狱</th>
                         <th>楼栋</th>
                         <th>楼层</th>
@@ -586,6 +655,7 @@ const MachinePage: React.FC = () => {
                     onClick={() => {
                       setSelectedNode({ nodeType: 'country' });
                       setProvinceTreeData(undefined);
+                      setPrisonTreeData(undefined);
                     }}
                   >
                     返回

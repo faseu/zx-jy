@@ -11,6 +11,13 @@ export type ProvinceDevicePageParams = {
   name?: string;
 };
 
+export type PrisonDevicePageParams = {
+  prisonId: number | string;
+  pageNum: number;
+  pageSize: number;
+  name?: string;
+};
+
 export type DeviceVO = {
   id?: number | string;
   deviceNo?: string;
