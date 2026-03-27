@@ -18,6 +18,9 @@ type AddDeviceModalProps = {
   buildingOptions: OptionItem[];
   floorOptions: OptionItem[];
   deviceBuildingsLoading: boolean;
+  prisonDisabled?: boolean;
+  buildingDisabled?: boolean;
+  floorDisabled?: boolean;
   onCancel: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -37,6 +40,9 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   buildingOptions,
   floorOptions,
   deviceBuildingsLoading,
+  prisonDisabled = true,
+  buildingDisabled = true,
+  floorDisabled = true,
   onCancel,
   onNext,
   onPrev,
@@ -115,7 +121,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                 <Form.Item label="监狱" name="prisonId" rules={[{ required: true, message: '请选择监狱' }]}>
                   <Select
                     options={prisonOptions}
-                    disabled
+                    disabled={prisonDisabled}
                     onChange={(value) => onPrisonChange(value ?? null)}
                     placeholder="请选择监狱"
                   />
@@ -126,12 +132,12 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                     onChange={(value) => onBuildingChange(value ?? null)}
                     placeholder="请选择楼栋"
                     loading={deviceBuildingsLoading}
-                    disabled
+                    disabled={buildingDisabled}
                     notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
                   />
                 </Form.Item>
                 <Form.Item label="楼层" name="floorId" rules={[{ required: true, message: '请选择楼层' }]}>
-                  <Select options={floorOptions} placeholder="请选择楼层" disabled />
+                  <Select options={floorOptions} placeholder="请选择楼层" disabled={floorDisabled} />
                 </Form.Item>
                 <Form.Item label="设备编号" name="deviceCode" rules={[{ required: true, message: '请输入设备编号' }]}>
                   <InputNumber min={1} placeholder="请输入设备编号" style={{ width: '100%' }} />

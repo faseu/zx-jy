@@ -4,15 +4,14 @@ import { Button, Checkbox, Col, Form, Input, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
-import type { BuildingTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
+import type { BuildingTreeVO, FloorTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
 import type { PrisonVO, ProvinceVO } from '../region/data.d';
 import { createDevice, queryProvinceList, queryProvincePrisons } from '../region/service';
 import { queryBuildingDevicePage, queryPrisonDevicePage, queryProvinceDevicePage } from './service';
 import styles from './index.less';
 
-const countryToolbarButtons = ['添加设备', '修改', '删除', '管理', '查找'];
-const provinceToolbarButtons = ['添加设备', '修改', '删除', '管理'];
+const toolbarButtons = ['添加设备', '修改', '删除'];
 
 type ProvinceCard = {
   id: number | string;
@@ -42,12 +41,26 @@ type DeviceRow = {
 };
 
 type AddDeviceContext = {
-  prisonId: number;
-  prisonName: string;
-  buildingId: number;
-  buildingName: string;
-  floorId: number;
-  floorName: string;
+  prisonId?: number;
+  buildingId?: number;
+  floorId?: number;
+};
+
+type DeviceModalFloorOption = {
+  label: string;
+  value: number;
+};
+
+type DeviceModalBuildingOption = {
+  label: string;
+  value: number;
+  floors: DeviceModalFloorOption[];
+};
+
+type DeviceModalPrisonOption = {
+  label: string;
+  value: number;
+  buildings: DeviceModalBuildingOption[];
 };
 
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
@@ -385,31 +398,112 @@ const MachinePage: React.FC = () => {
     selectedNode.nodeType === 'building' &&
     selectedNode.buildingId !== undefined &&
     selectedNode.buildingId !== null;
-  const isDetailView = isProvinceView || isPrisonView || isBuildingView;
+  const isFloorView =
+    selectedNode.nodeType === 'floor' &&
+    selectedNode.floorId !== undefined &&
+    selectedNode.floorId !== null;
+  const isDetailView = isProvinceView || isPrisonView || isBuildingView || isFloorView;
+
+  const currentModalTree = React.useMemo<PrisonTreeVO[]>(() => {
+    if (selectedNode.nodeType === 'province') {
+      return provinceTreeData?.prisonList ?? [];
+    }
+
+    return prisonTreeData ? [prisonTreeData] : [];
+  }, [provinceTreeData?.prisonList, prisonTreeData, selectedNode.nodeType]);
+
+  const modalTreeOptions = React.useMemo<DeviceModalPrisonOption[]>(
+    () =>
+      currentModalTree
+        .map((prison) => {
+          const prisonId = Number(prison.prisonId);
+          if (!prisonId) {
+            return null;
+          }
+
+          const buildings =
+            prison.buildingList
+              ?.map((building: BuildingTreeVO) => {
+                const buildingId = Number(building.buildingId);
+                if (!buildingId) {
+                  return null;
+                }
+
+                const floors =
+                  building.floorList
+                    ?.map((floor: FloorTreeVO) => {
+                      const floorId = Number(floor.floorId);
+                      if (!floorId) {
+                        return null;
+                      }
+
+                      return {
+                        label: floor.floorName || `楼层-${floorId}`,
+                        value: floorId,
+                      };
+                    })
+                    .filter(Boolean) ?? [];
+
+                return {
+                  label: building.buildingName || `楼栋-${buildingId}`,
+                  value: buildingId,
+                  floors,
+                };
+              })
+              .filter(Boolean) ?? [];
+
+          return {
+            label: prison.prisonName || `监狱-${prisonId}`,
+            value: prisonId,
+            buildings,
+          };
+        })
+        .filter(Boolean) as DeviceModalPrisonOption[],
+    [currentModalTree]
+  );
+
+  const watchedPrisonId = Form.useWatch('prisonId', deviceForm);
+  const watchedBuildingId = Form.useWatch('buildingId', deviceForm);
 
   const prisonOptions = React.useMemo(
     () =>
-      addDeviceContext
-        ? [{ label: addDeviceContext.prisonName, value: addDeviceContext.prisonId }]
-        : [],
-    [addDeviceContext]
+      modalTreeOptions.map((item) => ({
+        label: item.label,
+        value: item.value,
+      })),
+    [modalTreeOptions]
   );
 
-  const buildingOptions = React.useMemo(
-    () =>
-      addDeviceContext
-        ? [{ label: addDeviceContext.buildingName, value: addDeviceContext.buildingId }]
-        : [],
-    [addDeviceContext]
-  );
+  const buildingOptions = React.useMemo(() => {
+    const currentPrison = modalTreeOptions.find(
+      (item) => item.value === Number(watchedPrisonId ?? addDeviceContext?.prisonId)
+    );
 
-  const floorOptions = React.useMemo(
-    () =>
-      addDeviceContext
-        ? [{ label: addDeviceContext.floorName, value: addDeviceContext.floorId }]
-        : [],
-    [addDeviceContext]
-  );
+    return (currentPrison?.buildings ?? []).map((item) => ({
+      label: item.label,
+      value: item.value,
+    }));
+  }, [addDeviceContext?.prisonId, modalTreeOptions, watchedPrisonId]);
+
+  const floorOptions = React.useMemo(() => {
+    const currentPrison = modalTreeOptions.find(
+      (item) => item.value === Number(watchedPrisonId ?? addDeviceContext?.prisonId)
+    );
+    const currentBuilding = currentPrison?.buildings.find(
+      (item) => item.value === Number(watchedBuildingId ?? addDeviceContext?.buildingId)
+    );
+
+    return (currentBuilding?.floors ?? []).map((item) => ({
+      label: item.label,
+      value: item.value,
+    }));
+  }, [
+    addDeviceContext?.buildingId,
+    addDeviceContext?.prisonId,
+    modalTreeOptions,
+    watchedBuildingId,
+    watchedPrisonId,
+  ]);
 
   const provinceTitle = React.useMemo(() => {
     if (provinceTreeData?.provinceName) {
@@ -456,11 +550,8 @@ const MachinePage: React.FC = () => {
 
       setAddDeviceContext({
         prisonId,
-        prisonName: row.prisonName,
         buildingId,
-        buildingName: row.buildingName,
         floorId,
-        floorName: row.floor || `楼层-${floorId}`,
       });
       setDeviceStep(0);
       setPowerChannelValues({ ...INITIAL_POWER_CHANNEL_VALUES });
@@ -482,6 +573,43 @@ const MachinePage: React.FC = () => {
     [deviceForm]
   );
 
+  const handleOpenToolbarAddDeviceModal = React.useCallback(() => {
+    if (!isDetailView) {
+      message.warning('请先在左侧选择省份、监狱、楼栋或楼层');
+      return;
+    }
+
+    const nextContext: AddDeviceContext = {};
+
+    if (selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
+      nextContext.prisonId = Number(selectedNode.prisonId);
+    }
+    if (selectedNode.buildingId !== undefined && selectedNode.buildingId !== null) {
+      nextContext.buildingId = Number(selectedNode.buildingId);
+    }
+    if (selectedNode.floorId !== undefined && selectedNode.floorId !== null) {
+      nextContext.floorId = Number(selectedNode.floorId);
+    }
+
+    setAddDeviceContext(nextContext);
+    setDeviceStep(0);
+    setPowerChannelValues({ ...INITIAL_POWER_CHANNEL_VALUES });
+    deviceForm.setFieldsValue({
+      prisonId: nextContext.prisonId,
+      buildingId: nextContext.buildingId,
+      floorId: nextContext.floorId,
+      deviceCode: undefined,
+      networkCode: undefined,
+      ip: undefined,
+      port: undefined,
+      startTime: undefined,
+      stopTime: undefined,
+      powerOff: true,
+      ...Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, undefined])),
+    });
+    setDeviceModalOpen(true);
+  }, [deviceForm, isDetailView, selectedNode]);
+
   const handleDeviceCancel = React.useCallback(() => {
     setDeviceModalOpen(false);
     setDeviceStep(0);
@@ -501,6 +629,27 @@ const MachinePage: React.FC = () => {
   const handleDevicePrev = React.useCallback(() => {
     setDeviceStep(0);
   }, []);
+
+  const handleDevicePrisonChange = React.useCallback(
+    (value: number | null) => {
+      deviceForm.setFieldsValue({
+        prisonId: value ?? undefined,
+        buildingId: undefined,
+        floorId: undefined,
+      });
+    },
+    [deviceForm]
+  );
+
+  const handleDeviceBuildingChange = React.useCallback(
+    (value: number | null) => {
+      deviceForm.setFieldsValue({
+        buildingId: value ?? undefined,
+        floorId: undefined,
+      });
+    },
+    [deviceForm]
+  );
 
   const handleDeviceFinish = React.useCallback(async () => {
     try {
@@ -553,6 +702,13 @@ const MachinePage: React.FC = () => {
       }
       if (
         selectedNode.nodeType === 'building' &&
+        selectedNode.buildingId !== undefined &&
+        selectedNode.buildingId !== null
+      ) {
+        loadBuildingDevicePage(selectedNode);
+      }
+      if (
+        selectedNode.nodeType === 'floor' &&
         selectedNode.buildingId !== undefined &&
         selectedNode.buildingId !== null
       ) {
@@ -710,7 +866,7 @@ const MachinePage: React.FC = () => {
             <OrgTree
               provinceList={provinceList}
               loading={loading}
-              maxLevel={3}
+              maxLevel={4}
               onSelectionChange={(params) => {
                 setSelectedNode(params);
                 if (
@@ -743,6 +899,16 @@ const MachinePage: React.FC = () => {
                   loadBuildingDevicePage(params);
                   return;
                 }
+                if (
+                  params.nodeType === 'floor' &&
+                  params.buildingId !== undefined &&
+                  params.buildingId !== null
+                ) {
+                  setProvinceTreeData(undefined);
+                  setPrisonTreeData(undefined);
+                  loadBuildingDevicePage(params);
+                  return;
+                }
                 setProvinceTreeData(undefined);
                 setPrisonTreeData(undefined);
               }}
@@ -751,12 +917,6 @@ const MachinePage: React.FC = () => {
           <Col xs={24} xl={18} className={styles.rightPane}>
             {!isDetailView ? (
               <>
-                <div className={styles.toolbar}>
-                  <Button type="primary">所有设备</Button>
-                  {countryToolbarButtons.map((item) => (
-                    <Button key={item}>{item}</Button>
-                  ))}
-                </div>
                 <div className={styles.machineGrid}>
                   {machineCards.map((item, index) => (
                     <div
@@ -773,8 +933,13 @@ const MachinePage: React.FC = () => {
               <>
                 <div className={styles.toolbar}>
                   <Button type="primary">所有设备</Button>
-                  {provinceToolbarButtons.map((item) => (
-                    <Button key={item}>{item}</Button>
+                  {toolbarButtons.map((item) => (
+                    <Button
+                      key={item}
+                      onClick={item === '添加设备' ? handleOpenToolbarAddDeviceModal : undefined}
+                    >
+                      {item}
+                    </Button>
                   ))}
                   <div className={styles.searchArea}>
                     <Input placeholder="请输入" />
@@ -827,12 +992,15 @@ const MachinePage: React.FC = () => {
         buildingOptions={buildingOptions}
         floorOptions={floorOptions}
         deviceBuildingsLoading={false}
+        prisonDisabled={prisonOptions.length === 0}
+        buildingDisabled={!watchedPrisonId || buildingOptions.length === 0}
+        floorDisabled={!watchedBuildingId || floorOptions.length === 0}
         onCancel={handleDeviceCancel}
         onNext={handleDeviceNext}
         onPrev={handleDevicePrev}
         onFinish={handleDeviceFinish}
-        onPrisonChange={() => {}}
-        onBuildingChange={() => {}}
+        onPrisonChange={handleDevicePrisonChange}
+        onBuildingChange={handleDeviceBuildingChange}
         onPowerChannelChange={(key, value) =>
           setPowerChannelValues((prev) => ({ ...prev, [key]: value }))
         }

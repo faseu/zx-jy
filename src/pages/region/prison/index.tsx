@@ -315,7 +315,7 @@ const PrisonDetailPage: React.FC = () => {
                               {item.name || '未命名楼栋'}
                             </div>
                             <div style={{ fontSize: '28px', marginTop: 14 }}>
-                              楼数: {item.floorNum ?? 0}
+                              层数: {item.floorNum ?? 0}
                             </div>
                             <div style={{ fontSize: '28px', marginTop: 4 }}>
                               设备数: {item.totalDevices ?? 0}
