@@ -56,7 +56,7 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
     run(deviceId);
   }, [open, deviceId, run]);
 
-  const detail = data ?? {};
+  const detail = ((data as { data?: DeviceFormVO } | undefined)?.data ?? data ?? {}) as DeviceFormVO;
   const channelValues = CHANNEL_KEYS.map((key) => parseChannelValue(detail[key]));
 
   return (

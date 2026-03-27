@@ -1,14 +1,22 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { useRequest } from '@umijs/max';
 import { Button, Checkbox, Col, Form, Input, Modal, Row, message } from 'antd';
+import dayjs from 'dayjs';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { BuildingTreeVO, FloorTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
 import DeviceDetailModal from '../region/components/DeviceDetailModal';
-import type { PrisonVO, ProvinceVO } from '../region/data.d';
-import { createDevice, queryProvinceList, queryProvincePrisons } from '../region/service';
+import EditDeviceModal from '../region/components/EditDeviceModal';
+import type { DeviceFormVO, PrisonVO, ProvinceVO } from '../region/data.d';
+import {
+  createDevice,
+  queryDeviceForm,
+  queryProvinceList,
+  queryProvincePrisons,
+  updateDevice,
+} from '../region/service';
 import {
   deleteDevices,
   queryBuildingDevicePage,
@@ -77,6 +85,15 @@ const PRISON_LEVEL_ROW_COLORS: Record<number, string> = {
   3: '#e8c0c9',
 };
 const DEFAULT_ROW_COLORS = ['#e7bcc5', '#dbe7f5'];
+const parsePowerChannelValue = (value?: string | number | null) => {
+  const resolved = Number(value);
+
+  if (!Number.isFinite(resolved)) {
+    return 0;
+  }
+
+  return resolved;
+};
 
 const normalizeBuildingTreeToPrisonTree = (
   buildingTree: BuildingTreeVO | undefined,
@@ -98,6 +115,7 @@ const normalizeBuildingTreeToPrisonTree = (
 
 const MachinePage: React.FC = () => {
   const [deviceForm] = Form.useForm();
+  const [editDeviceForm] = Form.useForm();
   const { data, loading } = useRequest(queryProvinceList);
   const { run: runQueryProvinceDevicePage, loading: provinceDeviceLoading } = useRequest(
     queryProvinceDevicePage,
@@ -155,6 +173,14 @@ const MachinePage: React.FC = () => {
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [deviceDetailOpen, setDeviceDetailOpen] = React.useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = React.useState<number | null>(null);
+  const [editDeviceModalOpen, setEditDeviceModalOpen] = React.useState(false);
+  const [editDeviceStep, setEditDeviceStep] = React.useState(0);
+  const [editingDeviceId, setEditingDeviceId] = React.useState<number | null>(null);
+  const [editDeviceContext, setEditDeviceContext] = React.useState<AddDeviceContext | null>(null);
+  const [editPowerChannelValues, setEditPowerChannelValues] = React.useState<Record<string, number>>({
+    ...INITIAL_POWER_CHANNEL_VALUES,
+  });
+  const [editSubmitting, setEditSubmitting] = React.useState(false);
   const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
@@ -412,6 +438,7 @@ const MachinePage: React.FC = () => {
     selectedNode.floorId !== null;
   const isDetailView = isProvinceView || isPrisonView || isBuildingView || isFloorView;
   const hasSelectedDevices = selectedDeviceIds.length > 0;
+  const canEditDevice = selectedDeviceIds.length === 1 && !editSubmitting;
 
   const refreshCurrentDevicePage = React.useCallback(() => {
     if (
@@ -501,6 +528,8 @@ const MachinePage: React.FC = () => {
 
   const watchedPrisonId = Form.useWatch('prisonId', deviceForm);
   const watchedBuildingId = Form.useWatch('buildingId', deviceForm);
+  const watchedEditPrisonId = Form.useWatch('prisonId', editDeviceForm);
+  const watchedEditBuildingId = Form.useWatch('buildingId', editDeviceForm);
 
   const prisonOptions = React.useMemo(
     () =>
@@ -540,6 +569,37 @@ const MachinePage: React.FC = () => {
     modalTreeOptions,
     watchedBuildingId,
     watchedPrisonId,
+  ]);
+
+  const editBuildingOptions = React.useMemo(() => {
+    const currentPrison = modalTreeOptions.find(
+      (item) => item.value === Number(watchedEditPrisonId ?? editDeviceContext?.prisonId)
+    );
+
+    return (currentPrison?.buildings ?? []).map((item) => ({
+      label: item.label,
+      value: item.value,
+    }));
+  }, [editDeviceContext?.prisonId, modalTreeOptions, watchedEditPrisonId]);
+
+  const editFloorOptions = React.useMemo(() => {
+    const currentPrison = modalTreeOptions.find(
+      (item) => item.value === Number(watchedEditPrisonId ?? editDeviceContext?.prisonId)
+    );
+    const currentBuilding = currentPrison?.buildings.find(
+      (item) => item.value === Number(watchedEditBuildingId ?? editDeviceContext?.buildingId)
+    );
+
+    return (currentBuilding?.floors ?? []).map((item) => ({
+      label: item.label,
+      value: item.value,
+    }));
+  }, [
+    editDeviceContext?.buildingId,
+    editDeviceContext?.prisonId,
+    modalTreeOptions,
+    watchedEditBuildingId,
+    watchedEditPrisonId,
   ]);
 
   const provinceTitle = React.useMemo(() => {
@@ -687,6 +747,160 @@ const MachinePage: React.FC = () => {
     },
     [deviceForm]
   );
+
+  const handleEditDeviceCancel = React.useCallback(() => {
+    setEditDeviceModalOpen(false);
+    setEditDeviceStep(0);
+    setEditingDeviceId(null);
+    setEditDeviceContext(null);
+    setEditPowerChannelValues({ ...INITIAL_POWER_CHANNEL_VALUES });
+    editDeviceForm.resetFields();
+  }, [editDeviceForm]);
+
+  const handleEditDeviceNext = React.useCallback(async () => {
+    try {
+      await editDeviceForm.validateFields(['prisonId', 'buildingId', 'floorId', 'deviceCode']);
+      setEditDeviceStep(1);
+    } catch {
+      return;
+    }
+  }, [editDeviceForm]);
+
+  const handleEditDevicePrev = React.useCallback(() => {
+    setEditDeviceStep(0);
+  }, []);
+
+  const handleEditDevicePrisonChange = React.useCallback(
+    (value: number | null) => {
+      editDeviceForm.setFieldsValue({
+        prisonId: value ?? undefined,
+        buildingId: undefined,
+        floorId: undefined,
+      });
+    },
+    [editDeviceForm]
+  );
+
+  const handleEditDeviceBuildingChange = React.useCallback(
+    (value: number | null) => {
+      editDeviceForm.setFieldsValue({
+        buildingId: value ?? undefined,
+        floorId: undefined,
+      });
+    },
+    [editDeviceForm]
+  );
+
+  const handleOpenEditDeviceModal = React.useCallback(async () => {
+    if (selectedDeviceIds.length !== 1) {
+      message.warning('请选择一台设备进行修改');
+      return;
+    }
+
+    const resolvedId = Number(selectedDeviceIds[0]);
+
+    if (!resolvedId) {
+      message.warning('当前设备信息不完整，无法修改');
+      return;
+    }
+
+    try {
+      const result = await queryDeviceForm(resolvedId);
+      const detail = ((result as { data?: DeviceFormVO } | undefined)?.data ?? result) as DeviceFormVO;
+      const prisonId = Number(detail.prisonId);
+      const buildingId = Number(detail.buildingId);
+      const floorId = Number(detail.floorId);
+
+      setEditingDeviceId(resolvedId);
+      setEditDeviceContext({
+        prisonId: prisonId || undefined,
+        buildingId: buildingId || undefined,
+        floorId: floorId || undefined,
+      });
+
+      const nextPowerValues = POWER_CHANNEL_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = parsePowerChannelValue(detail[key as keyof DeviceFormVO] as string | number | null);
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      setEditPowerChannelValues(nextPowerValues);
+      editDeviceForm.setFieldsValue({
+        prisonId: prisonId || undefined,
+        buildingId: buildingId || undefined,
+        floorId: floorId || undefined,
+        deviceCode: detail.deviceNo ? Number(detail.deviceNo) || detail.deviceNo : undefined,
+        networkCode: detail.entireNo,
+        ip: detail.ipAddress,
+        port: detail.port,
+        startTime: detail.startTime ? dayjs(detail.startTime, 'HH:mm') : undefined,
+        stopTime: detail.endTime ? dayjs(detail.endTime, 'HH:mm') : undefined,
+        powerOff: Number(detail.powerOff) === 0,
+        ...Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, nextPowerValues[key] ?? 0])),
+      });
+      setEditDeviceStep(0);
+      setEditDeviceModalOpen(true);
+    } catch {
+      message.error('加载设备详情失败，请重试');
+    }
+  }, [editDeviceForm, selectedDeviceIds]);
+
+  const handleEditDeviceFinish = React.useCallback(async () => {
+    if (!editingDeviceId) {
+      message.warning('当前设备信息不完整，无法保存');
+      return;
+    }
+
+    try {
+      await editDeviceForm.validateFields(['networkCode', 'ip', 'port', 'startTime', 'stopTime']);
+      const values = editDeviceForm.getFieldsValue(true);
+      const formatTime = (value: any) =>
+        value && typeof value.format === 'function' ? value.format('HH:mm') : value;
+      const channelPayload = POWER_CHANNEL_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = editPowerChannelValues[key] ?? 0;
+          return acc;
+        },
+        {} as Record<string, any>
+      );
+
+      setEditSubmitting(true);
+      await updateDevice(editingDeviceId, {
+        deviceNo: String(values.deviceCode),
+        deviceName: String(values.deviceCode),
+        entireNo: values.networkCode,
+        floorId: values.floorId,
+        buildingId: values.buildingId,
+        prisonId: values.prisonId,
+        powerOff: values.powerOff ? 0 : 1,
+        ipAddress: values.ip,
+        port: values.port,
+        startTime: formatTime(values.startTime),
+        endTime: formatTime(values.stopTime),
+        ...channelPayload,
+      });
+
+      message.success('修改成功');
+      handleEditDeviceCancel();
+      refreshCurrentDevicePage();
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+
+      message.error('修改失败');
+    } finally {
+      setEditSubmitting(false);
+    }
+  }, [
+    editDeviceForm,
+    editPowerChannelValues,
+    editingDeviceId,
+    handleEditDeviceCancel,
+    refreshCurrentDevicePage,
+  ]);
 
   const handleDeviceFinish = React.useCallback(async () => {
     try {
@@ -1033,7 +1247,9 @@ const MachinePage: React.FC = () => {
                 <div className={styles.toolbar}>
                   <Button type="primary">所有设备</Button>
                   <Button onClick={handleOpenToolbarAddDeviceModal}>添加设备</Button>
-                  <Button>修改</Button>
+                  <Button disabled={!canEditDevice} loading={editSubmitting} onClick={handleOpenEditDeviceModal}>
+                    修改
+                  </Button>
                   <Button
                     disabled={!hasSelectedDevices || deleteSubmitting}
                     loading={deleteSubmitting}
@@ -1109,6 +1325,30 @@ const MachinePage: React.FC = () => {
         open={deviceDetailOpen}
         deviceId={selectedDeviceId}
         onCancel={handleCloseDeviceDetail}
+      />
+      <EditDeviceModal
+        open={editDeviceModalOpen}
+        step={editDeviceStep}
+        form={editDeviceForm}
+        powerChannelKeys={POWER_CHANNEL_KEYS}
+        powerChannelValues={editPowerChannelValues}
+        prisonOptions={prisonOptions}
+        buildingOptions={editBuildingOptions}
+        floorOptions={editFloorOptions}
+        deviceBuildingsLoading={false}
+        prisonDisabled={prisonOptions.length <= 1}
+        buildingDisabled={!watchedEditPrisonId || editBuildingOptions.length === 0}
+        floorDisabled={!watchedEditBuildingId || editFloorOptions.length === 0}
+        submitting={editSubmitting}
+        onCancel={handleEditDeviceCancel}
+        onNext={handleEditDeviceNext}
+        onPrev={handleEditDevicePrev}
+        onFinish={handleEditDeviceFinish}
+        onPrisonChange={handleEditDevicePrisonChange}
+        onBuildingChange={handleEditDeviceBuildingChange}
+        onPowerChannelChange={(key, value) =>
+          setEditPowerChannelValues((prev) => ({ ...prev, [key]: value }))
+        }
       />
     </PageContainer>
   );

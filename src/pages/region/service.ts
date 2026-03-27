@@ -362,3 +362,45 @@ export async function queryDeviceForm(
 
   return wrapResult<DeviceFormVO>(result);
 }
+
+export async function updateDevice(
+  deviceId: number | string,
+  data: {
+    deviceNo?: string;
+    deviceName?: string;
+    entireNo?: string;
+    floorId?: number;
+    buildingId?: number;
+    prisonId?: number;
+    powerOff?: number;
+    ipAddress?: string;
+    port?: number;
+    startTime?: string;
+    endTime?: string;
+    ch1?: string | number;
+    ch2?: string | number;
+    ch3?: string | number;
+    ch4?: string | number;
+    ch5?: string | number;
+    ch6?: string | number;
+    ch7?: string | number;
+    ch8?: string | number;
+    ch9?: string | number;
+    ch10?: string | number;
+    ch11?: string | number;
+    ch12?: string | number;
+    ch13?: string | number;
+    ch14?: string | number;
+    ch15?: string | number;
+    ch16?: string | number;
+    ch17?: string | number;
+    ch18?: string | number;
+  },
+  options?: { [key: string]: any },
+) {
+  return request(`/api/v1/device/${deviceId}`, {
+    method: 'PUT',
+    data,
+    ...(options || {}),
+  });
+}
