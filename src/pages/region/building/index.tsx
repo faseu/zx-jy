@@ -439,14 +439,14 @@ const BuildingDetailPage: React.FC = () => {
   useEffect(() => {
     const source = markerSourceRef.current;
     if (!source) return;
-    const nextDeviceMap = new Map<number, DeviceItem>();
+    const nextDeviceById: Record<number, DeviceItem> = {};
     devices.forEach((item) => {
-      if (item.position) nextDeviceMap.set(item.id, item);
+      if (item.position) nextDeviceById[item.id] = item;
     });
 
     source.getFeatures().forEach((feature: any) => {
       const deviceId = Number(feature.get('deviceId'));
-      const next = nextDeviceMap.get(deviceId);
+      const next = nextDeviceById[deviceId];
       if (!next || !next.position) {
         source.removeFeature(feature);
         return;
@@ -458,10 +458,10 @@ const BuildingDetailPage: React.FC = () => {
         feature.setGeometry(new Point(next.position));
       }
       feature.set('label', next.label);
-      nextDeviceMap.delete(deviceId);
+      delete nextDeviceById[deviceId];
     });
 
-    nextDeviceMap.forEach((item) => {
+    Object.values(nextDeviceById).forEach((item) => {
       if (!item.position) return;
       const feature = new Feature({
         geometry: new Point(item.position),
@@ -474,9 +474,10 @@ const BuildingDetailPage: React.FC = () => {
 
   useEffect(() => {
     setDevices((prev) => {
-      const previousPositionMap = new Map<number, DevicePosition | null>(
-        prev.map((item) => [item.id, item.position])
-      );
+      const previousPositionById: Record<number, DevicePosition | null> = {};
+      prev.forEach((item) => {
+        previousPositionById[item.id] = item.position;
+      });
       const next = floorDeviceRows.map((item: any, index: number) => {
         const parsedId = Number(item?.id ?? item?.deviceId);
         const id = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1;
@@ -490,8 +491,8 @@ const BuildingDetailPage: React.FC = () => {
         return {
           id,
           label,
-          position: previousPositionMap.has(id)
-            ? (previousPositionMap.get(id) ?? null)
+          position: Object.prototype.hasOwnProperty.call(previousPositionById, id)
+            ? (previousPositionById[id] ?? null)
             : persistedPosition,
         };
       });
