@@ -1,17 +1,21 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { useRequest } from '@umijs/max';
-import { Button, Checkbox, Col, Form, Input, Row, message } from 'antd';
+import { Button, Checkbox, Col, Form, Input, Modal, Row, message } from 'antd';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { BuildingTreeVO, FloorTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
+import DeviceDetailModal from '../region/components/DeviceDetailModal';
 import type { PrisonVO, ProvinceVO } from '../region/data.d';
 import { createDevice, queryProvinceList, queryProvincePrisons } from '../region/service';
-import { queryBuildingDevicePage, queryPrisonDevicePage, queryProvinceDevicePage } from './service';
+import {
+  deleteDevices,
+  queryBuildingDevicePage,
+  queryPrisonDevicePage,
+  queryProvinceDevicePage,
+} from './service';
 import styles from './index.less';
-
-const toolbarButtons = ['添加设备', '修改', '删除'];
 
 type ProvinceCard = {
   id: number | string;
@@ -147,6 +151,10 @@ const MachinePage: React.FC = () => {
     ...INITIAL_POWER_CHANNEL_VALUES,
   });
   const [addDeviceContext, setAddDeviceContext] = React.useState<AddDeviceContext | null>(null);
+  const [selectedDeviceIds, setSelectedDeviceIds] = React.useState<Array<string | number>>([]);
+  const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
+  const [deviceDetailOpen, setDeviceDetailOpen] = React.useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = React.useState<number | null>(null);
   const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
@@ -403,6 +411,35 @@ const MachinePage: React.FC = () => {
     selectedNode.floorId !== undefined &&
     selectedNode.floorId !== null;
   const isDetailView = isProvinceView || isPrisonView || isBuildingView || isFloorView;
+  const hasSelectedDevices = selectedDeviceIds.length > 0;
+
+  const refreshCurrentDevicePage = React.useCallback(() => {
+    if (
+      selectedNode.nodeType === 'province' &&
+      selectedNode.provinceId !== undefined &&
+      selectedNode.provinceId !== null
+    ) {
+      loadProvinceDevicePage(selectedNode.provinceId);
+      return;
+    }
+
+    if (
+      selectedNode.nodeType === 'prison' &&
+      selectedNode.prisonId !== undefined &&
+      selectedNode.prisonId !== null
+    ) {
+      loadPrisonDevicePage(selectedNode.prisonId);
+      return;
+    }
+
+    if (
+      (selectedNode.nodeType === 'building' || selectedNode.nodeType === 'floor') &&
+      selectedNode.buildingId !== undefined &&
+      selectedNode.buildingId !== null
+    ) {
+      loadBuildingDevicePage(selectedNode);
+    }
+  }, [loadBuildingDevicePage, loadPrisonDevicePage, loadProvinceDevicePage, selectedNode]);
 
   const currentModalTree = React.useMemo<PrisonTreeVO[]>(() => {
     if (selectedNode.nodeType === 'province') {
@@ -685,47 +722,87 @@ const MachinePage: React.FC = () => {
       setDeviceStep(0);
       setAddDeviceContext(null);
       deviceForm.resetFields();
-
-      if (
-        selectedNode.nodeType === 'province' &&
-        selectedNode.provinceId !== undefined &&
-        selectedNode.provinceId !== null
-      ) {
-        loadProvinceDevicePage(selectedNode.provinceId);
-      }
-      if (
-        selectedNode.nodeType === 'prison' &&
-        selectedNode.prisonId !== undefined &&
-        selectedNode.prisonId !== null
-      ) {
-        loadPrisonDevicePage(selectedNode.prisonId);
-      }
-      if (
-        selectedNode.nodeType === 'building' &&
-        selectedNode.buildingId !== undefined &&
-        selectedNode.buildingId !== null
-      ) {
-        loadBuildingDevicePage(selectedNode);
-      }
-      if (
-        selectedNode.nodeType === 'floor' &&
-        selectedNode.buildingId !== undefined &&
-        selectedNode.buildingId !== null
-      ) {
-        loadBuildingDevicePage(selectedNode);
-      }
+      refreshCurrentDevicePage();
     } catch (error: any) {
       if (error?.errorFields) return;
       message.error('添加失败');
     }
-  }, [
-    deviceForm,
-    loadBuildingDevicePage,
-    loadPrisonDevicePage,
-    loadProvinceDevicePage,
-    powerChannelValues,
-    selectedNode,
-  ]);
+  }, [deviceForm, powerChannelValues, refreshCurrentDevicePage]);
+
+  const handleDeviceSelectionChange = React.useCallback(
+    (checked: boolean, deviceId: string | number) => {
+      setSelectedDeviceIds((prev) => {
+        if (checked) {
+          return prev.includes(deviceId) ? prev : [...prev, deviceId];
+        }
+
+        return prev.filter((item) => String(item) !== String(deviceId));
+      });
+    },
+    []
+  );
+
+  const handleDeleteDevices = React.useCallback(() => {
+    if (!hasSelectedDevices || deleteSubmitting) {
+      return;
+    }
+
+    Modal.confirm({
+      title: '确认删除选中的设备？',
+      content: `已选中 ${selectedDeviceIds.length} 台设备，删除后不可恢复。`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true,
+        loading: deleteSubmitting,
+      },
+      onOk: async () => {
+        try {
+          setDeleteSubmitting(true);
+          await deleteDevices(selectedDeviceIds);
+          message.success('删除成功');
+          setSelectedDeviceIds([]);
+          refreshCurrentDevicePage();
+        } catch {
+          message.error('删除失败，请重试');
+          throw new Error('delete failed');
+        } finally {
+          setDeleteSubmitting(false);
+        }
+      },
+    });
+  }, [deleteSubmitting, hasSelectedDevices, refreshCurrentDevicePage, selectedDeviceIds]);
+
+  const handleOpenDeviceDetail = React.useCallback((deviceId: string | number) => {
+    const resolvedId = Number(deviceId);
+
+    if (!resolvedId) {
+      message.warning('当前设备信息不完整，无法查看详情');
+      return;
+    }
+
+    setSelectedDeviceId(resolvedId);
+    setDeviceDetailOpen(true);
+  }, []);
+
+  const handleCloseDeviceDetail = React.useCallback(() => {
+    setDeviceDetailOpen(false);
+    setSelectedDeviceId(null);
+  }, []);
+
+  React.useEffect(() => {
+    setSelectedDeviceIds((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+
+      const validIds = new Set(
+        tableRows.filter((row) => row.hasDevice).map((row) => String(row.id))
+      );
+      const next = prev.filter((item) => validIds.has(String(item)));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [tableRows]);
 
   const renderRows = () => {
     const detailLoading = provinceDeviceLoading || prisonDeviceLoading || buildingDeviceLoading;
@@ -829,14 +906,36 @@ const MachinePage: React.FC = () => {
             </td>
           ) : (
             <>
-              <td style={cellStyle}>{row.deviceNo}</td>
-              <td style={cellStyle}>{row.networkNo}</td>
+              <td style={cellStyle}>
+                {row.hasDevice ? (
+                  <Button type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
+                    {row.deviceNo}
+                  </Button>
+                ) : (
+                  row.deviceNo
+                )}
+              </td>
+              <td style={cellStyle}>
+                {row.hasDevice ? (
+                  <Button type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
+                    {row.networkNo}
+                  </Button>
+                ) : (
+                  row.networkNo
+                )}
+              </td>
               <td style={cellStyle}>{row.on}</td>
               <td style={cellStyle}>{row.power}</td>
               <td style={cellStyle}>{row.band}</td>
               <td style={cellStyle}>{row.workTime}</td>
               <td className={styles.checkCell} style={cellStyle}>
-                <Checkbox disabled={!row.hasDevice} />
+                <Checkbox
+                  checked={selectedDeviceIds.some((item) => String(item) === String(row.id))}
+                  disabled={!row.hasDevice}
+                  onChange={(event) =>
+                    handleDeviceSelectionChange(event.target.checked, row.id)
+                  }
+                />
               </td>
             </>
           )}
@@ -933,14 +1032,15 @@ const MachinePage: React.FC = () => {
               <>
                 <div className={styles.toolbar}>
                   <Button type="primary">所有设备</Button>
-                  {toolbarButtons.map((item) => (
-                    <Button
-                      key={item}
-                      onClick={item === '添加设备' ? handleOpenToolbarAddDeviceModal : undefined}
-                    >
-                      {item}
-                    </Button>
-                  ))}
+                  <Button onClick={handleOpenToolbarAddDeviceModal}>添加设备</Button>
+                  <Button>修改</Button>
+                  <Button
+                    disabled={!hasSelectedDevices || deleteSubmitting}
+                    loading={deleteSubmitting}
+                    onClick={handleDeleteDevices}
+                  >
+                    删除
+                  </Button>
                   <div className={styles.searchArea}>
                     <Input placeholder="请输入" />
                     <Button>查找</Button>
@@ -1004,6 +1104,11 @@ const MachinePage: React.FC = () => {
         onPowerChannelChange={(key, value) =>
           setPowerChannelValues((prev) => ({ ...prev, [key]: value }))
         }
+      />
+      <DeviceDetailModal
+        open={deviceDetailOpen}
+        deviceId={selectedDeviceId}
+        onCancel={handleCloseDeviceDetail}
       />
     </PageContainer>
   );

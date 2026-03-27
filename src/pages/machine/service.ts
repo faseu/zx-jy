@@ -73,3 +73,10 @@ export async function queryBuildingDevicePage(
 
   return wrapResult<BuildingTreeVO>(result);
 }
+
+export async function deleteDevices(ids: Array<number | string>, options?: { [key: string]: any }) {
+  return request(`/api/v1/device/${ids.join(',')}`, {
+    method: 'DELETE',
+    ...(options || {}),
+  });
+}
