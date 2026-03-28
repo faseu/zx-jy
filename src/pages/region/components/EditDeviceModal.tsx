@@ -1,6 +1,7 @@
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Slider, Steps, Switch, TimePicker } from 'antd';
 import type { FormInstance } from 'antd';
 import React from 'react';
+import dayjs from 'dayjs';
 import shielder from '@/assets/shielder.png';
 
 type OptionItem = {
@@ -53,6 +54,13 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
   onBuildingChange,
   onPowerChannelChange,
 }) => {
+  const handleSetAllDay = () => {
+    form.setFieldsValue({
+      startTime: dayjs('00:00', 'HH:mm'),
+      stopTime: dayjs('00:00', 'HH:mm'),
+    });
+  };
+
   return (
     <Modal
       title="修改设备"
@@ -179,11 +187,18 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
                     ))}
                   </Row>
                 </Form.Item>
-                <Form.Item label="开始时间" name="startTime" rules={[{ required: true, message: '请选择开始时间' }]}>
-                  <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                <Form.Item label="开始时间" required>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Form.Item name="startTime" noStyle rules={[{ required: true, message: '请选择开始时间' }]}>
+                      <TimePicker format="HH:mm" style={{ width: '100%', flex: 1 }} />
+                    </Form.Item>
+                    <Button onClick={handleSetAllDay}>全天</Button>
+                  </div>
                 </Form.Item>
-                <Form.Item label="停止时间" name="stopTime" rules={[{ required: true, message: '请选择停止时间' }]}>
-                  <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                <Form.Item label="停止时间" required>
+                  <Form.Item name="stopTime" noStyle rules={[{ required: true, message: '请选择停止时间' }]}>
+                    <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                  </Form.Item>
                 </Form.Item>
               </>
             )}
