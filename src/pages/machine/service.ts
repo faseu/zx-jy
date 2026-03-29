@@ -80,3 +80,25 @@ export async function deleteDevices(ids: Array<number | string>, options?: { [ke
     ...(options || {}),
   });
 }
+
+export async function disableDevices(
+  ids: Array<number | string>,
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/device/disableDevices', {
+    method: 'POST',
+    data: { ids },
+    ...(options || {}),
+  });
+}
+
+export async function enableDevices(
+  ids: Array<number | string>,
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/device/enableDevices', {
+    method: 'POST',
+    data: { ids },
+    ...(options || {}),
+  });
+}

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
-import type { BuildingTreeVO, FloorTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
+import type { BuildingTreeVO, DeviceVO, FloorTreeVO, PrisonTreeVO, ProvinceTreeVO } from './data.d';
 import AddDeviceModal from '../region/components/AddDeviceModal';
 import DeviceDetailModal from '../region/components/DeviceDetailModal';
 import EditDeviceModal from '../region/components/EditDeviceModal';
@@ -18,7 +18,9 @@ import {
   updateDevice,
 } from '../region/service';
 import {
+  disableDevices,
   deleteDevices,
+  enableDevices,
   queryBuildingDevicePage,
   queryPrisonDevicePage,
   queryProvinceDevicePage,
@@ -75,6 +77,13 @@ type DeviceModalPrisonOption = {
   buildings: DeviceModalBuildingOption[];
 };
 
+type GroupSwitchState = 'unknown' | 'allOn' | 'allOff' | 'mixed';
+
+type GroupSwitchSummary = {
+  ids: Array<number | string>;
+  state: GroupSwitchState;
+};
+
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0])
@@ -93,6 +102,49 @@ const parsePowerChannelValue = (value?: string | number | null) => {
   }
 
   return resolved;
+};
+
+const summarizeGroupSwitch = (devices?: DeviceVO[]): GroupSwitchSummary => {
+  const validDevices = (devices ?? []).filter(
+    (device) => device.id !== undefined && device.id !== null && device.id !== ''
+  );
+
+  if (validDevices.length === 0) {
+    return {
+      ids: [],
+      state: 'unknown',
+    };
+  }
+
+  const states = validDevices
+    .map((device) => Number(device.powerOff))
+    .filter((state) => state === 0 || state === 1);
+
+  if (states.length === 0) {
+    return {
+      ids: validDevices.map((device) => device.id as number | string),
+      state: 'unknown',
+    };
+  }
+
+  if (states.every((state) => state === 0)) {
+    return {
+      ids: validDevices.map((device) => device.id as number | string),
+      state: 'allOn',
+    };
+  }
+
+  if (states.every((state) => state === 1)) {
+    return {
+      ids: validDevices.map((device) => device.id as number | string),
+      state: 'allOff',
+    };
+  }
+
+  return {
+    ids: validDevices.map((device) => device.id as number | string),
+    state: 'mixed',
+  };
 };
 
 const normalizeBuildingTreeToPrisonTree = (
@@ -183,6 +235,9 @@ const MachinePage: React.FC = () => {
     ...INITIAL_POWER_CHANNEL_VALUES,
   });
   const [editSubmitting, setEditSubmitting] = React.useState(false);
+  const [groupSwitchSubmitting, setGroupSwitchSubmitting] = React.useState<Record<string, boolean>>(
+    {}
+  );
   const [selectedNode, setSelectedNode] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
@@ -469,6 +524,88 @@ const MachinePage: React.FC = () => {
       loadBuildingDevicePage(selectedNode);
     }
   }, [loadBuildingDevicePage, loadPrisonDevicePage, loadProvinceDevicePage, selectedNode]);
+
+  const groupSwitchSummaries = React.useMemo(() => {
+    const prisonList =
+      selectedNode.nodeType === 'province'
+        ? (provinceTreeData?.prisonList ?? [])
+        : prisonTreeData
+          ? [prisonTreeData]
+          : [];
+
+    const prisonMap: Record<string, GroupSwitchSummary> = {};
+    const buildingMap: Record<string, GroupSwitchSummary> = {};
+    const floorMap: Record<string, GroupSwitchSummary> = {};
+
+    prisonList.forEach((prison, prisonIndex) => {
+      const prisonKey = `prison-${prison.prisonId ?? prisonIndex}`;
+      const buildingList =
+        prison.buildingList && prison.buildingList.length > 0
+          ? prison.buildingList
+          : [{ buildingId: `${prisonKey}-empty`, buildingName: '-', floorList: [] }];
+      const prisonDevices: DeviceVO[] = [];
+
+      buildingList.forEach((building, buildingIndex) => {
+        const buildingKey = `${prisonKey}-building-${building.buildingId ?? buildingIndex}`;
+        const floorList =
+          building.floorList && building.floorList.length > 0
+            ? building.floorList
+            : [{ floorId: `${buildingKey}-empty`, floorName: '-', deviceList: [] }];
+        const buildingDevices: DeviceVO[] = [];
+
+        floorList.forEach((floor, floorIndex) => {
+          const floorKey = `${buildingKey}-floor-${floor.floorId ?? floorIndex}`;
+          const floorDevices = floor.deviceList ?? [];
+
+          floorMap[floorKey] = summarizeGroupSwitch(floorDevices);
+          buildingDevices.push(...floorDevices);
+          prisonDevices.push(...floorDevices);
+        });
+
+        buildingMap[buildingKey] = summarizeGroupSwitch(buildingDevices);
+      });
+
+      prisonMap[prisonKey] = summarizeGroupSwitch(prisonDevices);
+    });
+
+    return {
+      prisonMap,
+      buildingMap,
+      floorMap,
+    };
+  }, [provinceTreeData?.prisonList, prisonTreeData, selectedNode.nodeType]);
+
+  const handleGroupSwitch = React.useCallback(
+    async (groupKey: string, action: 'enable' | 'disable', ids: Array<number | string>) => {
+      if (ids.length === 0) {
+        message.warning('当前分组下暂无可操作设备');
+        return;
+      }
+
+      try {
+        setGroupSwitchSubmitting((prev) => ({ ...prev, [groupKey]: true }));
+
+        if (action === 'enable') {
+          await enableDevices(ids);
+          message.success('已批量开启设备');
+        } else {
+          await disableDevices(ids);
+          message.success('已批量关闭设备');
+        }
+
+        refreshCurrentDevicePage();
+      } catch {
+        message.error(action === 'enable' ? '批量开启设备失败' : '批量关闭设备失败');
+      } finally {
+        setGroupSwitchSubmitting((prev) => {
+          const next = { ...prev };
+          delete next[groupKey];
+          return next;
+        });
+      }
+    },
+    [refreshCurrentDevicePage]
+  );
 
   const currentModalTree = React.useMemo<PrisonTreeVO[]>(() => {
     if (selectedNode.nodeType === 'province') {
@@ -1010,6 +1147,43 @@ const MachinePage: React.FC = () => {
     setSelectedDeviceId(null);
   }, []);
 
+  const renderGroupSwitchControls = React.useCallback(
+    (groupKey: string, summary: GroupSwitchSummary) => {
+      const statusTextMap: Record<GroupSwitchState, string> = {
+        unknown: '状态未知',
+        allOn: '当前全开',
+        allOff: '当前全关',
+        mixed: '有开有关',
+      };
+      const submitting = groupSwitchSubmitting[groupKey];
+
+      return (
+        <div className={styles.switchGroup}>
+          <div className={styles.switchStatus}>{statusTextMap[summary.state]}</div>
+          <div className={styles.switchActions}>
+            <Button
+              size="small"
+              disabled={submitting || summary.ids.length === 0 || summary.state === 'allOn'}
+              loading={submitting}
+              onClick={() => handleGroupSwitch(groupKey, 'enable', summary.ids)}
+            >
+              全开
+            </Button>
+            <Button
+              size="small"
+              disabled={submitting || summary.ids.length === 0 || summary.state === 'allOff'}
+              loading={submitting}
+              onClick={() => handleGroupSwitch(groupKey, 'disable', summary.ids)}
+            >
+              全关
+            </Button>
+          </div>
+        </div>
+      );
+    },
+    [groupSwitchSubmitting, handleGroupSwitch]
+  );
+
   React.useEffect(() => {
     setSelectedDeviceIds((prev) => {
       if (prev.length === 0) {
@@ -1080,10 +1254,10 @@ const MachinePage: React.FC = () => {
               style={cellStyle}
             >
               {row.prisonName}
-              <div className={styles.switchGroup}>
-                <Checkbox>全开</Checkbox>
-                <Checkbox>全关</Checkbox>
-              </div>
+              {renderGroupSwitchControls(
+                row.prisonKey,
+                groupSwitchSummaries.prisonMap[row.prisonKey] ?? { ids: [], state: 'unknown' }
+              )}
             </td>
           )}
           {shouldRenderBuilding && (
@@ -1093,10 +1267,10 @@ const MachinePage: React.FC = () => {
               style={cellStyle}
             >
               {row.buildingName}
-              <div className={styles.switchGroup}>
-                <Checkbox>全开</Checkbox>
-                <Checkbox>全关</Checkbox>
-              </div>
+              {renderGroupSwitchControls(
+                row.buildingKey,
+                groupSwitchSummaries.buildingMap[row.buildingKey] ?? { ids: [], state: 'unknown' }
+              )}
             </td>
           )}
           {shouldRenderFloor && (
@@ -1106,12 +1280,12 @@ const MachinePage: React.FC = () => {
               style={cellStyle}
             >
               {row.floor || ''}
-              {row.floor && row.floor !== '-' && (
-                <div className={styles.switchGroup}>
-                  <Checkbox>全开</Checkbox>
-                  <Checkbox>全关</Checkbox>
-                </div>
-              )}
+              {row.floor &&
+                row.floor !== '-' &&
+                renderGroupSwitchControls(
+                  row.floorKey,
+                  groupSwitchSummaries.floorMap[row.floorKey] ?? { ids: [], state: 'unknown' }
+                )}
             </td>
           )}
           {row.rowType === 'add' ? (

@@ -35,6 +35,8 @@ export type DeviceVO = {
   startTime?: string | null;
   endTime?: string | null;
   radio_frequency?: string | null;
+  ipAddress?: string | null;
+  port?: string | null;
 };
 
 export type FloorTreeVO = {
