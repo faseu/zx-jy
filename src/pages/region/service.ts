@@ -402,3 +402,16 @@ export async function updateDevice(
     ...(options || {}),
   });
 }
+
+export async function getDeviceInfoByIp(
+  devIp: string,
+  options?: { [key: string]: any }
+): Promise<ResultData<any>> {
+  const result = await request<ResultData<any>>('/api/v1/udp/shield/getDeviceInfo', {
+    method: 'GET',
+    params: { devIp },
+    ...(options || {}),
+  });
+
+  return wrapResult<any>(result);
+}

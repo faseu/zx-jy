@@ -1,8 +1,23 @@
-import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Slider, Steps, Switch, TimePicker } from 'antd';
+import {
+  Button,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Select,
+  Slider,
+  Steps,
+  Switch,
+  TimePicker,
+  message,
+} from 'antd';
 import type { FormInstance } from 'antd';
 import React from 'react';
 import dayjs from 'dayjs';
 import shielder from '@/assets/shielder.png';
+import { getDeviceInfoByIp } from '../service';
 
 type OptionItem = {
   label: React.ReactNode;
@@ -54,11 +69,44 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
   onBuildingChange,
   onPowerChannelChange,
 }) => {
+  const [testingConnection, setTestingConnection] = React.useState(false);
+
   const handleSetAllDay = () => {
     form.setFieldsValue({
       startTime: dayjs('00:00', 'HH:mm'),
       stopTime: dayjs('00:00', 'HH:mm'),
     });
+  };
+
+  const handleTestConnection = async () => {
+    try {
+      const { ip } = await form.validateFields(['ip']);
+      if (!ip) {
+        return;
+      }
+
+      setTestingConnection(true);
+      const result = await getDeviceInfoByIp(ip);
+
+      if (result?.code === '00000') {
+        message.success('连接成功');
+        return;
+      }
+
+      if (result?.code === 'B0001') {
+        message.error('连接失败');
+        return;
+      }
+
+      message.error(result?.msg || '连接测试失败，请重试');
+    } catch (error: any) {
+      if (error?.errorFields) {
+        return;
+      }
+      message.error('连接测试失败，请重试');
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   return (
@@ -158,8 +206,15 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
                 <Form.Item label="全网编号" name="networkCode" rules={[{ required: true, message: '请输入全网编号' }]}>
                   <Input placeholder="请输入全网编号" />
                 </Form.Item>
-                <Form.Item label="IP" name="ip" rules={[{ required: true, message: '请输入 IP' }]}>
-                  <Input placeholder="请输入 IP" />
+                <Form.Item label="IP" required>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Form.Item name="ip" noStyle rules={[{ required: true, message: '请输入 IP' }]}>
+                      <Input placeholder="请输入 IP" />
+                    </Form.Item>
+                    <Button type="link" onClick={handleTestConnection} loading={testingConnection}>
+                      连接测试
+                    </Button>
+                  </div>
                 </Form.Item>
                 <Form.Item label="端口" name="port" rules={[{ required: true, message: '请输入端口' }]}>
                   <InputNumber min={0} max={65535} style={{ width: '100%' }} />
