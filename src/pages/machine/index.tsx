@@ -46,8 +46,8 @@ type DeviceRow = {
   deviceNo: string;
   networkNo: string;
   on: string;
-  power: string;
-  band: string;
+  ipAddress: string;
+  port: string;
   workTime: string;
   backgroundColor: string;
 };
@@ -177,7 +177,9 @@ const MachinePage: React.FC = () => {
   const [editDeviceStep, setEditDeviceStep] = React.useState(0);
   const [editingDeviceId, setEditingDeviceId] = React.useState<number | null>(null);
   const [editDeviceContext, setEditDeviceContext] = React.useState<AddDeviceContext | null>(null);
-  const [editPowerChannelValues, setEditPowerChannelValues] = React.useState<Record<string, number>>({
+  const [editPowerChannelValues, setEditPowerChannelValues] = React.useState<
+    Record<string, number>
+  >({
     ...INITIAL_POWER_CHANNEL_VALUES,
   });
   const [editSubmitting, setEditSubmitting] = React.useState(false);
@@ -319,8 +321,8 @@ const MachinePage: React.FC = () => {
               deviceNo: '-',
               networkNo: '-',
               on: '-',
-              power: '-',
-              band: '-',
+              ipAddress: '-',
+              port: '-',
               workTime: '-',
               backgroundColor: prisonBackgroundColor,
             });
@@ -342,8 +344,8 @@ const MachinePage: React.FC = () => {
                 deviceNo: '',
                 networkNo: '',
                 on: '',
-                power: '',
-                band: '',
+                ipAddress: '',
+                port: '',
                 workTime: '',
                 backgroundColor: prisonBackgroundColor,
               });
@@ -370,8 +372,8 @@ const MachinePage: React.FC = () => {
               deviceNo: device.deviceNo || '-',
               networkNo: device.entireNo || '-',
               on: device.powerOff === 0 ? 'On' : device.powerOff === 1 ? 'Off' : '-',
-              power: device.powerConfig || '-',
-              band: device.radio_frequency || '-',
+              ipAddress: device.ipAddress || '-',
+              port: device.port || '-',
               workTime,
               backgroundColor: prisonBackgroundColor,
             });
@@ -394,8 +396,8 @@ const MachinePage: React.FC = () => {
               deviceNo: '',
               networkNo: '',
               on: '',
-              power: '',
-              band: '',
+              ipAddress: '',
+              port: '',
               workTime: '',
               backgroundColor: prisonBackgroundColor,
             });
@@ -806,7 +808,8 @@ const MachinePage: React.FC = () => {
 
     try {
       const result = await queryDeviceForm(resolvedId);
-      const detail = ((result as { data?: DeviceFormVO } | undefined)?.data ?? result) as DeviceFormVO;
+      const detail = ((result as { data?: DeviceFormVO } | undefined)?.data ??
+        result) as DeviceFormVO;
       const prisonId = Number(detail.prisonId);
       const buildingId = Number(detail.buildingId);
       const floorId = Number(detail.floorId);
@@ -820,7 +823,9 @@ const MachinePage: React.FC = () => {
 
       const nextPowerValues = POWER_CHANNEL_KEYS.reduce(
         (acc, key) => {
-          acc[key] = parsePowerChannelValue(detail[key as keyof DeviceFormVO] as string | number | null);
+          acc[key] = parsePowerChannelValue(
+            detail[key as keyof DeviceFormVO] as string | number | null
+          );
           return acc;
         },
         {} as Record<string, number>
@@ -1029,7 +1034,7 @@ const MachinePage: React.FC = () => {
             <td className={`${styles.leftMergedCell} ${styles.provinceCell}`}>{provinceTitle}</td>
           )}
           <td className={styles.leftMergedCell}>{isPrisonView ? prisonTitle : '-'}</td>
-          <td colSpan={isProvinceView ? 9 : 8} style={{ textAlign: 'center' }}>
+          <td colSpan={isProvinceView ? 10 : 9} style={{ textAlign: 'center' }}>
             {detailLoading ? '加载中...' : '暂无数据'}
           </td>
         </tr>
@@ -1110,7 +1115,7 @@ const MachinePage: React.FC = () => {
             </td>
           )}
           {row.rowType === 'add' ? (
-            <td colSpan={7} className={styles.addDeviceRow} style={cellStyle}>
+            <td colSpan={8} className={styles.addDeviceRow} style={cellStyle}>
               <Button
                 type="link"
                 className={styles.floorAddButton}
@@ -1123,33 +1128,40 @@ const MachinePage: React.FC = () => {
             <>
               <td style={cellStyle}>
                 {row.hasDevice ? (
-                  <Button type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
+                  <a type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
                     {row.deviceNo}
-                  </Button>
+                  </a>
                 ) : (
                   row.deviceNo
                 )}
               </td>
               <td style={cellStyle}>
                 {row.hasDevice ? (
-                  <Button type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
+                  <a type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
                     {row.networkNo}
-                  </Button>
+                  </a>
                 ) : (
                   row.networkNo
                 )}
               </td>
               <td style={cellStyle}>{row.on}</td>
-              <td style={cellStyle}>{row.power}</td>
-              <td style={cellStyle}>{row.band}</td>
+              <td style={cellStyle}>{row.ipAddress}</td>
+              <td style={cellStyle}>{row.port}</td>
               <td style={cellStyle}>{row.workTime}</td>
+              <td style={cellStyle}>
+                {row.hasDevice ? (
+                  <a type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
+                    查看
+                  </a>
+                ) : (
+                  '-'
+                )}
+              </td>
               <td className={styles.checkCell} style={cellStyle}>
                 <Checkbox
                   checked={selectedDeviceIds.some((item) => String(item) === String(row.id))}
                   disabled={!row.hasDevice}
-                  onChange={(event) =>
-                    handleDeviceSelectionChange(event.target.checked, row.id)
-                  }
+                  onChange={(event) => handleDeviceSelectionChange(event.target.checked, row.id)}
                 />
               </td>
             </>
@@ -1248,7 +1260,11 @@ const MachinePage: React.FC = () => {
                 <div className={styles.toolbar}>
                   <Button type="primary">所有设备</Button>
                   <Button onClick={handleOpenToolbarAddDeviceModal}>添加设备</Button>
-                  <Button disabled={!canEditDevice} loading={editSubmitting} onClick={handleOpenEditDeviceModal}>
+                  <Button
+                    disabled={!canEditDevice}
+                    loading={editSubmitting}
+                    onClick={handleOpenEditDeviceModal}
+                  >
                     修改
                   </Button>
                   <Button
@@ -1274,9 +1290,10 @@ const MachinePage: React.FC = () => {
                         <th>设备编号</th>
                         <th>全网编号</th>
                         <th>开关</th>
-                        <th>功率配置</th>
-                        <th>频段配置</th>
+                        <th>IP</th>
+                        <th>端口号</th>
                         <th>工作时间配置</th>
+                        <th>查看</th>
                         <th />
                       </tr>
                     </thead>
