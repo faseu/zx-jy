@@ -24,9 +24,15 @@ declare namespace API {
   };
 
   type LoginResult = {
+    code?: string;
     status?: string;
     type?: string;
     currentAuthority?: string;
+    data?: {
+      accessToken?: string;
+      [key: string]: any;
+    };
+    [key: string]: any;
   };
 
   type PageParams = {
@@ -61,9 +67,21 @@ declare namespace API {
     status?: string;
   };
 
+  type CaptchaResult = {
+    code?: string;
+    msg?: string;
+    data?: {
+      captchaKey?: string;
+      captchaBase64?: string;
+    };
+    [key: string]: any;
+  };
+
   type LoginParams = {
     username?: string;
     password?: string;
+    captchaCode?: string;
+    captchaKey?: string;
     autoLogin?: boolean;
     type?: string;
   };

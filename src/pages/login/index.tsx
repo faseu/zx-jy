@@ -1,8 +1,8 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { FormattedMessage, Helmet, history, useIntl } from '@umijs/max';
 import { Alert, App, Button, Form, Input, Radio } from 'antd';
-import React, { useState } from 'react';
-import { login } from '@/services/ant-design-pro/api';
+import React, { useEffect, useState } from 'react';
+import { getCaptcha, login } from '@/services/ant-design-pro/api';
 import './index.less';
 
 const LoginMessage: React.FC<{
@@ -16,8 +16,40 @@ const Login: React.FC = () => {
   const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
   const [type] = useState<string>('account');
   const [lang, setLang] = useState<string>('arabic');
+  const [captchaImage, setCaptchaImage] = useState<string>('');
+  const [captchaLoading, setCaptchaLoading] = useState<boolean>(false);
   const { message } = App.useApp();
   const intl = useIntl();
+
+  const refreshCaptcha = async () => {
+    try {
+      setCaptchaLoading(true);
+      const msg = await getCaptcha();
+      const captchaKey = msg?.data?.captchaKey;
+      const captchaBase64 = msg?.data?.captchaBase64;
+
+      form.setFieldValue('captchaCode', undefined);
+      form.setFieldValue('captchaKey', captchaKey);
+      setCaptchaImage(
+        captchaBase64
+          ? captchaBase64.startsWith('data:image')
+            ? captchaBase64
+            : `data:image/png;base64,${captchaBase64}`
+          : '',
+      );
+    } catch (error) {
+      console.log(error);
+      setCaptchaImage('');
+      form.setFieldValue('captchaKey', undefined);
+      message.error('Get captcha failed, please retry.');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshCaptcha();
+  }, []);
 
   const handleSubmit = async (values: API.LoginParams) => {
     try {
@@ -29,20 +61,22 @@ const Login: React.FC = () => {
         }
         const defaultLoginSuccessMessage = intl.formatMessage({
           id: 'pages.login.success',
-          defaultMessage: '登录成功！',
+          defaultMessage: 'Login successful!',
         });
         message.success(defaultLoginSuccessMessage);
         history.push(`/region`);
         return;
       }
       setUserLoginState(msg);
+      void refreshCaptcha();
     } catch (error) {
       const defaultLoginFailureMessage = intl.formatMessage({
         id: 'pages.login.failure',
-        defaultMessage: '登录失败，请重试！',
+        defaultMessage: 'Login failed, please retry!',
       });
       console.log(error);
       message.error(defaultLoginFailureMessage);
+      void refreshCaptcha();
     }
   };
 
@@ -54,7 +88,7 @@ const Login: React.FC = () => {
         <title>
           {intl.formatMessage({
             id: 'menu.login',
-            defaultMessage: '登录页',
+            defaultMessage: 'Login',
           })}
         </title>
       </Helmet>
@@ -84,11 +118,14 @@ const Login: React.FC = () => {
               }}
               onFinish={handleSubmit}
             >
+              <Form.Item name="captchaKey" hidden>
+                <Input />
+              </Form.Item>
               {status === 'error' && loginType === 'account' && (
                 <LoginMessage
                   content={intl.formatMessage({
                     id: 'pages.login.accountLogin.errorMessage',
-                    defaultMessage: '账户或密码错误 (admin/ant.design)',
+                    defaultMessage: 'Incorrect username or password.',
                   })}
                 />
               )}
@@ -101,7 +138,7 @@ const Login: React.FC = () => {
                     message: (
                       <FormattedMessage
                         id="pages.login.username.required"
-                        defaultMessage="请输入用户名!"
+                        defaultMessage="Please input username!"
                       />
                     ),
                   },
@@ -124,7 +161,7 @@ const Login: React.FC = () => {
                     message: (
                       <FormattedMessage
                         id="pages.login.password.required"
-                        defaultMessage="请输入密码！"
+                        defaultMessage="Please input password!"
                       />
                     ),
                   },
@@ -138,6 +175,45 @@ const Login: React.FC = () => {
                   })}
                 />
               </Form.Item>
+              <div className="login-captcha-row">
+                <Form.Item
+                  className="login-field login-captcha-input"
+                  name="captchaCode"
+                  rules={[
+                    {
+                      required: true,
+                      message: (
+                        <FormattedMessage
+                          id="pages.login.captcha.required"
+                          defaultMessage="Please input verification code!"
+                        />
+                      ),
+                    },
+                  ]}
+                >
+                  <Input
+                    prefix={<LockOutlined />}
+                    placeholder={intl.formatMessage({
+                      id: 'pages.login.captcha.placeholder',
+                      defaultMessage: 'Verification Code',
+                    })}
+                  />
+                </Form.Item>
+                <button
+                  type="button"
+                  className="login-captcha-trigger"
+                  onClick={() => void refreshCaptcha()}
+                  aria-label="Refresh captcha"
+                >
+                  {captchaImage ? (
+                    <img className="login-captcha-image" src={captchaImage} alt="captcha" />
+                  ) : (
+                    <span className="login-captcha-placeholder">
+                      {captchaLoading ? 'Loading...' : 'Reload'}
+                    </span>
+                  )}
+                </button>
+              </div>
               <div className="login-language-row">
                 <Radio.Group value={lang} onChange={(e) => setLang(e.target.value)}>
                   <Radio value="arabic">Arabic</Radio>

@@ -12,6 +12,28 @@ import { queryProvinceList } from '../region/service';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import styles from './index.less';
 
+const alarmTypeOptions = [
+  { label: '全部', value: '' },
+  { label: '低温告警', value: 'Bit0' },
+  { label: '过温告警', value: 'Bit1' },
+  { label: '过压告警', value: 'Bit2' },
+  { label: '欠压告警', value: 'Bit3' },
+  { label: '过流告警', value: 'Bit4' },
+  { label: '欠流告警', value: 'Bit5' },
+];
+
+const processingStatusOptions = [
+  { label: '全部', value: undefined },
+  { label: '未处理', value: 0 },
+  { label: '已处理', value: 1 },
+];
+
+const blockedOptions = [
+  { label: '全部', value: undefined },
+  { label: '否', value: 0 },
+  { label: '是', value: 1 },
+];
+
 const AlarmPage: React.FC = () => {
   const [pageNum, setPageNum] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(10);
@@ -19,6 +41,8 @@ const AlarmPage: React.FC = () => {
   const [endDate, setEndDate] = React.useState<Dayjs | null>(null);
   const [deviceName, setDeviceName] = React.useState('');
   const [alarmType, setAlarmType] = React.useState<string>('');
+  const [processingStatus, setProcessingStatus] = React.useState<number | undefined>(undefined);
+  const [blocked, setBlocked] = React.useState<number | undefined>(undefined);
   const [orgSelection, setOrgSelection] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
@@ -53,6 +77,12 @@ const AlarmPage: React.FC = () => {
       if (alarmType) {
         params.type = alarmType;
       }
+      if (processingStatus !== undefined) {
+        params.processingStatus = processingStatus;
+      }
+      if (blocked !== undefined) {
+        params.blocked = blocked;
+      }
       if (orgSelection.provinceId) {
         params.provinceId = orgSelection.provinceId;
       }
@@ -68,7 +98,16 @@ const AlarmPage: React.FC = () => {
 
       runQueryAlarmPage(params);
     },
-    [alarmType, deviceName, endDate, orgSelection, runQueryAlarmPage, startDate],
+    [
+      alarmType,
+      blocked,
+      deviceName,
+      endDate,
+      orgSelection,
+      processingStatus,
+      runQueryAlarmPage,
+      startDate,
+    ]
   );
 
   React.useEffect(() => {
@@ -103,11 +142,11 @@ const AlarmPage: React.FC = () => {
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
-            <div className={styles.alarmTabRow}>
-              <Button type="primary">当前告警</Button>
-              <Button>历史告警</Button>
-              <Button>屏蔽告警</Button>
-            </div>
+            {/*<div className={styles.alarmTabRow}>*/}
+            {/*  <Button type="primary">当前告警</Button>*/}
+            {/*  <Button>历史告警</Button>*/}
+            {/*  <Button>屏蔽告警</Button>*/}
+            {/*</div>*/}
             <div className={styles.queryTitle}>查询表格</div>
             <div className={styles.queryRow}>
               <div className={styles.queryItem}>
@@ -139,10 +178,26 @@ const AlarmPage: React.FC = () => {
                 <span className={styles.queryLabel}>告警类型</span>
                 <Select
                   value={alarmType}
-                  options={[{ label: '全部', value: '' }]}
+                  options={alarmTypeOptions}
                   onChange={(value) => setAlarmType(value)}
                 />
               </div>
+              {/*<div className={styles.queryItem}>*/}
+              {/*  <span className={styles.queryLabel}>处理状态</span>*/}
+              {/*  <Select*/}
+              {/*    value={processingStatus}*/}
+              {/*    options={processingStatusOptions}*/}
+              {/*    onChange={(value) => setProcessingStatus(value)}*/}
+              {/*  />*/}
+              {/*</div>*/}
+              {/*<div className={styles.queryItem}>*/}
+              {/*  <span className={styles.queryLabel}>是否屏蔽</span>*/}
+              {/*  <Select*/}
+              {/*    value={blocked}*/}
+              {/*    options={blockedOptions}*/}
+              {/*    onChange={(value) => setBlocked(value)}*/}
+              {/*  />*/}
+              {/*</div>*/}
               <Button
                 type="primary"
                 icon={<SearchOutlined />}
@@ -167,7 +222,7 @@ const AlarmPage: React.FC = () => {
                 String(
                   record.id ??
                     record.entireNo ??
-                    `${record.deviceId ?? ''}-${record.alarmTime ?? ''}-${record.createTime ?? ''}`,
+                    `${record.deviceId ?? ''}-${record.alarmTime ?? ''}-${record.createTime ?? ''}`
                 )
               }
               pagination={false}
