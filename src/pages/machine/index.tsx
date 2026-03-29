@@ -868,6 +868,7 @@ const MachinePage: React.FC = () => {
 
       setEditSubmitting(true);
       await updateDevice(editingDeviceId, {
+        id: editingDeviceId,
         deviceNo: String(values.deviceCode),
         deviceName: String(values.deviceCode),
         entireNo: values.networkCode,

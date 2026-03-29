@@ -38,9 +38,9 @@ const wrapResult = <T>(result: T | ResultData<T>): ResultData<T> => {
   return { data: result as T };
 };
 
-export async function queryProvinceList(
-  options?: { [key: string]: any },
-): Promise<ResultData<ProvinceVO[]>> {
+export async function queryProvinceList(options?: {
+  [key: string]: any;
+}): Promise<ResultData<ProvinceVO[]>> {
   const result = await request<ResultListProvinceVO | ProvinceVO[]>('/api/v1/province', {
     method: 'GET',
     headers: {
@@ -54,14 +54,14 @@ export async function queryProvinceList(
 
 export async function queryProvinceDetail(
   provinceId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<ProvinceDetailVO>> {
   const result = await request<ProvinceDetailVO | ResultData<ProvinceDetailVO>>(
     `/api/v1/province/${provinceId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<ProvinceDetailVO>(result);
@@ -69,23 +69,20 @@ export async function queryProvinceDetail(
 
 export async function queryProvincePrisons(
   provinceId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<PrisonVO[]>> {
   const result = await request<PrisonVO[] | ResultData<PrisonVO[]>>(
     `/api/v1/province/prisons/${provinceId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<PrisonVO[]>(result);
 }
 
-export async function createPrison(
-  data: Record<string, any>,
-  options?: { [key: string]: any },
-) {
+export async function createPrison(data: Record<string, any>, options?: { [key: string]: any }) {
   return request('/api/v1/prison', {
     method: 'POST',
     data,
@@ -95,14 +92,14 @@ export async function createPrison(
 
 export async function queryPrisonForm(
   prisonId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<PrisonFormVO>> {
   const result = await request<PrisonFormVO | ResultData<PrisonFormVO>>(
     `/api/v1/prison/${prisonId}/form`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<PrisonFormVO>(result);
@@ -111,7 +108,7 @@ export async function queryPrisonForm(
 export async function updatePrison(
   prisonId: number | string,
   data: PrisonFormVO,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request(`/api/v1/prison/${prisonId}`, {
     method: 'PUT',
@@ -122,14 +119,14 @@ export async function updatePrison(
 
 export async function queryPrisonInfo(
   prisonId: number | string,
-  options?: { [key: string]: any },
-) : Promise<ResultData<PrisonInfoVO>> {
+  options?: { [key: string]: any }
+): Promise<ResultData<PrisonInfoVO>> {
   const result = await request<PrisonInfoVO | ResultData<PrisonInfoVO>>(
     `/api/v1/prison/info/${prisonId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<PrisonInfoVO>(result);
@@ -137,14 +134,14 @@ export async function queryPrisonInfo(
 
 export async function queryPrisonBuildings(
   prisonId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<BuildingDetailVO[]>> {
   const result = await request<BuildingDetailVO[] | ResultData<BuildingDetailVO[]>>(
     `/api/v1/prison/buidings/${prisonId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<BuildingDetailVO[]>(result);
@@ -152,14 +149,14 @@ export async function queryPrisonBuildings(
 
 export async function queryBuildingInfo(
   buildingId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<BuildingInfoVO>> {
   const result = await request<BuildingInfoVO | ResultData<BuildingInfoVO>>(
     `/api/v1/building/info/${buildingId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<BuildingInfoVO>(result);
@@ -167,14 +164,14 @@ export async function queryBuildingInfo(
 
 export async function queryBuildingFloors(
   buildingId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<FloorVO[]>> {
   const result = await request<FloorVO[] | ResultData<FloorVO[]>>(
     `/api/v1/building/floor/${buildingId}`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<FloorVO[]>(result);
@@ -182,14 +179,14 @@ export async function queryBuildingFloors(
 
 export async function queryBuildingFloorForm(
   floorId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<FloorFormVO>> {
   const result = await request<FloorFormVO | ResultData<FloorFormVO>>(
     `/api/v1/floor/${floorId}/form`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<FloorFormVO>(result);
@@ -202,7 +199,7 @@ export async function createBuilding(
     groundFloorNum?: number;
     undergroundFloorNum?: number;
   },
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request('/api/v1/building', {
     method: 'POST',
@@ -213,14 +210,14 @@ export async function createBuilding(
 
 export async function queryBuildingForm(
   buildingId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<BuildingFormVO>> {
   const result = await request<BuildingFormVO | ResultData<BuildingFormVO>>(
     `/api/v1/building/${buildingId}/form`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<BuildingFormVO>(result);
@@ -229,7 +226,7 @@ export async function queryBuildingForm(
 export async function updateBuilding(
   buildingId: number | string,
   data: BuildingFormVO,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request(`/api/v1/building/${buildingId}`, {
     method: 'PUT',
@@ -246,7 +243,7 @@ export async function createFloor(
     deviceNumber?: number;
     floorDrawing?: string;
   },
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request('/api/v1/floor', {
     method: 'POST',
@@ -262,7 +259,7 @@ export async function queryFloorDevicePage(
     pageSize: number;
     name?: string;
   },
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<any>> {
   const result = await request<any>('/api/v1/device/page/floor', {
     method: 'GET',
@@ -279,7 +276,7 @@ export async function queryFloorDevicePage(
 export async function updateFloorDrawing(
   id: number | string,
   filePath: string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request(`/api/v1/floor/updateTFloorDraw/${id}`, {
     method: 'PUT',
@@ -295,11 +292,11 @@ export async function updateDeviceXY(
   id: number | string,
   positionX: string,
   positionY: string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request(`/api/v1/device/updateTDeviceXY/${id}`, {
     method: 'PUT',
-    params: {positionX, positionY},
+    params: { positionX, positionY },
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -339,7 +336,7 @@ export async function createDevice(
     ch17?: string;
     ch18?: string;
   },
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request('/api/v1/device', {
     method: 'POST',
@@ -350,14 +347,14 @@ export async function createDevice(
 
 export async function queryDeviceForm(
   deviceId: number | string,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<DeviceFormVO>> {
   const result = await request<DeviceFormVO | ResultData<DeviceFormVO>>(
     `/api/v1/device/${deviceId}/form`,
     {
       method: 'GET',
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<DeviceFormVO>(result);
@@ -366,6 +363,7 @@ export async function queryDeviceForm(
 export async function updateDevice(
   deviceId: number | string,
   data: {
+    id?: number;
     deviceNo?: string;
     deviceName?: string;
     entireNo?: string;
@@ -396,7 +394,7 @@ export async function updateDevice(
     ch17?: string | number;
     ch18?: string | number;
   },
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ) {
   return request(`/api/v1/device/${deviceId}`, {
     method: 'PUT',
