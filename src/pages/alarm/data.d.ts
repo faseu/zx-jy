@@ -20,12 +20,16 @@ export type AlarmPageParams = {
 };
 
 export type AlarmVO = {
-  id?: number;
+  id?: number | string;
   entireNo?: string;
-  deviceId?: number;
+  deviceId?: number | string;
   deviceName?: string;
-  prisonId?: number;
-  prisonName?: string;
+  prisonId?: number | string;
+  prisonName?: string | null;
+  buildingId?: number | string | null;
+  buildingName?: string | null;
+  floorId?: number | string | null;
+  floorName?: string | null;
   content?: string;
   type?: string;
   alarmTime?: string;

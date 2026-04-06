@@ -1,15 +1,15 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { useRequest } from '@umijs/max';
+import { history, useRequest } from '@umijs/max';
 import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Table } from 'antd';
 import type { Dayjs } from 'dayjs';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
-import type { AlarmPageParams, AlarmVO } from './data.d';
-import { queryAlarmPage } from './service';
+import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { ProvinceVO } from '../region/data.d';
 import { queryProvinceList } from '../region/service';
-import type { OrgTreeSelectionParams } from '@/components/OrgTree';
+import type { AlarmPageParams, AlarmVO } from './data.d';
+import { queryAlarmPage } from './service';
 import styles from './index.less';
 
 const alarmTypeOptions = [
@@ -53,10 +53,79 @@ const AlarmPage: React.FC = () => {
     loading: alarmLoading,
     run: runQueryAlarmPage,
   } = useRequest(queryAlarmPage, { manual: true });
-  const provinceList = (data ?? []) as ProvinceVO[];
 
+  const provinceList = (data ?? []) as ProvinceVO[];
   const alarmList = (alarmPageData?.list ?? []) as AlarmVO[];
   const alarmTotal = alarmPageData?.total ?? 0;
+
+  const handleJumpToBuildingFloor = React.useCallback((record: AlarmVO) => {
+    const fallbackPrisonId = '1';
+    const fallbackBuildingId = '1';
+    const nextPrisonId =
+      record.prisonId !== undefined && record.prisonId !== null && record.prisonId !== ''
+        ? String(record.prisonId)
+        : fallbackPrisonId;
+    const nextBuildingId =
+      record.buildingId !== undefined && record.buildingId !== null && record.buildingId !== ''
+        ? String(record.buildingId)
+        : fallbackBuildingId;
+    const searchParams = new URLSearchParams();
+
+    if (record.floorId !== undefined && record.floorId !== null && record.floorId !== '') {
+      searchParams.set('floorId', String(record.floorId));
+    }
+
+    history.push(
+      `/region/building/${nextPrisonId}/${nextBuildingId}${
+        searchParams.toString() ? `?${searchParams.toString()}` : ''
+      }`
+    );
+  }, []);
+
+  const columns = React.useMemo(
+    () => [
+      {
+        title: '告警监狱',
+        dataIndex: 'prisonName',
+        render: (value?: string | null) => value || '-',
+      },
+      {
+        title: '告警设备ID',
+        dataIndex: 'deviceId',
+        render: (value?: number | string) => value ?? '-',
+      },
+      {
+        title: '告警设备名称',
+        dataIndex: 'deviceName',
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: '告警内容',
+        dataIndex: 'content',
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: '告警发生时间',
+        dataIndex: 'alarmTime',
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: '排查建议',
+        dataIndex: 'suggestions',
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: '操作',
+        dataIndex: 'action',
+        render: (_: unknown, record: AlarmVO) => (
+          <Button type="link" onClick={() => handleJumpToBuildingFloor(record)}>
+            跳转定位
+          </Button>
+        ),
+      },
+    ],
+    [handleJumpToBuildingFloor]
+  );
 
   const runAlarmSearch = React.useCallback(
     (nextPageNum: number, nextPageSize: number) => {
@@ -119,6 +188,7 @@ const AlarmPage: React.FC = () => {
       setPageNum(1);
       return;
     }
+
     runAlarmSearch(1, pageSize);
   };
 
@@ -142,11 +212,6 @@ const AlarmPage: React.FC = () => {
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
-            {/*<div className={styles.alarmTabRow}>*/}
-            {/*  <Button type="primary">当前告警</Button>*/}
-            {/*  <Button>历史告警</Button>*/}
-            {/*  <Button>屏蔽告警</Button>*/}
-            {/*</div>*/}
             <div className={styles.queryTitle}>查询表格</div>
             <div className={styles.queryRow}>
               <div className={styles.queryItem}>
@@ -182,22 +247,18 @@ const AlarmPage: React.FC = () => {
                   onChange={(value) => setAlarmType(value)}
                 />
               </div>
-              {/*<div className={styles.queryItem}>*/}
-              {/*  <span className={styles.queryLabel}>处理状态</span>*/}
-              {/*  <Select*/}
-              {/*    value={processingStatus}*/}
-              {/*    options={processingStatusOptions}*/}
-              {/*    onChange={(value) => setProcessingStatus(value)}*/}
-              {/*  />*/}
-              {/*</div>*/}
-              {/*<div className={styles.queryItem}>*/}
-              {/*  <span className={styles.queryLabel}>是否屏蔽</span>*/}
-              {/*  <Select*/}
-              {/*    value={blocked}*/}
-              {/*    options={blockedOptions}*/}
-              {/*    onChange={(value) => setBlocked(value)}*/}
-              {/*  />*/}
-              {/*</div>*/}
+              <div className={styles.queryItem}>
+                <span className={styles.queryLabel}>处理状态</span>
+                <Select
+                  value={processingStatus}
+                  options={processingStatusOptions}
+                  onChange={(value) => setProcessingStatus(value)}
+                />
+              </div>
+              <div className={styles.queryItem}>
+                <span className={styles.queryLabel}>是否屏蔽</span>
+                <Select value={blocked} options={blockedOptions} onChange={(value) => setBlocked(value)} />
+              </div>
               <Button
                 type="primary"
                 icon={<SearchOutlined />}
@@ -227,14 +288,7 @@ const AlarmPage: React.FC = () => {
               }
               pagination={false}
               dataSource={alarmList}
-              columns={[
-                { title: '告警监狱', dataIndex: 'prisonName' },
-                { title: '告警设备ID', dataIndex: 'deviceId' },
-                { title: '告警设备名称', dataIndex: 'deviceName' },
-                { title: '告警内容', dataIndex: 'content' },
-                { title: '告警发生时间', dataIndex: 'alarmTime' },
-                { title: '排查建议', dataIndex: 'suggestions' },
-              ]}
+              columns={columns}
             />
             <div className={styles.paginationRow}>
               <span className={styles.totalText}>共 {alarmTotal} 条</span>
@@ -250,10 +304,10 @@ const AlarmPage: React.FC = () => {
                 }}
                 itemRender={(_, type, element) => {
                   if (type === 'prev') {
-                    return <span className={styles.pageArrow}>‹</span>;
+                    return <span className={styles.pageArrow}>{'<'}</span>;
                   }
                   if (type === 'next') {
-                    return <span className={styles.pageArrow}>›</span>;
+                    return <span className={styles.pageArrow}>{'>'}</span>;
                   }
                   return element;
                 }}

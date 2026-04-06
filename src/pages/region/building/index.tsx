@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useParams, useRequest } from '@umijs/max';
+import { history, useLocation, useParams, useRequest } from '@umijs/max';
 import {
   Button,
   Col,
@@ -88,8 +88,20 @@ const BuildingDetailPage: React.FC = () => {
   const [deviceForm] = Form.useForm();
 
   const params = useParams<{ id: string; prisonId: string }>();
+  const location = useLocation();
   const buildingId = params.id ?? '';
   const prisonId = params.prisonId ?? '';
+  const initialQueryFloorId = React.useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const rawFloorId = searchParams.get('floorId');
+    const resolvedFloorId = Number(rawFloorId);
+
+    if (!rawFloorId || !Number.isFinite(resolvedFloorId) || resolvedFloorId <= 0) {
+      return null;
+    }
+
+    return resolvedFloorId;
+  }, [location.search]);
 
   const { data: detailData, loading: detailLoading } = useRequest(
     () => queryBuildingInfo(buildingId),
@@ -186,9 +198,27 @@ const BuildingDetailPage: React.FC = () => {
   })();
 
   useEffect(() => {
-    if (!floorData?.length || selectedFloorId) return;
-    setSelectedFloorId(floorData[0].id);
-  }, [floorData, selectedFloorId]);
+    if (!floorData?.length) {
+      return;
+    }
+
+    if (initialQueryFloorId) {
+      const matchedFloor = floorData.find((item: any) => Number(item.id) === initialQueryFloorId);
+
+      if (matchedFloor) {
+        if (Number(selectedFloorId) !== Number(matchedFloor.id)) {
+          setSelectedFloorId(Number(matchedFloor.id));
+        }
+        return;
+      }
+    }
+
+    if (selectedFloorId) {
+      return;
+    }
+
+    setSelectedFloorId(Number(floorData[0].id));
+  }, [floorData, initialQueryFloorId, selectedFloorId]);
 
   const clampCoordinate = (coord: DevicePosition): DevicePosition => {
     const map = mapRef.current;
@@ -512,7 +542,11 @@ const BuildingDetailPage: React.FC = () => {
   };
 
   const handleFloorChange = (value: number) => {
-    setSelectedFloorId(value ? Number(value) : null);
+    const nextFloorId = value ? Number(value) : null;
+    setSelectedFloorId(nextFloorId);
+    history.replace(
+      `/region/building/${prisonId}/${buildingId}${nextFloorId ? `?floorId=${nextFloorId}` : ''}`
+    );
   };
 
   const handleOpenDeviceModal = () => {
