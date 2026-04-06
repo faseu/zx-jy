@@ -19,6 +19,16 @@ export type AlarmPageParams = {
   floorId?: number | string;
 };
 
+export type UpdateAlarmParams = {
+  id: number | string;
+  entireNo: string;
+  deviceId: number | string;
+  deviceName: string;
+  processingStatus?: number;
+  resolutionTime?: string;
+  blocked?: number;
+};
+
 export type AlarmVO = {
   id?: number | string;
   entireNo?: string;

@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type {
+  CreateProvinceAdminParams,
   DataTProvinceAdminVO,
   PageResultTProvinceAdminVO,
   ProvinceAdminPageParams,
@@ -31,4 +32,16 @@ export async function queryProvinceAdminPage(
   );
 
   return wrapResult<DataTProvinceAdminVO>(result as PageResultTProvinceAdminVO | DataTProvinceAdminVO);
+}
+
+export async function createProvinceAdmin(
+  data: CreateProvinceAdminParams,
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/users', {
+    method: 'POST',
+    skipErrorHandler: true,
+    data,
+    ...(options || {}),
+  });
 }

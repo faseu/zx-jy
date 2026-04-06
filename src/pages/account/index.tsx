@@ -1,40 +1,46 @@
-import {PageContainer} from '@ant-design/pro-components';
-import {history} from '@umijs/max';
-import {Button, Col, Row} from 'antd';
+import { PageContainer } from '@ant-design/pro-components';
+import { history, useIntl } from '@umijs/max';
+import { Button, Col, Row } from 'antd';
 import React from 'react';
 import gb from '@/assets/gb.png';
 import styles from './index.less';
 
 type AccountCard = {
   key: string;
-  title: string;
+  titleId: string;
+  defaultTitle: string;
   colorClass: string;
 };
 
 const cards: AccountCard[] = [
   {
     key: 'super-admin',
-    title: '超级管理员',
+    titleId: 'pages.account.role.superAdmin',
+    defaultTitle: 'Super Admin',
     colorClass: styles.superAdmin,
   },
   {
     key: 'province-admin',
-    title: '省级管理员',
+    titleId: 'pages.account.role.provinceAdmin',
+    defaultTitle: 'Province Admin',
     colorClass: styles.provinceAdmin,
   },
   {
     key: 'prison-admin',
-    title: '监狱管理员',
+    titleId: 'pages.account.role.prisonAdmin',
+    defaultTitle: 'Prison Admin',
     colorClass: styles.prisonAdmin,
   },
 ];
 
 const AccountPage: React.FC = () => {
+  const intl = useIntl();
+
   return (
     <PageContainer title={false}>
-      <div style={{background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)'}}>
+      <div style={{ background: '#fff', margin: '-8px -8px 0', minHeight: 'calc(100vh - 128px)' }}>
         <Row gutter={0}>
-          <Col xs={24} xl={6} style={{overflow: 'hidden'}}>
+          <Col xs={24} xl={6} style={{ overflow: 'hidden' }}>
             <div
               style={{
                 position: 'relative',
@@ -47,7 +53,12 @@ const AccountPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{position: 'absolute', top: 12, right: 12}}>编辑</Button>
+              <Button style={{ position: 'absolute', top: 12, right: 12 }}>
+                {intl.formatMessage({
+                  id: 'pages.account.action.edit',
+                  defaultMessage: 'Edit',
+                })}
+              </Button>
             </div>
           </Col>
 
@@ -59,7 +70,12 @@ const AccountPage: React.FC = () => {
                   className={`${styles.card} ${item.colorClass}`}
                   onClick={() => history.push(`/account/${item.key}`)}
                 >
-                  <span className={styles.cardTitle}>{item.title}</span>
+                  <span className={styles.cardTitle}>
+                    {intl.formatMessage({
+                      id: item.titleId,
+                      defaultMessage: item.defaultTitle,
+                    })}
+                  </span>
                 </div>
               ))}
             </div>

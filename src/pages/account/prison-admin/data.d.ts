@@ -13,6 +13,16 @@ export type PrisonAdminPageParams = {
   nickname?: string;
 };
 
+export type CreatePrisonAdminParams = {
+  username: string;
+  nickname: string;
+  password: string;
+  roleId: 3;
+  deptId: number | string;
+  areaIds: Array<number | string>;
+  menuIds: Array<number | string>;
+};
+
 export type PrisonAdminVO = {
   id?: number | string;
   username?: string;

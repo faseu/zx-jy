@@ -11,6 +11,15 @@ export type AdminPageParams = {
   nickname?: string;
 };
 
+export type CreateSuperAdminParams = {
+  username: string;
+  nickname: string;
+  password: string;
+  roleId: 1;
+  areaIds: Array<number | string>;
+  menuIds: Array<number | string>;
+};
+
 export type SuperAdminVO = {
   id?: number | string;
   username?: string;

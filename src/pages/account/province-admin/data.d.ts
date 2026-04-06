@@ -12,6 +12,16 @@ export type ProvinceAdminPageParams = {
   nickname?: string;
 };
 
+export type CreateProvinceAdminParams = {
+  username: string;
+  nickname: string;
+  password: string;
+  roleId: 2;
+  deptId: number | string;
+  areaIds: Array<number | string>;
+  menuIds: Array<number | string>;
+};
+
 export type ProvinceAdminVO = {
   id?: number | string;
   username?: string;

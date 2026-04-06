@@ -1,15 +1,26 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { history, useRequest } from '@umijs/max';
-import { Button, Col, DatePicker, Input, Pagination, Row, Select, Space, Table } from 'antd';
+import {
+  Button,
+  Col,
+  DatePicker,
+  Input,
+  Pagination,
+  Row,
+  Select,
+  Space,
+  Table,
+  message,
+} from 'antd';
 import type { Dayjs } from 'dayjs';
 import React from 'react';
 import OrgTree from '@/components/OrgTree';
 import type { OrgTreeSelectionParams } from '@/components/OrgTree';
 import type { ProvinceVO } from '../region/data.d';
 import { queryProvinceList } from '../region/service';
-import type { AlarmPageParams, AlarmVO } from './data.d';
-import { queryAlarmPage } from './service';
+import type { AlarmPageParams, AlarmVO, DataTAlarmVO } from './data.d';
+import { queryAlarmPage, updateAlarm } from './service';
 import styles from './index.less';
 
 const alarmTypeOptions = [
@@ -23,16 +34,30 @@ const alarmTypeOptions = [
 ];
 
 const processingStatusOptions = [
-  { label: '全部', value: undefined },
+  { label: '全部', value: -1 },
   { label: '未处理', value: 0 },
   { label: '已处理', value: 1 },
 ];
 
 const blockedOptions = [
-  { label: '全部', value: undefined },
+  { label: '全部', value: -1 },
   { label: '否', value: 0 },
   { label: '是', value: 1 },
 ];
+
+const EMPTY_ALARM_PAGE: DataTAlarmVO = {
+  list: [],
+  total: 0,
+};
+
+const getErrorMessage = (error: unknown): string | undefined =>
+  (error as { response?: { data?: { msg?: string } } })?.response?.data?.msg ||
+  (error as { info?: { errorMessage?: string } })?.info?.errorMessage;
+
+const normalizeAlarmPage = (data?: DataTAlarmVO): DataTAlarmVO => ({
+  list: Array.isArray(data?.list) ? data.list : [],
+  total: typeof data?.total === 'number' ? data.total : Number(data?.total ?? 0),
+});
 
 const AlarmPage: React.FC = () => {
   const [pageNum, setPageNum] = React.useState(1);
@@ -41,22 +66,20 @@ const AlarmPage: React.FC = () => {
   const [endDate, setEndDate] = React.useState<Dayjs | null>(null);
   const [deviceName, setDeviceName] = React.useState('');
   const [alarmType, setAlarmType] = React.useState<string>('');
-  const [processingStatus, setProcessingStatus] = React.useState<number | undefined>(undefined);
-  const [blocked, setBlocked] = React.useState<number | undefined>(undefined);
+  const [processingStatus, setProcessingStatus] = React.useState<number | undefined>(0);
+  const [blocked, setBlocked] = React.useState<number | undefined>(0);
   const [orgSelection, setOrgSelection] = React.useState<OrgTreeSelectionParams>({
     nodeType: 'country',
   });
+  const [alarmLoading, setAlarmLoading] = React.useState(false);
+  const [alarmPage, setAlarmPage] = React.useState<DataTAlarmVO>(EMPTY_ALARM_PAGE);
+  const latestRequestIdRef = React.useRef(0);
 
   const { data, loading: provinceLoading } = useRequest(queryProvinceList);
-  const {
-    data: alarmPageData,
-    loading: alarmLoading,
-    run: runQueryAlarmPage,
-  } = useRequest(queryAlarmPage, { manual: true });
 
   const provinceList = (data ?? []) as ProvinceVO[];
-  const alarmList = (alarmPageData?.list ?? []) as AlarmVO[];
-  const alarmTotal = alarmPageData?.total ?? 0;
+  const alarmList = (alarmPage.list ?? []) as AlarmVO[];
+  const alarmTotal = alarmPage.total ?? 0;
 
   const handleJumpToBuildingFloor = React.useCallback((record: AlarmVO) => {
     const fallbackPrisonId = '1';
@@ -81,6 +104,108 @@ const AlarmPage: React.FC = () => {
       }`
     );
   }, []);
+
+  const runAlarmSearch = React.useCallback(
+    async (nextPageNum: number, nextPageSize: number) => {
+      const requestId = latestRequestIdRef.current + 1;
+      latestRequestIdRef.current = requestId;
+
+      const params: AlarmPageParams = {
+        pageNum: nextPageNum,
+        pageSize: nextPageSize,
+      };
+
+      if (startDate) {
+        params.startDate = startDate.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
+      if (endDate) {
+        params.endDate = endDate.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
+      if (deviceName.trim()) {
+        params.deviceName = deviceName.trim();
+      }
+      if (alarmType) {
+        params.type = alarmType;
+      }
+      if (processingStatus !== -1) {
+        params.processingStatus = processingStatus;
+      }
+      if (blocked !== -1) {
+        params.blocked = blocked;
+      }
+      if (orgSelection.provinceId) {
+        params.provinceId = orgSelection.provinceId;
+      }
+      if (orgSelection.prisonId) {
+        params.prisonId = orgSelection.prisonId;
+      }
+      if (orgSelection.buildingId) {
+        params.buildingId = orgSelection.buildingId;
+      }
+      if (orgSelection.floorId) {
+        params.floorId = orgSelection.floorId;
+      }
+
+      try {
+        setAlarmLoading(true);
+        const result = await queryAlarmPage(params);
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
+        setAlarmPage(normalizeAlarmPage(result));
+      } catch (error) {
+        if (requestId !== latestRequestIdRef.current) {
+          return;
+        }
+
+        setAlarmPage(EMPTY_ALARM_PAGE);
+        message.error(getErrorMessage(error) || '告警列表加载失败，请稍后重试');
+      } finally {
+        if (requestId === latestRequestIdRef.current) {
+          setAlarmLoading(false);
+        }
+      }
+    },
+    [alarmType, blocked, deviceName, endDate, orgSelection, processingStatus, startDate]
+  );
+
+  const handleUpdateAlarm = React.useCallback(
+    async (
+      record: AlarmVO,
+      payload: { processingStatus?: number; blocked?: number },
+      successText: string
+    ) => {
+      if (record.id === undefined || record.id === null || record.id === '') {
+        message.error('缺少告警ID');
+        return;
+      }
+      if (
+        !record.entireNo ||
+        record.deviceId === undefined ||
+        record.deviceId === null ||
+        !record.deviceName
+      ) {
+        message.error('缺少告警设备信息');
+        return;
+      }
+
+      try {
+        await updateAlarm(record.id, {
+          id: record.id,
+          entireNo: record.entireNo,
+          deviceId: record.deviceId,
+          deviceName: record.deviceName,
+          ...payload,
+        });
+        message.success(successText);
+        await runAlarmSearch(pageNum, pageSize);
+      } catch (error) {
+        message.error(getErrorMessage(error) || '操作失败，请稍后重试');
+      }
+    },
+    [pageNum, pageSize, runAlarmSearch]
+  );
 
   const columns = React.useMemo(
     () => [
@@ -118,65 +243,27 @@ const AlarmPage: React.FC = () => {
         title: '操作',
         dataIndex: 'action',
         render: (_: unknown, record: AlarmVO) => (
-          <Button type="link" onClick={() => handleJumpToBuildingFloor(record)}>
-            跳转定位
-          </Button>
+          <Space size="small">
+            <Button type="link" onClick={() => handleJumpToBuildingFloor(record)}>
+              跳转定位
+            </Button>
+            <Button
+              type="link"
+              onClick={() => handleUpdateAlarm(record, { processingStatus: 1 }, '告警已清除')}
+            >
+              清除
+            </Button>
+            <Button
+              type="link"
+              onClick={() => handleUpdateAlarm(record, { blocked: 1 }, '告警已屏蔽')}
+            >
+              屏蔽
+            </Button>
+          </Space>
         ),
       },
     ],
-    [handleJumpToBuildingFloor]
-  );
-
-  const runAlarmSearch = React.useCallback(
-    (nextPageNum: number, nextPageSize: number) => {
-      const params: AlarmPageParams = {
-        pageNum: nextPageNum,
-        pageSize: nextPageSize,
-      };
-
-      if (startDate) {
-        params.startDate = startDate.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-      }
-      if (endDate) {
-        params.endDate = endDate.endOf('day').format('YYYY-MM-DD HH:mm:ss');
-      }
-      if (deviceName.trim()) {
-        params.deviceName = deviceName.trim();
-      }
-      if (alarmType) {
-        params.type = alarmType;
-      }
-      if (processingStatus !== undefined) {
-        params.processingStatus = processingStatus;
-      }
-      if (blocked !== undefined) {
-        params.blocked = blocked;
-      }
-      if (orgSelection.provinceId) {
-        params.provinceId = orgSelection.provinceId;
-      }
-      if (orgSelection.prisonId) {
-        params.prisonId = orgSelection.prisonId;
-      }
-      if (orgSelection.buildingId) {
-        params.buildingId = orgSelection.buildingId;
-      }
-      if (orgSelection.floorId) {
-        params.floorId = orgSelection.floorId;
-      }
-
-      runQueryAlarmPage(params);
-    },
-    [
-      alarmType,
-      blocked,
-      deviceName,
-      endDate,
-      orgSelection,
-      processingStatus,
-      runQueryAlarmPage,
-      startDate,
-    ]
+    [handleJumpToBuildingFloor, handleUpdateAlarm]
   );
 
   React.useEffect(() => {
@@ -189,7 +276,7 @@ const AlarmPage: React.FC = () => {
       return;
     }
 
-    runAlarmSearch(1, pageSize);
+    void runAlarmSearch(1, pageSize);
   };
 
   return (
@@ -207,7 +294,7 @@ const AlarmPage: React.FC = () => {
                   setPageNum(1);
                   return;
                 }
-                runAlarmSearch(1, pageSize);
+                void runAlarmSearch(1, pageSize);
               }}
             />
           </Col>
@@ -257,7 +344,11 @@ const AlarmPage: React.FC = () => {
               </div>
               <div className={styles.queryItem}>
                 <span className={styles.queryLabel}>是否屏蔽</span>
-                <Select value={blocked} options={blockedOptions} onChange={(value) => setBlocked(value)} />
+                <Select
+                  value={blocked}
+                  options={blockedOptions}
+                  onChange={(value) => setBlocked(value)}
+                />
               </div>
               <Button
                 type="primary"
@@ -281,9 +372,15 @@ const AlarmPage: React.FC = () => {
               loading={alarmLoading}
               rowKey={(record) =>
                 String(
-                  record.id ??
-                    record.entireNo ??
-                    `${record.deviceId ?? ''}-${record.alarmTime ?? ''}-${record.createTime ?? ''}`
+                  [
+                    record.id ?? '',
+                    record.prisonId ?? '',
+                    record.buildingId ?? '',
+                    record.floorId ?? '',
+                    record.deviceId ?? '',
+                    record.alarmTime ?? '',
+                    record.createTime ?? '',
+                  ].join('-')
                 )
               }
               pagination={false}

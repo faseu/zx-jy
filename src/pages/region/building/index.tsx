@@ -1,18 +1,6 @@
 import { PageContainer } from '@ant-design/pro-components';
 import { history, useLocation, useParams, useRequest } from '@umijs/max';
-import {
-  Button,
-  Col,
-  Divider,
-  Empty,
-  Form,
-  Modal,
-  Row,
-  Select,
-  Spin,
-  Upload,
-  message,
-} from 'antd';
+import { Button, Col, Divider, Empty, Form, Modal, Row, Select, Spin, Upload, message } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import gb from '@/assets/gb.png';
 import 'ol/ol.css';
@@ -48,6 +36,7 @@ type DevicePosition = [number, number];
 type DeviceItem = {
   id: number;
   label: string;
+  isAlarm: number;
   position: DevicePosition | null;
 };
 
@@ -58,6 +47,7 @@ type MarkerActionState = {
 };
 
 const INITIAL_DEVICES: DeviceItem[] = [];
+const getDeviceMarkerColor = (isAlarm?: number) => (isAlarm ? '#ff1616' : '#1677ff');
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0])
@@ -160,8 +150,8 @@ const BuildingDetailPage: React.FC = () => {
   const detail: BuildingInfoVO | undefined = detailData;
 
   const prisonOptions = prisonId
-      ? [
-          {
+    ? [
+        {
           label: prisonDetail?.name || `监狱${prisonId}`,
           value: Number(prisonId),
         },
@@ -325,10 +315,11 @@ const BuildingDetailPage: React.FC = () => {
         source: markerSource,
         style: (feature: any) => {
           const label = String(feature.get('label') ?? '');
+          const isAlarm = Number(feature.get('isAlarm'));
           return new Style({
             image: new CircleStyle({
               radius: 14,
-              fill: new Fill({ color: '#1677ff' }),
+              fill: new Fill({ color: getDeviceMarkerColor(isAlarm) }),
               stroke: new Stroke({ color: '#ffffff', width: 2 }),
             }),
             text: new Text({
@@ -488,6 +479,7 @@ const BuildingDetailPage: React.FC = () => {
         feature.setGeometry(new Point(next.position));
       }
       feature.set('label', next.label);
+      feature.set('isAlarm', next.isAlarm);
       delete nextDeviceById[deviceId];
     });
 
@@ -498,6 +490,7 @@ const BuildingDetailPage: React.FC = () => {
       });
       feature.set('deviceId', item.id);
       feature.set('label', item.label);
+      feature.set('isAlarm', item.isAlarm);
       source.addFeature(feature);
     });
   }, [devices, markerSyncVersion]);
@@ -521,6 +514,7 @@ const BuildingDetailPage: React.FC = () => {
         return {
           id,
           label,
+          isAlarm: Number(item?.isAlarm ?? 0),
           position: Object.prototype.hasOwnProperty.call(previousPositionById, id)
             ? (previousPositionById[id] ?? null)
             : persistedPosition,
@@ -956,7 +950,7 @@ const BuildingDetailPage: React.FC = () => {
                                 width: 20,
                                 height: 20,
                                 borderRadius: '50%',
-                                background: '#1677ff',
+                                background: getDeviceMarkerColor(item?.isAlarm),
                                 color: '#fff',
                                 fontSize: 12,
                                 display: 'inline-flex',

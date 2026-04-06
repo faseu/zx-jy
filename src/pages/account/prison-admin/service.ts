@@ -1,5 +1,6 @@
 import { request } from '@umijs/max';
 import type {
+  CreatePrisonAdminParams,
   DataTPrisonAdminVO,
   PageResultTPrisonAdminVO,
   PrisonAdminPageParams,
@@ -31,4 +32,16 @@ export async function queryPrisonAdminPage(
   );
 
   return wrapResult<DataTPrisonAdminVO>(result as PageResultTPrisonAdminVO | DataTPrisonAdminVO);
+}
+
+export async function createPrisonAdmin(
+  data: CreatePrisonAdminParams,
+  options?: { [key: string]: any },
+) {
+  return request('/api/v1/users', {
+    method: 'POST',
+    skipErrorHandler: true,
+    data,
+    ...(options || {}),
+  });
 }

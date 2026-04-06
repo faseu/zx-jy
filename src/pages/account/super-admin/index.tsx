@@ -1,14 +1,26 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { useRequest } from '@umijs/max';
+import { useIntl, useRequest } from '@umijs/max';
 import { Button, Col, Form, Input, Modal, Row, Select, Space, Table, message } from 'antd';
 import React, { useState } from 'react';
-import type { SuperAdminVO } from './data.d';
-import { queryAdminPage } from './service';
-import styles from './index.less';
 import gb from '@/assets/gb.png';
+import { queryProvinceList } from '@/pages/region/service';
+import type { ProvinceVO } from '@/pages/region/data.d';
+import type { SuperAdminVO } from './data.d';
+import { createSuperAdmin, queryAdminPage } from './service';
+import styles from './index.less';
 
-const areaOptions = ['华北', '华东', '华南', '华中', '西南', '西北'];
-const featureOptions = ['查看', '编辑', '导出', '审批', '审计', '配置'];
+const featureOptionIds = [
+  { labelId: 'pages.account.feature.province', defaultLabel: 'Province', value: 1 },
+  { labelId: 'pages.account.feature.userManagement', defaultLabel: 'User Management', value: 2 },
+  {
+    labelId: 'pages.account.feature.deviceManagement',
+    defaultLabel: 'Device Management',
+    value: 3,
+  },
+  { labelId: 'pages.account.feature.alarm', defaultLabel: 'Alarm', value: 4 },
+  { labelId: 'pages.account.feature.statistics', defaultLabel: 'Statistics', value: 5 },
+  { labelId: 'pages.account.feature.log', defaultLabel: 'Log', value: 6 },
+];
 
 const getAreaText = (record: SuperAdminVO): string => {
   if (record.area && record.area.trim()) {
@@ -18,16 +30,26 @@ const getAreaText = (record: SuperAdminVO): string => {
     return record.manageArea;
   }
   if (Array.isArray(record.manageAreas) && record.manageAreas.length > 0) {
-    return record.manageAreas.filter(Boolean).join('、');
+    return record.manageAreas.filter(Boolean).join(', ');
   }
 
   return '-';
 };
 
+const getErrorMessage = (error: unknown): string | undefined =>
+  (error as { response?: { data?: { msg?: string } } })?.response?.data?.msg ||
+  (error as { info?: { errorMessage?: string } })?.info?.errorMessage;
+
 const SuperAdminListPage: React.FC = () => {
+  const intl = useIntl();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
-  const { data, loading } = useRequest(
+  const t = (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage });
+  const featureOptions = featureOptionIds.map((item) => ({
+    label: t(item.labelId, item.defaultLabel),
+    value: item.value,
+  }));
+  const { data, loading, refresh } = useRequest(
     () =>
       queryAdminPage({
         pageNum: 1,
@@ -35,16 +57,48 @@ const SuperAdminListPage: React.FC = () => {
       }),
     {
       onError: () => {
-        message.error('超级管理员列表加载失败，请稍后重试');
+        message.error(
+          t(
+            'pages.account.message.superAdminLoadFailed',
+            'Failed to load super admin list. Please try again later.'
+          )
+        );
       },
-    },
+    }
   );
+  const { data: provinceData, loading: provinceLoading } = useRequest(queryProvinceList);
   const adminList = data?.list ?? [];
+  const provinceOptions = ((provinceData ?? []) as ProvinceVO[])
+    .filter((item) => item.provinceId !== undefined && item.provinceName)
+    .map((item) => ({
+      label: item.provinceName as string,
+      value: item.provinceId as number | string,
+    }));
 
   const handleOk = async () => {
-    await form.validateFields();
-    setIsModalOpen(false);
-    form.resetFields();
+    try {
+      const values = await form.validateFields();
+      await createSuperAdmin({
+        username: values.username,
+        nickname: values.nickname,
+        password: values.password,
+        roleId: 1,
+        areaIds: values.areaIds,
+        menuIds: values.features,
+      });
+      message.success(t('pages.account.message.createSuccess', 'Created successfully.'));
+      setIsModalOpen(false);
+      form.resetFields();
+      refresh();
+    } catch (error) {
+      if ((error as { errorFields?: unknown })?.errorFields) {
+        return;
+      }
+      message.error(
+        getErrorMessage(error) ||
+          t('pages.account.message.createFailed', 'Create failed. Please try again later.')
+      );
+    }
   };
 
   const handleCancel = () => {
@@ -72,8 +126,12 @@ const SuperAdminListPage: React.FC = () => {
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
             <div className={styles.headerRow}>
-              <h2 className={styles.pageTitle}>超级管理员</h2>
-              <Button className={styles.backButton}>返回</Button>
+              <h2 className={styles.pageTitle}>
+                {t('pages.account.role.superAdmin', 'Super Admin')}
+              </h2>
+              <Button className={styles.backButton}>
+                {t('pages.account.action.back', 'Back')}
+              </Button>
             </div>
             <div className={styles.tableWrap}>
               <Table<SuperAdminVO>
@@ -84,43 +142,47 @@ const SuperAdminListPage: React.FC = () => {
                 pagination={false}
                 columns={[
                   {
-                    title: '账户名',
+                    title: t('pages.account.field.username', 'Username'),
                     dataIndex: 'username',
                   },
                   {
-                    title: '昵称',
+                    title: t('pages.account.field.nickname', 'Nickname'),
                     dataIndex: 'nickname',
                   },
                   {
-                    title: '管理区域',
+                    title: t('pages.account.field.manageArea', 'Managed Area'),
                     dataIndex: 'area',
                     render: (_, record) => <Button type="link">{getAreaText(record)}</Button>,
                   },
                   {
-                    title: '功能授权',
+                    title: t('pages.account.field.featureAuth', 'Feature Authorization'),
                     key: 'feature-auth',
                     render: () => (
                       <Space size="small">
-                        <Button type="link">全部权限</Button>
+                        <Button type="link">
+                          {t('pages.account.action.allPermissions', 'All Permissions')}
+                        </Button>
                       </Space>
                     ),
                   },
                   {
-                    title: '密码修改',
+                    title: t('pages.account.field.passwordChange', 'Password Change'),
                     key: 'password-reset',
                     render: () => (
                       <Space size="small">
-                        <Button type="link">密码修改</Button>
+                        <Button type="link">
+                          {t('pages.account.action.passwordChange', 'Password Change')}
+                        </Button>
                       </Space>
                     ),
                   },
                   {
-                    title: '账号删除',
+                    title: t('pages.account.field.accountDelete', 'Account Delete'),
                     key: 'account-remove',
                     render: () => (
                       <Space size="small">
                         <Button type="link" danger>
-                          删除
+                          {t('pages.account.action.delete', 'Delete')}
                         </Button>
                       </Space>
                     ),
@@ -132,62 +194,106 @@ const SuperAdminListPage: React.FC = () => {
                 onClick={() => setIsModalOpen(true)}
                 className={styles.createButton}
               >
-                新建
+                {t('pages.account.action.create', 'Create')}
               </Button>
             </div>
           </Col>
         </Row>
       </div>
       <Modal
-        title="新建用户"
+        title={t('pages.account.modal.createUser', 'Create User')}
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
-        okText="保存"
-        cancelText="取消"
+        okText={t('pages.account.action.save', 'Save')}
+        cancelText={t('pages.account.action.cancel', 'Cancel')}
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            label="账号名"
+            label={t('pages.account.field.username', 'Username')}
             name="username"
-            rules={[{ required: true, message: '请输入账号名' }]}
+            rules={[
+              {
+                required: true,
+                message: t('pages.account.validation.usernameRequired', 'Please enter username.'),
+              },
+            ]}
           >
-            <Input placeholder="请输入账号名" />
-          </Form.Item>
-          <Form.Item
-            label="昵称"
-            name="nickname"
-            rules={[{ required: true, message: '请输入昵称' }]}
-          >
-            <Input placeholder="请输入昵称" />
-          </Form.Item>
-          <Form.Item
-            label="密码"
-            name="password"
-            rules={[{ required: true, message: '请输入密码' }]}
-          >
-            <Input.Password placeholder="请输入密码" />
-          </Form.Item>
-          <Form.Item
-            label="管理区域"
-            name="areas"
-            rules={[{ required: true, message: '请选择管理区域' }]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="请选择管理区域"
-              options={areaOptions.map((value) => ({ label: value, value }))}
+            <Input
+              placeholder={t('pages.account.validation.usernameRequired', 'Please enter username.')}
             />
           </Form.Item>
           <Form.Item
-            label="功能授权"
-            name="features"
-            rules={[{ required: true, message: '请选择功能授权' }]}
+            label={t('pages.account.field.nickname', 'Nickname')}
+            name="nickname"
+            rules={[
+              {
+                required: true,
+                message: t('pages.account.validation.nicknameRequired', 'Please enter nickname.'),
+              },
+            ]}
+          >
+            <Input
+              placeholder={t('pages.account.validation.nicknameRequired', 'Please enter nickname.')}
+            />
+          </Form.Item>
+          <Form.Item
+            label={t('pages.account.field.password', 'Password')}
+            name="password"
+            rules={[
+              {
+                required: true,
+                message: t('pages.account.validation.passwordRequired', 'Please enter password.'),
+              },
+            ]}
+          >
+            <Input.Password
+              placeholder={t('pages.account.validation.passwordRequired', 'Please enter password.')}
+            />
+          </Form.Item>
+          <Form.Item
+            label={t('pages.account.field.manageArea', 'Managed Area')}
+            name="areaIds"
+            rules={[
+              {
+                required: true,
+                message: t(
+                  'pages.account.validation.manageAreaRequired',
+                  'Please select managed area.'
+                ),
+              },
+            ]}
           >
             <Select
               mode="multiple"
-              placeholder="请选择功能授权"
-              options={featureOptions.map((value) => ({ label: value, value }))}
+              placeholder={t(
+                'pages.account.validation.manageAreaRequired',
+                'Please select managed area.'
+              )}
+              loading={provinceLoading}
+              options={provinceOptions}
+            />
+          </Form.Item>
+          <Form.Item
+            label={t('pages.account.field.featureAuth', 'Feature Authorization')}
+            name="features"
+            rules={[
+              {
+                required: true,
+                message: t(
+                  'pages.account.validation.featureAuthRequired',
+                  'Please select feature authorization.'
+                ),
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder={t(
+                'pages.account.validation.featureAuthRequired',
+                'Please select feature authorization.'
+              )}
+              options={featureOptions}
             />
           </Form.Item>
         </Form>

@@ -12,9 +12,11 @@ enum ErrorShowType {
 }
 // 与后端约定的响应数据格式
 interface ResponseStructure {
-  success: boolean;
+  code?: string;
   data: any;
-  errorCode?: number;
+  msg?: string;
+  success?: boolean;
+  errorCode?: number | string;
   errorMessage?: string;
   showType?: ErrorShowType;
 }
@@ -29,12 +31,22 @@ export const errorConfig: RequestConfig = {
   errorConfig: {
     // 错误抛出
     errorThrower: (res) => {
-      const { success, data, errorCode, errorMessage, showType } =
+      const { code, success, data, msg, errorCode, errorMessage, showType } =
         res as unknown as ResponseStructure;
-      if (!success) {
-        const error: any = new Error(errorMessage);
+      const isBusinessSuccess =
+        code !== undefined ? code === '00000' : success !== undefined ? success : true;
+
+      if (!isBusinessSuccess) {
+        const nextErrorMessage = msg || errorMessage || '请求失败';
+        const nextErrorCode = code || errorCode;
+        const error: any = new Error(nextErrorMessage);
         error.name = 'BizError';
-        error.info = { errorCode, errorMessage, showType, data };
+        error.info = {
+          errorCode: nextErrorCode,
+          errorMessage: nextErrorMessage,
+          showType: showType ?? ErrorShowType.ERROR_MESSAGE,
+          data,
+        };
         throw error; // 抛出自制的错误
       }
     },
@@ -79,7 +91,7 @@ export const errorConfig: RequestConfig = {
           window.location.href = '/login';
           return;
         }
-        message.error(`Response status:${error.response.status}`);
+        message.error(error.response?.data?.msg || `Response status:${error.response.status}`);
       } else if (error.request) {
         // 请求已经成功发起，但没有收到响应
         // \`error.request\` 在浏览器中是 XMLHttpRequest 的实例，
@@ -110,10 +122,14 @@ export const errorConfig: RequestConfig = {
   responseInterceptors: [
     (response) => {
       // 拦截响应数据，进行个性化处理
-      const { data } = response as unknown as ResponseStructure;
+      const { data } = response as unknown as { data?: ResponseStructure };
+
+      if (data?.code !== undefined && data.code !== '00000') {
+        return response;
+      }
 
       if (data?.success === false) {
-        message.error('请求失败！');
+        message.error(data?.msg || data?.errorMessage || '请求失败！');
       }
       return response;
     },
