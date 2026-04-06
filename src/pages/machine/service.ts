@@ -57,7 +57,7 @@ export async function queryPrisonDevicePage(
 
 export async function queryBuildingDevicePage(
   params: BuildingDevicePageParams,
-  options?: { [key: string]: any },
+  options?: { [key: string]: any }
 ): Promise<ResultData<BuildingTreeVO>> {
   const result = await request<BuildingTreeVO | ResultData<BuildingTreeVO>>(
     '/api/v1/device/page/building',
@@ -68,10 +68,31 @@ export async function queryBuildingDevicePage(
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       ...(options || {}),
-    },
+    }
   );
 
   return wrapResult<BuildingTreeVO>(result);
+}
+
+export async function queryFloorDevicePage(
+  params: {
+    floorId: number | string;
+    pageNum: number;
+    pageSize: number;
+    name?: string;
+  },
+  options?: { [key: string]: any }
+): Promise<ResultData<any>> {
+  const result = await request<any>('/api/v1/device/page/floor', {
+    method: 'GET',
+    params,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    ...(options || {}),
+  });
+
+  return wrapResult<any>(result);
 }
 
 export async function deleteDevices(ids: Array<number | string>, options?: { [key: string]: any }) {

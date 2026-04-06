@@ -30,6 +30,12 @@ export type DeviceVO = {
   deviceNo?: string;
   deviceName?: string;
   entireNo?: string;
+  floorId?: number | string;
+  floorName?: string | null;
+  buildingId?: number | string;
+  buildingName?: string | null;
+  prisonId?: number | string;
+  prisonName?: string | null;
   powerOff?: number | null;
   powerConfig?: string | null;
   startTime?: string | null;

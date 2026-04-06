@@ -22,6 +22,7 @@ import {
   deleteDevices,
   enableDevices,
   queryBuildingDevicePage,
+  queryFloorDevicePage,
   queryPrisonDevicePage,
   queryProvinceDevicePage,
 } from './service';
@@ -165,6 +166,51 @@ const normalizeBuildingTreeToPrisonTree = (
     : [],
 });
 
+const normalizeFloorTreeToPrisonTree = (
+  floorTree: FloorTreeVO | DeviceVO[] | undefined,
+  params: OrgTreeSelectionParams,
+  prisonMeta?: Pick<PrisonVO, 'name' | 'level'>
+): PrisonTreeVO => {
+  const floorDeviceList = Array.isArray(floorTree)
+    ? floorTree
+    : floorTree?.deviceList ?? [];
+  const resolvedFloorName = Array.isArray(floorTree)
+    ? floorTree[0]?.floorName ?? (params.floorId ? `楼层-${params.floorId}` : '-')
+    : floorTree?.floorName ?? (params.floorId ? `楼层-${params.floorId}` : '-');
+  const resolvedBuildingName = Array.isArray(floorTree)
+    ? floorTree[0]?.buildingName ?? (params.buildingId ? `楼栋-${params.buildingId}` : '-')
+    : params.buildingId
+      ? `楼栋-${params.buildingId}`
+      : '-';
+
+  return {
+    prisonId: params.prisonId,
+    prisonName:
+      prisonMeta?.name ??
+      (Array.isArray(floorTree)
+        ? floorTree[0]?.prisonName ?? (params.prisonId ? `监狱-${params.prisonId}` : '-')
+        : params.prisonId
+          ? `监狱-${params.prisonId}`
+          : '-'),
+    level: prisonMeta?.level,
+    buildingList: [
+      {
+        buildingId: params.buildingId,
+        buildingName: resolvedBuildingName,
+        floorList: [
+          {
+            floorId: Array.isArray(floorTree)
+              ? floorTree[0]?.floorId ?? params.floorId
+              : floorTree?.floorId ?? params.floorId,
+            floorName: resolvedFloorName,
+            deviceList: floorDeviceList,
+          },
+        ],
+      },
+    ],
+  };
+};
+
 const MachinePage: React.FC = () => {
   const [deviceForm] = Form.useForm();
   const [editDeviceForm] = Form.useForm();
@@ -204,13 +250,33 @@ const MachinePage: React.FC = () => {
         setPrisonTreeData(
           normalizeBuildingTreeToPrisonTree(
             resolved,
-            buildingRequestSelectionRef.current,
-            resolvePrisonMeta(buildingRequestSelectionRef.current)
+            detailRequestSelectionRef.current,
+            resolvePrisonMeta(detailRequestSelectionRef.current)
           )
         );
       },
       onError: () => {
         message.error('加载楼宇设备数据失败，请重试');
+      },
+    }
+  );
+  const { run: runQueryFloorDevicePage, loading: floorDeviceLoading } = useRequest(
+    queryFloorDevicePage,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        const resolved =
+          (result as { data?: DeviceVO[] | FloorTreeVO })?.data ?? (result as DeviceVO[] | FloorTreeVO);
+        setPrisonTreeData(
+          normalizeFloorTreeToPrisonTree(
+            resolved,
+            detailRequestSelectionRef.current,
+            resolvePrisonMeta(detailRequestSelectionRef.current)
+          )
+        );
+      },
+      onError: () => {
+        message.error('加载楼层设备数据失败，请重试');
       },
     }
   );
@@ -244,7 +310,7 @@ const MachinePage: React.FC = () => {
   const [provinceTreeData, setProvinceTreeData] = React.useState<ProvinceTreeVO>();
   const [prisonTreeData, setPrisonTreeData] = React.useState<PrisonTreeVO>();
   const provincePrisonsRef = React.useRef<Record<string, PrisonVO[]>>({});
-  const buildingRequestSelectionRef = React.useRef<OrgTreeSelectionParams>({
+  const detailRequestSelectionRef = React.useRef<OrgTreeSelectionParams>({
     nodeType: 'building',
   });
 
@@ -280,33 +346,55 @@ const MachinePage: React.FC = () => {
     [runQueryPrisonDevicePage]
   );
 
+  const ensurePrisonMetaLoaded = React.useCallback(async (params: OrgTreeSelectionParams) => {
+    if (
+      params.provinceId === undefined ||
+      params.provinceId === null ||
+      provincePrisonsRef.current[String(params.provinceId)]
+    ) {
+      return;
+    }
+
+    try {
+      const result = await queryProvincePrisons(params.provinceId);
+      provincePrisonsRef.current[String(params.provinceId)] = (result.data ?? []) as PrisonVO[];
+    } catch {
+      message.warning('加载监狱等级失败，将使用默认颜色显示');
+    }
+  }, []);
+
   const loadBuildingDevicePage = React.useCallback(
     async (params: OrgTreeSelectionParams) => {
       if (params.buildingId === undefined || params.buildingId === null) {
         return;
       }
 
-      if (
-        params.provinceId !== undefined &&
-        params.provinceId !== null &&
-        !provincePrisonsRef.current[String(params.provinceId)]
-      ) {
-        try {
-          const result = await queryProvincePrisons(params.provinceId);
-          provincePrisonsRef.current[String(params.provinceId)] = (result.data ?? []) as PrisonVO[];
-        } catch {
-          message.warning('加载监狱等级失败，将使用默认颜色显示');
-        }
-      }
-
-      buildingRequestSelectionRef.current = params;
+      await ensurePrisonMetaLoaded(params);
+      detailRequestSelectionRef.current = params;
       runQueryBuildingDevicePage({
         buildingId: params.buildingId,
         pageNum: 1,
         pageSize: 1000,
       });
     },
-    [runQueryBuildingDevicePage]
+    [ensurePrisonMetaLoaded, runQueryBuildingDevicePage]
+  );
+
+  const loadFloorDevicePage = React.useCallback(
+    async (params: OrgTreeSelectionParams) => {
+      if (params.floorId === undefined || params.floorId === null) {
+        return;
+      }
+
+      await ensurePrisonMetaLoaded(params);
+      detailRequestSelectionRef.current = params;
+      runQueryFloorDevicePage({
+        floorId: params.floorId,
+        pageNum: 1,
+        pageSize: 1000,
+      });
+    },
+    [ensurePrisonMetaLoaded, runQueryFloorDevicePage]
   );
 
   const handleProvinceSelect = React.useCallback(
@@ -517,13 +605,28 @@ const MachinePage: React.FC = () => {
     }
 
     if (
-      (selectedNode.nodeType === 'building' || selectedNode.nodeType === 'floor') &&
+      selectedNode.nodeType === 'building' &&
       selectedNode.buildingId !== undefined &&
       selectedNode.buildingId !== null
     ) {
       loadBuildingDevicePage(selectedNode);
+      return;
     }
-  }, [loadBuildingDevicePage, loadPrisonDevicePage, loadProvinceDevicePage, selectedNode]);
+
+    if (
+      selectedNode.nodeType === 'floor' &&
+      selectedNode.floorId !== undefined &&
+      selectedNode.floorId !== null
+    ) {
+      loadFloorDevicePage(selectedNode);
+    }
+  }, [
+    loadBuildingDevicePage,
+    loadFloorDevicePage,
+    loadPrisonDevicePage,
+    loadProvinceDevicePage,
+    selectedNode,
+  ]);
 
   const groupSwitchSummaries = React.useMemo(() => {
     const prisonList =
@@ -1199,7 +1302,8 @@ const MachinePage: React.FC = () => {
   }, [tableRows]);
 
   const renderRows = () => {
-    const detailLoading = provinceDeviceLoading || prisonDeviceLoading || buildingDeviceLoading;
+    const detailLoading =
+      provinceDeviceLoading || prisonDeviceLoading || buildingDeviceLoading || floorDeviceLoading;
 
     if (tableRows.length === 0) {
       return (
@@ -1207,7 +1311,9 @@ const MachinePage: React.FC = () => {
           {isProvinceView && (
             <td className={`${styles.leftMergedCell} ${styles.provinceCell}`}>{provinceTitle}</td>
           )}
-          <td className={styles.leftMergedCell}>{isPrisonView ? prisonTitle : '-'}</td>
+          <td className={styles.leftMergedCell}>
+            {isPrisonView || isBuildingView || isFloorView ? prisonTitle : '-'}
+          </td>
           <td colSpan={isProvinceView ? 10 : 9} style={{ textAlign: 'center' }}>
             {detailLoading ? '加载中...' : '暂无数据'}
           </td>
@@ -1401,12 +1507,12 @@ const MachinePage: React.FC = () => {
                 }
                 if (
                   params.nodeType === 'floor' &&
-                  params.buildingId !== undefined &&
-                  params.buildingId !== null
+                  params.floorId !== undefined &&
+                  params.floorId !== null
                 ) {
                   setProvinceTreeData(undefined);
                   setPrisonTreeData(undefined);
-                  loadBuildingDevicePage(params);
+                  loadFloorDevicePage(params);
                   return;
                 }
                 setProvinceTreeData(undefined);
