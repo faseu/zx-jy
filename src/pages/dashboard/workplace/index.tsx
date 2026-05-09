@@ -1,6 +1,6 @@
 import { Radar } from '@ant-design/plots';
 import { PageContainer } from '@ant-design/pro-components';
-import { Link, useRequest } from '@umijs/max';
+import { Link, useIntl, useRequest } from '@umijs/max';
 import { Avatar, Card, Col, List, Row, Skeleton, Statistic } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -12,35 +12,12 @@ import useStyles from './style.style';
 
 dayjs.extend(relativeTime);
 
-const links = [
-  {
-    title: '操作一',
-    href: '',
-  },
-  {
-    title: '操作二',
-    href: '',
-  },
-  {
-    title: '操作三',
-    href: '',
-  },
-  {
-    title: '操作四',
-    href: '',
-  },
-  {
-    title: '操作五',
-    href: '',
-  },
-  {
-    title: '操作六',
-    href: '',
-  },
-];
+const linkIds = ['one', 'two', 'three', 'four', 'five', 'six'];
+
 const PageHeaderContent: FC<{
   currentUser: Partial<CurrentUser>;
 }> = ({ currentUser }) => {
+  const intl = useIntl();
   const { styles } = useStyles();
   const loading = currentUser && Object.keys(currentUser).length;
   if (!loading) {
@@ -61,9 +38,13 @@ const PageHeaderContent: FC<{
       </div>
       <div className={styles.content}>
         <div className={styles.contentTitle}>
-          早安，
-          {currentUser.name}
-          ，祝你开心每一天！
+          {intl.formatMessage(
+            {
+              id: 'pages.dashboard.workplace.greeting',
+              defaultMessage: 'Good morning, {name}. Have a great day!',
+            },
+            { name: currentUser.name }
+          )}
         </div>
         <div>
           {currentUser.title} |{currentUser.group}
@@ -73,27 +54,52 @@ const PageHeaderContent: FC<{
   );
 };
 const ExtraContent: FC<Record<string, any>> = () => {
+  const intl = useIntl();
   const { styles } = useStyles();
   return (
     <div className={styles.extraContent}>
       <div className={styles.statItem}>
-        <Statistic title="项目数" value={56} />
+        <Statistic
+          title={intl.formatMessage({
+            id: 'pages.dashboard.workplace.projectCount',
+            defaultMessage: 'Projects',
+          })}
+          value={56}
+        />
       </div>
       <div className={styles.statItem}>
-        <Statistic title="团队内排名" value={8} suffix="/ 24" />
+        <Statistic
+          title={intl.formatMessage({
+            id: 'pages.dashboard.workplace.teamRanking',
+            defaultMessage: 'Team Ranking',
+          })}
+          value={8}
+          suffix="/ 24"
+        />
       </div>
       <div className={styles.statItem}>
-        <Statistic title="项目访问" value={2223} />
+        <Statistic
+          title={intl.formatMessage({
+            id: 'pages.dashboard.workplace.projectVisits',
+            defaultMessage: 'Project Visits',
+          })}
+          value={2223}
+        />
       </div>
     </div>
   );
 };
 const Workplace: FC = () => {
+  const intl = useIntl();
   const { styles } = useStyles();
-  const { loading: projectLoading, data: projectNotice = [] } =
-    useRequest(queryProjectNotice);
-  const { loading: activitiesLoading, data: activities = [] } =
-    useRequest(queryActivities);
+  const t = (id: string, defaultMessage: string, values?: Record<string, string | number>) =>
+    intl.formatMessage({ id, defaultMessage }, values);
+  const links = linkIds.map((id, index) => ({
+    title: t(`pages.dashboard.action.${id}`, `Action ${index + 1}`),
+    href: '',
+  }));
+  const { loading: projectLoading, data: projectNotice = [] } = useRequest(queryProjectNotice);
+  const { loading: activitiesLoading, data: activities = [] } = useRequest(queryActivities);
   const { data } = useRequest(fakeChartData);
   const renderActivities = (item: ActivitiesType) => {
     const events = item.template.split(/@\{([^{}]*)\}/gi).map((key) => {
@@ -133,14 +139,19 @@ const Workplace: FC = () => {
       content={
         <PageHeaderContent
           currentUser={{
-            avatar:
-              'https://gw.alipayobjects.com/zos/rmsportal/BiazfanxmamNRoxxVxka.png',
-            name: '吴彦祖',
+            avatar: 'https://gw.alipayobjects.com/zos/rmsportal/BiazfanxmamNRoxxVxka.png',
+            name: t('pages.dashboard.workplace.demoUserName', 'Daniel Wu'),
             userid: '00000001',
             email: 'antdesign@alipay.com',
-            signature: '海纳百川，有容乃大',
-            title: '交互专家',
-            group: '蚂蚁金服－某某某事业群－某某平台部－某某技术部－UED',
+            signature: t(
+              'pages.dashboard.workplace.demoSignature',
+              'Great tolerance makes greatness.'
+            ),
+            title: t('pages.dashboard.workplace.demoTitle', 'Interaction Expert'),
+            group: t(
+              'pages.dashboard.workplace.demoGroup',
+              'Ant Financial - Platform Department - UED'
+            ),
           }}
         />
       }
@@ -153,9 +164,9 @@ const Workplace: FC = () => {
             style={{
               marginBottom: 24,
             }}
-            title="进行中的项目"
+            title={t('pages.dashboard.workplace.ongoingProjects', 'Ongoing Projects')}
             variant="borderless"
-            extra={<Link to="/">全部项目</Link>}
+            extra={<Link to="/">{t('pages.dashboard.workplace.allProjects', 'All Projects')}</Link>}
             loading={projectLoading}
           >
             {projectNotice.map((item) => (
@@ -191,7 +202,7 @@ const Workplace: FC = () => {
             }}
             variant="borderless"
             className={styles.activeCard}
-            title="动态"
+            title={t('pages.dashboard.workplace.activities', 'Activities')}
             loading={activitiesLoading}
           >
             <List<ActivitiesType>
@@ -208,21 +219,17 @@ const Workplace: FC = () => {
             style={{
               marginBottom: 24,
             }}
-            title="快速开始 / 便捷导航"
+            title={t('pages.dashboard.workplace.quickStart', 'Quick Start / Navigation')}
             variant="borderless"
           >
-            <EditableLinkGroup
-              onAdd={() => {}}
-              links={links}
-              linkElement={Link}
-            />
+            <EditableLinkGroup onAdd={() => {}} links={links} linkElement={Link} />
           </Card>
           <Card
             style={{
               marginBottom: 24,
             }}
             variant="borderless"
-            title="XX 指数"
+            title={t('pages.dashboard.workplace.indexTitle', 'XX Index')}
             loading={data?.radarData?.length === 0}
           >
             <Radar
@@ -258,7 +265,7 @@ const Workplace: FC = () => {
               },
             }}
             variant="borderless"
-            title="团队"
+            title={t('pages.dashboard.workplace.team', 'Team')}
             loading={projectLoading}
           >
             <div className={styles.members}>
@@ -268,9 +275,7 @@ const Workplace: FC = () => {
                     <Col span={12} key={`members-item-${item.id}`}>
                       <a>
                         <Avatar src={item.logo} size="small" />
-                        <span className={styles.member}>
-                          {item.member.substring(0, 3)}
-                        </span>
+                        <span className={styles.member}>{item.member.substring(0, 3)}</span>
                       </a>
                     </Col>
                   );

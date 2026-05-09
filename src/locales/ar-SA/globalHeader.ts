@@ -1,4 +1,3 @@
-
 export default {
   'component.globalHeader.search': 'البحث',
   'component.globalHeader.search.example1': 'مثال البحث 1',
@@ -15,4 +14,17 @@ export default {
   'component.noticeIcon.cleared': 'تم المسح',
   'component.noticeIcon.empty': 'لا توجد بيانات',
   'component.noticeIcon.view-more': 'عرض المزيد',
+  'app.brand': 'نظام إدارة التشويش Srill',
+  'app.topNav.region': 'المناطق',
+  'app.topNav.account': 'إدارة المستخدمين',
+  'app.topNav.machine': 'إدارة الأجهزة',
+  'app.topNav.alarm': 'الإنذارات',
+  'app.topNav.data': 'تحليلات البيانات',
+  'app.topNav.log': 'السجلات',
+  'app.language.zhCN': '中文',
+  'app.language.enUS': 'English',
+  'app.language.arSA': 'العربية',
+  'app.language.default': 'اللغة',
+  'app.action.report': 'تقرير',
+  'app.action.logout': 'تسجيل الخروج',
 };

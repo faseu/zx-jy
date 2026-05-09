@@ -1,4 +1,5 @@
 import { Line, Tiny } from '@ant-design/plots';
+import { useIntl } from '@umijs/max';
 import { Card, Col, Row, Tabs } from 'antd';
 import type { DataItem, OfflineDataType } from '../data.d';
 import useStyles from '../style.style';
@@ -10,38 +11,39 @@ const CustomTab = ({
 }: {
   data: OfflineDataType;
   currentTabKey: string;
-}) => (
-  <Row
-    gutter={8}
-    style={{
-      width: 138,
-      margin: '8px 0',
-    }}
-  >
-    <Col span={12}>
-      <NumberInfo
-        title={data.name}
-        subTitle="转化率"
-        gap={2}
-        total={`${data.cvr * 100}%`}
-        theme={currentKey !== data.name ? 'light' : undefined}
-      />
-    </Col>
-    <Col
-      span={12}
+}) => {
+  const intl = useIntl();
+  return (
+    <Row
+      gutter={8}
       style={{
-        paddingTop: 36,
+        width: 138,
+        margin: '8px 0',
       }}
     >
-      <Tiny.Ring
-        height={60}
-        width={60}
-        percent={data.cvr}
-        color={['#E8EEF4', '#5FABF4']}
-      />
-    </Col>
-  </Row>
-);
+      <Col span={12}>
+        <NumberInfo
+          title={data.name}
+          subTitle={intl.formatMessage({
+            id: 'pages.dashboard.analysis.conversionRate',
+            defaultMessage: 'Conversion Rate',
+          })}
+          gap={2}
+          total={`${data.cvr * 100}%`}
+          theme={currentKey !== data.name ? 'light' : undefined}
+        />
+      </Col>
+      <Col
+        span={12}
+        style={{
+          paddingTop: 36,
+        }}
+      >
+        <Tiny.Ring height={60} width={60} percent={data.cvr} color={['#E8EEF4', '#5FABF4']} />
+      </Col>
+    </Row>
+  );
+};
 
 const OfflineData = ({
   activeKey,

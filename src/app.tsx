@@ -2,7 +2,7 @@
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import { SettingDrawer } from '@ant-design/pro-components';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import { getLocale, history, setLocale } from '@umijs/max';
+import { getLocale, history, setLocale, useIntl } from '@umijs/max';
 import { Button, Dropdown } from 'antd';
 import React from 'react';
 import defaultSettings from '../config/defaultSettings';
@@ -12,18 +12,18 @@ import '@ant-design/v5-patch-for-react-19';
 const isDev = process.env.NODE_ENV === 'development' || process.env.CI;
 
 const NAV_TABS = [
-  { path: '/region', label: '省份' },
-  { path: '/account', label: '用户管理' },
-  { path: '/machine', label: '设备管理' },
-  { path: '/alarm', label: '告警' },
-  { path: '/data', label: '数据统计' },
-  { path: '/log', label: '日志' },
+  { path: '/region', labelId: 'app.topNav.region' },
+  { path: '/account', labelId: 'app.topNav.account' },
+  { path: '/machine', labelId: 'app.topNav.machine' },
+  { path: '/alarm', labelId: 'app.topNav.alarm' },
+  { path: '/data', labelId: 'app.topNav.data' },
+  { path: '/log', labelId: 'app.topNav.log' },
 ];
 
-const LANGUAGE_MAP: Record<string, string> = {
-  'zh-CN': '中文',
-  'en-US': 'English',
-  'ar-SA': 'العربية',
+const LANGUAGE_LABEL_IDS: Record<string, string> = {
+  'zh-CN': 'app.language.zhCN',
+  'en-US': 'app.language.enUS',
+  'ar-SA': 'app.language.arSA',
 };
 
 const getActiveNavPath = (pathname: string) => {
@@ -34,7 +34,9 @@ const getActiveNavPath = (pathname: string) => {
 };
 
 const CustomTopNav: React.FC = () => {
+  const intl = useIntl();
   const activePath = getActiveNavPath(history.location.pathname);
+  const currentLanguageLabelId = LANGUAGE_LABEL_IDS[getLocale()];
 
   return (
     <div className="custom-top-nav">
@@ -45,24 +47,28 @@ const CustomTopNav: React.FC = () => {
           type="button"
         >
           <img alt="logo" src="/logo.png" style={{ width: '40px', height: '40px' }} />
-          <span>Srill Jamming Management System</span>
+          <span>{intl.formatMessage({ id: 'app.brand' })}</span>
         </button>
         <div className="custom-top-nav__actions">
           <Dropdown
             menu={{
               items: [
-                { key: 'zh-CN', label: '中文' },
-                { key: 'en-US', label: 'English' },
-                { key: 'ar-SA', label: 'العربية' },
+                { key: 'zh-CN', label: intl.formatMessage({ id: 'app.language.zhCN' }) },
+                { key: 'en-US', label: intl.formatMessage({ id: 'app.language.enUS' }) },
+                { key: 'ar-SA', label: intl.formatMessage({ id: 'app.language.arSA' }) },
               ],
               onClick: ({ key }) => setLocale(key),
             }}
             trigger={['click']}
           >
-            <Button icon={<GlobalOutlined />}>{LANGUAGE_MAP[getLocale()] ?? 'Language'}</Button>
+            <Button icon={<GlobalOutlined />}>
+              {currentLanguageLabelId
+                ? intl.formatMessage({ id: currentLanguageLabelId })
+                : intl.formatMessage({ id: 'app.language.default' })}
+            </Button>
           </Dropdown>
           <Button type="primary" icon={<FileTextOutlined />} onClick={() => history.push('/data')}>
-            Report
+            {intl.formatMessage({ id: 'app.action.report' })}
           </Button>
           <Button
             type="primary"
@@ -72,7 +78,7 @@ const CustomTopNav: React.FC = () => {
               history.replace('/login');
             }}
           >
-            log out
+            {intl.formatMessage({ id: 'app.action.logout' })}
           </Button>
         </div>
       </div>
@@ -84,7 +90,7 @@ const CustomTopNav: React.FC = () => {
             onClick={() => history.push(item.path)}
             type="button"
           >
-            {item.label}
+            {intl.formatMessage({ id: item.labelId })}
           </button>
         ))}
       </div>
@@ -103,7 +109,7 @@ export async function getInitialState(): Promise<{
   };
 }
 
-// ProLayout 支持的 api https://procomponents.ant.design/components/layout
+// ProLayout APIs: https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
   return {
     actionsRender: false,
@@ -122,9 +128,9 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     menuHeaderRender: false,
     headerTitleRender: false,
     headerRender: () => <CustomTopNav />,
-    // 自定义 403 页面
+    // Custom 403 page
     // unAccessible: <div>unAccessible</div>,
-    // 增加一个 loading 的状态
+    // Add a loading state
     childrenRender: (children) => {
       // if (initialState?.loading) return <PageLoading />;
       return (
@@ -151,9 +157,9 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
 };
 
 /**
- * @name request 配置，可以配置错误处理
- * 它基于 axios 和 ahooks 的 useRequest 提供了一套统一的网络请求和错误处理方案。
- * @doc https://umijs.org/docs/max/request#配置
+ * @name request config, including error handling.
+ * It provides unified network request and error handling based on axios and ahooks useRequest.
+ * @doc https://umijs.org/docs/max/request#config
  */
 export const request: RequestConfig = {
   baseURL: 'http://8.136.16.12:7680',

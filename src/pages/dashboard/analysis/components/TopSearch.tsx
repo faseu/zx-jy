@@ -1,5 +1,6 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Area } from '@ant-design/plots';
+import { useIntl } from '@umijs/max';
 import { Card, Col, Row, Table, Tooltip } from 'antd';
 import numeral from 'numeral';
 import React from 'react';
@@ -18,20 +19,23 @@ const TopSearch = ({
   dropdownGroup: React.ReactNode;
   searchData: DataItem[];
 }) => {
+  const intl = useIntl();
+  const t = (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage });
+  const tooltipTitle = t('pages.dashboard.analysis.metricDescription', 'Metric description');
   const columns = [
     {
-      title: '排名',
+      title: t('pages.dashboard.analysis.rank', 'Rank'),
       dataIndex: 'index',
       key: 'index',
     },
     {
-      title: '搜索关键词',
+      title: t('pages.dashboard.analysis.searchKeyword', 'Search Keyword'),
       dataIndex: 'keyword',
       key: 'keyword',
       render: (text: React.ReactNode) => <a href="/">{text}</a>,
     },
     {
-      title: '用户数',
+      title: t('pages.dashboard.analysis.users', 'Users'),
       dataIndex: 'count',
       key: 'count',
       sorter: (
@@ -40,11 +44,11 @@ const TopSearch = ({
         },
         b: {
           count: number;
-        },
+        }
       ) => a.count - b.count,
     },
     {
-      title: '周涨幅',
+      title: t('pages.dashboard.analysis.weeklyGrowth', 'Weekly Growth'),
       dataIndex: 'range',
       key: 'range',
       sorter: (
@@ -53,13 +57,13 @@ const TopSearch = ({
         },
         b: {
           range: number;
-        },
+        }
       ) => a.range - b.range,
       render: (
         text: React.ReactNode,
         record: {
           status: number;
-        },
+        }
       ) => (
         <Trend flag={record.status === 1 ? 'down' : 'up'}>
           <span
@@ -77,7 +81,7 @@ const TopSearch = ({
     <Card
       loading={loading}
       bordered={false}
-      title="线上热门搜索"
+      title={t('pages.dashboard.analysis.onlineTopSearch', 'Online Top Search')}
       extra={dropdownGroup}
       style={{
         height: '100%',
@@ -94,8 +98,8 @@ const TopSearch = ({
           <NumberInfo
             subTitle={
               <span>
-                搜索用户数
-                <Tooltip title="指标说明">
+                {t('pages.dashboard.analysis.searchUsers', 'Search Users')}
+                <Tooltip title={tooltipTitle}>
                   <InfoCircleOutlined
                     style={{
                       marginLeft: 8,
@@ -133,8 +137,8 @@ const TopSearch = ({
           <NumberInfo
             subTitle={
               <span>
-                人均搜索次数
-                <Tooltip title="指标说明">
+                {t('pages.dashboard.analysis.perCapitaSearches', 'Per Capita Searches')}
+                <Tooltip title={tooltipTitle}>
                   <InfoCircleOutlined
                     style={{
                       marginLeft: 8,

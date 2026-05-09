@@ -1,9 +1,5 @@
-import {
-  LogoutOutlined,
-  SettingOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import { history, useModel } from '@umijs/max';
+import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { history, useIntl, useModel } from '@umijs/max';
 import type { MenuProps } from 'antd';
 import { Spin } from 'antd';
 import { createStyles } from 'antd-style';
@@ -17,9 +13,13 @@ export type GlobalHeaderRightProps = {
   children?: React.ReactNode;
 };
 
+type HeaderInitialState = {
+  currentUser?: API.CurrentUser;
+};
+
 export const AvatarName = () => {
   const { initialState } = useModel('@@initialState');
-  const { currentUser } = initialState || {};
+  const { currentUser } = (initialState || {}) as HeaderInitialState;
   return <span className="anticon">{currentUser?.name}</span>;
 };
 
@@ -41,13 +41,9 @@ const useStyles = createStyles(({ token }) => {
   };
 });
 
-export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
-  menu,
-  children,
-}) => {
-  /**
-   * 退出登录，并且将当前的 url 保存
-   */
+export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, children }) => {
+  const intl = useIntl();
+
   const loginOut = async () => {
     await outLogin();
     const { search, pathname } = window.location;
@@ -55,7 +51,6 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
     const searchParams = new URLSearchParams({
       redirect: pathname + search,
     });
-    /** 此方法会跳转到 redirect 参数所在的位置 */
     const redirect = urlParams.get('redirect');
     // Note: There may be security issues, please note
     if (window.location.pathname !== '/login' && !redirect) {
@@ -97,7 +92,7 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
     return loading;
   }
 
-  const { currentUser } = initialState;
+  const { currentUser } = initialState as HeaderInitialState;
 
   if (!currentUser || !currentUser.name) {
     return loading;
@@ -109,12 +104,12 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
           {
             key: 'center',
             icon: <UserOutlined />,
-            label: '个人中心',
+            label: intl.formatMessage({ id: 'component.avatarDropdown.center' }),
           },
           {
             key: 'settings',
             icon: <SettingOutlined />,
-            label: '个人设置',
+            label: intl.formatMessage({ id: 'component.avatarDropdown.settings' }),
           },
           {
             type: 'divider' as const,
@@ -124,7 +119,7 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: intl.formatMessage({ id: 'component.avatarDropdown.logout' }),
     },
   ];
 

@@ -1,4 +1,4 @@
-import { useRequest } from '@umijs/max';
+import { useIntl, useRequest } from '@umijs/max';
 import { Button, message, Modal, Slider, Spin, Switch } from 'antd';
 import React from 'react';
 import { disableDevices, enableDevices } from '../../machine/service';
@@ -59,6 +59,7 @@ const ChannelRow: React.FC<{
 );
 
 const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, onCancel }) => {
+  const intl = useIntl();
   const [channelValues, setChannelValues] = React.useState<Record<string, number>>({});
   const [powerSubmitting, setPowerSubmitting] = React.useState(false);
   const [channelSubmitting, setChannelSubmitting] = React.useState(false);
@@ -74,7 +75,9 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
     run(deviceId);
   }, [deviceId, open, run]);
 
-  const detail = ((data as { data?: DeviceFormVO } | undefined)?.data ?? data ?? {}) as DeviceFormVO;
+  const detail = ((data as { data?: DeviceFormVO } | undefined)?.data ??
+    data ??
+    {}) as DeviceFormVO;
 
   React.useEffect(() => {
     if (!open) {
@@ -99,20 +102,20 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
 
         if (checked) {
           await enableDevices([deviceId]);
-          message.success('电源已开启');
+          message.success(intl.formatMessage({ id: 'pages.region.message.powerOn' }));
         } else {
           await disableDevices([deviceId]);
-          message.success('电源已关闭');
+          message.success(intl.formatMessage({ id: 'pages.region.message.powerOff' }));
         }
 
         await run(deviceId);
       } catch {
-        message.error('电源状态更新失败');
+        message.error(intl.formatMessage({ id: 'pages.region.message.powerUpdateFailed' }));
       } finally {
         setPowerSubmitting(false);
       }
     },
-    [deviceId, powerSubmitting, run]
+    [deviceId, intl, powerSubmitting, run]
   );
 
   const handleChannelChange = React.useCallback((key: string, value: number) => {
@@ -138,31 +141,30 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
         )
       );
 
-      message.success('通道配置已保存');
+      message.success(intl.formatMessage({ id: 'pages.region.message.channelSaved' }));
       await run(deviceId);
     } catch {
-      message.error('通道配置保存失败');
+      message.error(intl.formatMessage({ id: 'pages.region.message.channelSaveFailed' }));
     } finally {
       setChannelSubmitting(false);
     }
-  }, [channelSubmitting, channelValues, deviceId, run]);
+  }, [channelSubmitting, channelValues, deviceId, intl, run]);
 
   return (
     <Modal
-      title={<div style={{ textAlign: 'center', fontSize: 24, fontWeight: 600 }}>设备详情</div>}
+      title={
+        <div style={{ textAlign: 'center', fontSize: 24, fontWeight: 600 }}>
+          {intl.formatMessage({ id: 'pages.region.modal.deviceDetail' })}
+        </div>
+      }
       open={open}
       onCancel={onCancel}
       footer={[
         <Button key="cancel" onClick={onCancel}>
-          关闭
+          {intl.formatMessage({ id: 'pages.region.action.close' })}
         </Button>,
-        <Button
-          key="save"
-          type="primary"
-          loading={channelSubmitting}
-          onClick={handleChannelSave}
-        >
-          保存通道配置
+        <Button key="save" type="primary" loading={channelSubmitting} onClick={handleChannelSave}>
+          {intl.formatMessage({ id: 'pages.region.action.saveChannelConfig' })}
         </Button>,
       ]}
       width={1200}
@@ -181,19 +183,40 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
             }}
           >
             <div>
-              <FieldRow label="所在楼" value={valueOrDash(detail.buildingName)} />
-              <FieldRow label="全网编号" value={valueOrDash(detail.entireNo)} />
-              <FieldRow label="电压" value={valueOrDash(detail.voltage)} />
-            </div>
-            <div>
-              <FieldRow label="所在楼层" value={valueOrDash(detail.floorName)} />
-              <FieldRow label="设备名称" value={valueOrDash(detail.deviceName)} />
-              <FieldRow label="电流" value={valueOrDash(detail.electric_current)} />
-            </div>
-            <div>
-              <FieldRow label="设备编号" value={valueOrDash(detail.deviceNo)} />
               <FieldRow
-                label="电源"
+                label={intl.formatMessage({ id: 'pages.region.field.locatedBuilding' })}
+                value={valueOrDash(detail.buildingName)}
+              />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.networkCode' })}
+                value={valueOrDash(detail.entireNo)}
+              />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.voltage' })}
+                value={valueOrDash(detail.voltage)}
+              />
+            </div>
+            <div>
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.locatedFloor' })}
+                value={valueOrDash(detail.floorName)}
+              />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.deviceName' })}
+                value={valueOrDash(detail.deviceName)}
+              />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.current' })}
+                value={valueOrDash(detail.electric_current)}
+              />
+            </div>
+            <div>
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.deviceCode' })}
+                value={valueOrDash(detail.deviceNo)}
+              />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.power' })}
                 value={
                   <Switch
                     size="small"
@@ -203,106 +226,43 @@ const DeviceDetailModal: React.FC<DeviceDetailModalProps> = ({ open, deviceId, o
                   />
                 }
               />
-              <FieldRow label="射频" value={valueOrDash(detail.radio_frequency)} />
+              <FieldRow
+                label={intl.formatMessage({ id: 'pages.region.field.rf' })}
+                value={valueOrDash(detail.radio_frequency)}
+              />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 64 }}>
             <div>
-              <ChannelRow
-                label="CH1"
-                value={channelValues.ch1 ?? 0}
-                onChange={(value) => handleChannelChange('ch1', value)}
-              />
-              <ChannelRow
-                label="CH4"
-                value={channelValues.ch4 ?? 0}
-                onChange={(value) => handleChannelChange('ch4', value)}
-              />
-              <ChannelRow
-                label="CH7"
-                value={channelValues.ch7 ?? 0}
-                onChange={(value) => handleChannelChange('ch7', value)}
-              />
-              <ChannelRow
-                label="CH10"
-                value={channelValues.ch10 ?? 0}
-                onChange={(value) => handleChannelChange('ch10', value)}
-              />
-              <ChannelRow
-                label="CH13"
-                value={channelValues.ch13 ?? 0}
-                onChange={(value) => handleChannelChange('ch13', value)}
-              />
-              <ChannelRow
-                label="CH16"
-                value={channelValues.ch16 ?? 0}
-                onChange={(value) => handleChannelChange('ch16', value)}
-              />
+              {[1, 4, 7, 10, 13, 16].map((channel) => (
+                <ChannelRow
+                  key={channel}
+                  label={`CH${channel}`}
+                  value={channelValues[`ch${channel}`] ?? 0}
+                  onChange={(value) => handleChannelChange(`ch${channel}`, value)}
+                />
+              ))}
             </div>
             <div>
-              <ChannelRow
-                label="CH2"
-                value={channelValues.ch2 ?? 0}
-                onChange={(value) => handleChannelChange('ch2', value)}
-              />
-              <ChannelRow
-                label="CH5"
-                value={channelValues.ch5 ?? 0}
-                onChange={(value) => handleChannelChange('ch5', value)}
-              />
-              <ChannelRow
-                label="CH8"
-                value={channelValues.ch8 ?? 0}
-                onChange={(value) => handleChannelChange('ch8', value)}
-              />
-              <ChannelRow
-                label="CH11"
-                value={channelValues.ch11 ?? 0}
-                onChange={(value) => handleChannelChange('ch11', value)}
-              />
-              <ChannelRow
-                label="CH14"
-                value={channelValues.ch14 ?? 0}
-                onChange={(value) => handleChannelChange('ch14', value)}
-              />
-              <ChannelRow
-                label="CH17"
-                value={channelValues.ch17 ?? 0}
-                onChange={(value) => handleChannelChange('ch17', value)}
-              />
+              {[2, 5, 8, 11, 14, 17].map((channel) => (
+                <ChannelRow
+                  key={channel}
+                  label={`CH${channel}`}
+                  value={channelValues[`ch${channel}`] ?? 0}
+                  onChange={(value) => handleChannelChange(`ch${channel}`, value)}
+                />
+              ))}
             </div>
             <div>
-              <ChannelRow
-                label="CH3"
-                value={channelValues.ch3 ?? 0}
-                onChange={(value) => handleChannelChange('ch3', value)}
-              />
-              <ChannelRow
-                label="CH6"
-                value={channelValues.ch6 ?? 0}
-                onChange={(value) => handleChannelChange('ch6', value)}
-              />
-              <ChannelRow
-                label="CH9"
-                value={channelValues.ch9 ?? 0}
-                onChange={(value) => handleChannelChange('ch9', value)}
-              />
-              <ChannelRow
-                label="CH12"
-                value={channelValues.ch12 ?? 0}
-                onChange={(value) => handleChannelChange('ch12', value)}
-              />
-              <ChannelRow
-                label="CH15"
-                value={channelValues.ch15 ?? 0}
-                onChange={(value) => handleChannelChange('ch15', value)}
-              />
-              <ChannelRow
-                label="CH18"
-                value={channelValues.ch18 ?? 0}
-                onChange={(value) => handleChannelChange('ch18', value)}
-              />
+              {[3, 6, 9, 12, 15, 18].map((channel) => (
+                <ChannelRow
+                  key={channel}
+                  label={`CH${channel}`}
+                  value={channelValues[`ch${channel}`] ?? 0}
+                  onChange={(value) => handleChannelChange(`ch${channel}`, value)}
+                />
+              ))}
             </div>
           </div>
         </div>

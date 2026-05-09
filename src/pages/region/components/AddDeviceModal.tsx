@@ -1,3 +1,4 @@
+import { useIntl } from '@umijs/max';
 import {
   Button,
   Col,
@@ -67,6 +68,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   onBuildingChange,
   onPowerChannelChange,
 }) => {
+  const intl = useIntl();
   const [testingConnection, setTestingConnection] = React.useState(false);
 
   const handleSetAllDay = () => {
@@ -87,21 +89,23 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
       const result = await getDeviceInfoByIp(ip);
 
       if (result?.code === '00000') {
-        message.success('连接成功');
+        message.success(intl.formatMessage({ id: 'pages.region.message.connectionSuccess' }));
         return;
       }
 
       if (result?.code === 'B0001') {
-        message.error('连接失败');
+        message.error(intl.formatMessage({ id: 'pages.region.message.connectionFailed' }));
         return;
       }
 
-      message.error(result?.msg || '连接测试失败，请重试');
+      message.error(
+        result?.msg || intl.formatMessage({ id: 'pages.region.message.connectionTestFailed' })
+      );
     } catch (error: any) {
       if (error?.errorFields) {
         return;
       }
-      message.error('连接测试失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.connectionTestFailed' }));
     } finally {
       setTestingConnection(false);
     }
@@ -109,7 +113,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
 
   return (
     <Modal
-      title="添加设备"
+      title={intl.formatMessage({ id: 'pages.region.modal.addDevice' })}
       open={open}
       onCancel={onCancel}
       width={1000}
@@ -117,23 +121,28 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
         step === 0
           ? [
               <Button key="cancel" onClick={onCancel}>
-                取消
+                {intl.formatMessage({ id: 'pages.region.action.cancel' })}
               </Button>,
               <Button key="next" type="primary" onClick={onNext}>
-                下一步
+                {intl.formatMessage({ id: 'pages.region.action.next' })}
               </Button>,
             ]
           : [
               <Button key="prev" onClick={onPrev}>
-                上一步
+                {intl.formatMessage({ id: 'pages.region.action.prev' })}
               </Button>,
               <Button key="finish" type="primary" onClick={onFinish}>
-                完成
+                {intl.formatMessage({ id: 'pages.region.action.finish' })}
               </Button>,
             ]
       }
     >
-      <Form form={form} layout="horizontal" labelCol={{ span: 3 }} initialValues={{ powerOff: true }}>
+      <Form
+        form={form}
+        layout="horizontal"
+        labelCol={{ span: 3 }}
+        initialValues={{ powerOff: true }}
+      >
         <Row gutter={16}>
           <Col
             flex="180px"
@@ -160,7 +169,10 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
               <img src={shielder} alt="" width={164} height={164} />
             </div>
             <Form.Item name="powerOff" valuePropName="checked">
-              <Switch checkedChildren="开" unCheckedChildren="关" />
+              <Switch
+                checkedChildren={intl.formatMessage({ id: 'pages.region.status.on' })}
+                unCheckedChildren={intl.formatMessage({ id: 'pages.region.status.off' })}
+              />
             </Form.Item>
           </Col>
 
@@ -168,62 +180,146 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
             <Steps
               size="small"
               current={step}
-              items={[{ title: '基础信息' }, { title: '其他信息' }]}
+              items={[
+                { title: intl.formatMessage({ id: 'pages.region.step.basicInfo' }) },
+                { title: intl.formatMessage({ id: 'pages.region.step.otherInfo' }) },
+              ]}
               style={{ marginBottom: 16 }}
             />
 
             {step === 0 ? (
               <>
-                <Form.Item label="监狱" name="prisonId" rules={[{ required: true, message: '请选择监狱' }]}>
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.prison' })}
+                  name="prisonId"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.prison' }),
+                    },
+                  ]}
+                >
                   <Select
                     options={prisonOptions}
                     disabled={prisonDisabled}
                     onChange={(value) => onPrisonChange(value ?? null)}
-                    placeholder="请选择监狱"
+                    placeholder={intl.formatMessage({ id: 'pages.region.validation.prison' })}
                   />
                 </Form.Item>
-                <Form.Item label="楼栋" name="buildingId" rules={[{ required: true, message: '请选择楼栋' }]}>
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.building' })}
+                  name="buildingId"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.building' }),
+                    },
+                  ]}
+                >
                   <Select
                     options={buildingOptions}
                     onChange={(value) => onBuildingChange(value ?? null)}
-                    placeholder="请选择楼栋"
+                    placeholder={intl.formatMessage({ id: 'pages.region.validation.building' })}
                     loading={deviceBuildingsLoading}
                     disabled={buildingDisabled}
-                    notFoundContent={deviceBuildingsLoading ? '加载中...' : '暂无楼栋'}
+                    notFoundContent={
+                      deviceBuildingsLoading
+                        ? intl.formatMessage({ id: 'pages.region.status.loading' })
+                        : intl.formatMessage({ id: 'pages.region.status.noBuilding' })
+                    }
                   />
                 </Form.Item>
-                <Form.Item label="楼层" name="floorId" rules={[{ required: true, message: '请选择楼层' }]}>
-                  <Select options={floorOptions} placeholder="请选择楼层" disabled={floorDisabled} />
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.floor' })}
+                  name="floorId"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.floor' }),
+                    },
+                  ]}
+                >
+                  <Select
+                    options={floorOptions}
+                    placeholder={intl.formatMessage({ id: 'pages.region.validation.floor' })}
+                    disabled={floorDisabled}
+                  />
                 </Form.Item>
-                <Form.Item label="设备编号" name="deviceCode" rules={[{ required: true, message: '请输入设备编号' }]}>
-                  <InputNumber min={1} placeholder="请输入设备编号" style={{ width: '100%' }} />
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.deviceCode' })}
+                  name="deviceCode"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.deviceCode' }),
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    min={1}
+                    placeholder={intl.formatMessage({ id: 'pages.region.validation.deviceCode' })}
+                    style={{ width: '100%' }}
+                  />
                 </Form.Item>
               </>
             ) : (
               <>
-                <Form.Item label="全网编号" name="networkCode" rules={[{ required: true, message: '请输入全网编号' }]}>
-                  <Input placeholder="请输入全网编号" />
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.networkCode' })}
+                  name="networkCode"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.networkCode' }),
+                    },
+                  ]}
+                >
+                  <Input
+                    placeholder={intl.formatMessage({ id: 'pages.region.validation.networkCode' })}
+                  />
                 </Form.Item>
                 <Form.Item label="IP" required>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <Form.Item name="ip" noStyle rules={[{ required: true, message: '请输入 IP' }]}>
-                      <Input placeholder="请输入 IP" />
+                    <Form.Item
+                      name="ip"
+                      noStyle
+                      rules={[
+                        {
+                          required: true,
+                          message: intl.formatMessage({ id: 'pages.region.validation.ip' }),
+                        },
+                      ]}
+                    >
+                      <Input
+                        placeholder={intl.formatMessage({ id: 'pages.region.validation.ip' })}
+                      />
                     </Form.Item>
                     <Button type="link" onClick={handleTestConnection} loading={testingConnection}>
-                      连接测试
+                      {intl.formatMessage({ id: 'pages.region.action.connectionTest' })}
                     </Button>
                   </div>
                 </Form.Item>
-                <Form.Item label="端口" name="port" rules={[{ required: true, message: '请输入端口' }]}>
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.port' })}
+                  name="port"
+                  rules={[
+                    {
+                      required: true,
+                      message: intl.formatMessage({ id: 'pages.region.validation.port' }),
+                    },
+                  ]}
+                >
                   <InputNumber min={0} max={65535} style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item label="功率调节">
+                <Form.Item label={intl.formatMessage({ id: 'pages.region.field.powerAdjust' })}>
                   <Row gutter={[12, 8]}>
                     {powerChannelKeys.map((key, index) => (
                       <Col span={8} key={key}>
                         <Form.Item name={key} label={`CH${index + 1}`} style={{ marginBottom: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ minWidth: 24, textAlign: 'right' }}>{powerChannelValues[key] ?? 0}</span>
+                            <span style={{ minWidth: 24, textAlign: 'right' }}>
+                              {powerChannelValues[key] ?? 0}
+                            </span>
                             <Slider
                               min={0}
                               max={100}
@@ -240,16 +336,42 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
                     ))}
                   </Row>
                 </Form.Item>
-                <Form.Item label="开始时间" required>
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.startTime' })}
+                  required
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Form.Item name="startTime" noStyle rules={[{ required: true, message: '请选择开始时间' }]}>
+                    <Form.Item
+                      name="startTime"
+                      noStyle
+                      rules={[
+                        {
+                          required: true,
+                          message: intl.formatMessage({ id: 'pages.region.validation.startTime' }),
+                        },
+                      ]}
+                    >
                       <TimePicker format="HH:mm" style={{ width: '100%', flex: 1 }} />
                     </Form.Item>
-                    <Button onClick={handleSetAllDay}>全天</Button>
+                    <Button onClick={handleSetAllDay}>
+                      {intl.formatMessage({ id: 'pages.region.action.allDay' })}
+                    </Button>
                   </div>
                 </Form.Item>
-                <Form.Item label="停止时间" required>
-                  <Form.Item name="stopTime" noStyle rules={[{ required: true, message: '请选择停止时间' }]}>
+                <Form.Item
+                  label={intl.formatMessage({ id: 'pages.region.field.stopTime' })}
+                  required
+                >
+                  <Form.Item
+                    name="stopTime"
+                    noStyle
+                    rules={[
+                      {
+                        required: true,
+                        message: intl.formatMessage({ id: 'pages.region.validation.stopTime' }),
+                      },
+                    ]}
+                  >
                     <TimePicker format="HH:mm" style={{ width: '100%' }} />
                   </Form.Item>
                 </Form.Item>

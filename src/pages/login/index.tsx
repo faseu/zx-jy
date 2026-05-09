@@ -35,13 +35,18 @@ const Login: React.FC = () => {
           ? captchaBase64.startsWith('data:image')
             ? captchaBase64
             : `data:image/png;base64,${captchaBase64}`
-          : '',
+          : ''
       );
     } catch (error) {
       console.log(error);
       setCaptchaImage('');
       form.setFieldValue('captchaKey', undefined);
-      message.error('Get captcha failed, please retry.');
+      message.error(
+        intl.formatMessage({
+          id: 'pages.login.captcha.failure',
+          defaultMessage: 'Get captcha failed, please retry.',
+        })
+      );
     } finally {
       setCaptchaLoading(false);
     }
@@ -100,15 +105,30 @@ const Login: React.FC = () => {
         <div className="login-content">
           <div className="login-left">
             <div>
-              <h2 className="login-welcome">Salam, Welcome to</h2>
-              <div className="login-system-name">Jamming Managment System</div>
+              <h2 className="login-welcome">
+                {intl.formatMessage({
+                  id: 'pages.login.welcome',
+                  defaultMessage: 'Salam, Welcome to',
+                })}
+              </h2>
+              <div className="login-system-name">
+                {intl.formatMessage({
+                  id: 'pages.login.systemName',
+                  defaultMessage: 'Jamming Management System',
+                })}
+              </div>
             </div>
             <div className="login-logo-wrap">
               <img alt="system-logo" src="/logo.png" />
             </div>
           </div>
           <div className="login-right">
-            <h2 className="login-title">Log In</h2>
+            <h2 className="login-title">
+              {intl.formatMessage({
+                id: 'pages.login.title',
+                defaultMessage: 'Log In',
+              })}
+            </h2>
             <Form<API.LoginParams>
               form={form}
               className="login-form"
@@ -209,20 +229,46 @@ const Login: React.FC = () => {
                     <img className="login-captcha-image" src={captchaImage} alt="captcha" />
                   ) : (
                     <span className="login-captcha-placeholder">
-                      {captchaLoading ? 'Loading...' : 'Reload'}
+                      {captchaLoading
+                        ? intl.formatMessage({
+                            id: 'pages.login.captcha.loading',
+                            defaultMessage: 'Loading...',
+                          })
+                        : intl.formatMessage({
+                            id: 'pages.login.captcha.reload',
+                            defaultMessage: 'Reload',
+                          })}
                     </span>
                   )}
                 </button>
               </div>
               <div className="login-language-row">
                 <Radio.Group value={lang} onChange={(e) => setLang(e.target.value)}>
-                  <Radio value="arabic">Arabic</Radio>
-                  <Radio value="english">English</Radio>
-                  <Radio value="chinese">Chinese</Radio>
+                  <Radio value="arabic">
+                    {intl.formatMessage({
+                      id: 'pages.login.language.arabic',
+                      defaultMessage: 'Arabic',
+                    })}
+                  </Radio>
+                  <Radio value="english">
+                    {intl.formatMessage({
+                      id: 'pages.login.language.english',
+                      defaultMessage: 'English',
+                    })}
+                  </Radio>
+                  <Radio value="chinese">
+                    {intl.formatMessage({
+                      id: 'pages.login.language.chinese',
+                      defaultMessage: 'Chinese',
+                    })}
+                  </Radio>
                 </Radio.Group>
               </div>
               <Button className="login-submit" type="primary" htmlType="submit">
-                log in
+                {intl.formatMessage({
+                  id: 'pages.login.submit',
+                  defaultMessage: 'Log In',
+                })}
               </Button>
             </Form>
           </div>

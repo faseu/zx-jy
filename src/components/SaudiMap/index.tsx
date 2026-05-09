@@ -1,90 +1,126 @@
-import React, { useEffect, useRef } from 'react'
-import * as echarts from 'echarts'
-import saudiMap from '@/assets/map/SA_regions.json'
+import { useIntl } from '@umijs/max';
+import * as echarts from 'echarts';
+import React, { useEffect, useRef } from 'react';
+import saudiMap from '@/assets/map/SA_regions.json';
 
 interface SaudiMapProps {
-  height?: number
-  onProvinceClick?: (provinceName: string) => void
+  height?: number;
+  onProvinceClick?: (provinceName: string) => void;
 }
 
+const PROVINCE_KEY_MAP: Record<string, string> = {
+  Qassim: 'qassim',
+  Riyadh: 'riyadh',
+  Tabuk: 'tabuk',
+  Madinah: 'madinah',
+  Makkah: 'makkah',
+  'Northern Region': 'northernRegion',
+  Jawf: 'jawf',
+  Hail: 'hail',
+  Bahah: 'bahah',
+  Jizan: 'jizan',
+  Asir: 'asir',
+  Najran: 'najran',
+  'Eastern Region': 'easternRegion',
+};
+
 const SaudiMap: React.FC<SaudiMapProps> = ({ height = 700, onProvinceClick }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const chartRef = useRef<echarts.EChartsType | null>(null)
-  const onProvinceClickRef = useRef<SaudiMapProps['onProvinceClick']>(onProvinceClick)
+  const intl = useIntl();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<echarts.EChartsType | null>(null);
+  const onProvinceClickRef = useRef<SaudiMapProps['onProvinceClick']>(onProvinceClick);
+
+  const formatProvinceName = React.useCallback(
+    (name?: string) => {
+      if (!name) {
+        return '';
+      }
+
+      const provinceKey = PROVINCE_KEY_MAP[name];
+      if (!provinceKey) {
+        return name;
+      }
+
+      return intl.formatMessage({ id: `component.saudiMap.province.${provinceKey}` });
+    },
+    [intl]
+  );
 
   useEffect(() => {
-    onProvinceClickRef.current = onProvinceClick
-  }, [onProvinceClick])
+    onProvinceClickRef.current = onProvinceClick;
+  }, [onProvinceClick]);
 
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!containerRef.current) return;
 
-    echarts.registerMap('saudi', saudiMap as any)
+    echarts.registerMap('saudi', saudiMap as any);
 
-    const chart = echarts.init(containerRef.current)
-    chartRef.current = chart
+    const chart = echarts.init(containerRef.current);
+    chartRef.current = chart;
 
     const option: echarts.EChartsOption = {
-      tooltip: { trigger: 'item' },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => formatProvinceName(params?.name),
+      },
       geo: {
         map: 'saudi',
         roam: true,
         zoom: 1.1,
         scaleLimit: { min: 1, max: 6 },
-        label: { show: true, color: '#997652' },
+        label: {
+          show: true,
+          color: '#997652',
+          formatter: (params: any) => formatProvinceName(params?.name),
+        },
         itemStyle: {
           areaColor: '#bacda9',
           borderColor: '#ffffff',
         },
         emphasis: {
-          itemStyle: { areaColor: '#a7bac6' }
+          itemStyle: { areaColor: '#a7bac6' },
         },
         regions: [
           { name: 'Qassim', itemStyle: { areaColor: '#bacda9' } },
           { name: 'Riyadh', itemStyle: { areaColor: '#e5d9c3' } },
           { name: 'Tabuk', itemStyle: { areaColor: '#c9e0cc' } },
           { name: 'Madinah', itemStyle: { areaColor: '#f4ddb4' } },
-
           { name: 'Makkah', itemStyle: { areaColor: '#bacda9' } },
           { name: 'Northern Region', itemStyle: { areaColor: '#e5d9c3' } },
           { name: 'Jawf', itemStyle: { areaColor: '#c9e0cc' } },
           { name: 'Hail', itemStyle: { areaColor: '#f4ddb4' } },
-
           { name: 'Bahah', itemStyle: { areaColor: '#bacda9' } },
           { name: 'Jizan', itemStyle: { areaColor: '#e5d9c3' } },
           { name: 'Asir', itemStyle: { areaColor: '#c9e0cc' } },
           { name: 'Najran', itemStyle: { areaColor: '#f4ddb4' } },
-
-          { name: 'Eastern Region', itemStyle: { areaColor: '#bacda9' } }
-        ]
+          { name: 'Eastern Region', itemStyle: { areaColor: '#bacda9' } },
+        ],
       },
-      series: []
-    }
+      series: [],
+    };
 
-    chart.setOption(option, true)
+    chart.setOption(option, true);
 
     const handleClick = (params: any) => {
-      const provinceName = params?.name
+      const provinceName = params?.name;
       if (typeof provinceName === 'string' && onProvinceClickRef.current) {
-        onProvinceClickRef.current(provinceName)
+        onProvinceClickRef.current(provinceName);
       }
-    }
-    chart.on('click', handleClick)
+    };
+    chart.on('click', handleClick);
 
-    const handleResize = () => chart.resize()
-    window.addEventListener('resize', handleResize)
+    const handleResize = () => chart.resize();
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.off('click', handleClick)
-      chart.dispose()
-      chartRef.current = null
-    }
-  }, [])
+      window.removeEventListener('resize', handleResize);
+      chart.off('click', handleClick);
+      chart.dispose();
+      chartRef.current = null;
+    };
+  }, [formatProvinceName]);
 
-  return (
-    <div ref={containerRef} style={{ width: '100%', height }} />
-  )
-}
+  return <div ref={containerRef} style={{ width: '100%', height }} />;
+};
 
-export default SaudiMap
+export default SaudiMap;

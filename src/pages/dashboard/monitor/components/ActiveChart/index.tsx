@@ -1,4 +1,5 @@
 import { Area } from '@ant-design/plots';
+import { useIntl } from '@umijs/max';
 import { Statistic } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import useStyles from './index.style';
@@ -18,10 +19,15 @@ function getActiveData() {
 }
 
 const ActiveChart = () => {
+  const intl = useIntl();
   const timerRef = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
   const { styles } = useStyles();
   const [activeData, setActiveData] = useState<{ x: string; y: number }[]>([]);
+  const unit = intl.formatMessage({
+    id: 'pages.dashboard.monitor.billionYuan',
+    defaultMessage: 'billion yuan',
+  });
   const loopData = useCallback(() => {
     requestRef.current = requestAnimationFrame(() => {
       timerRef.current = window.setTimeout(() => {
@@ -43,7 +49,16 @@ const ActiveChart = () => {
 
   return (
     <div className={styles.activeChart}>
-      <Statistic title="目标评估" value="有望达到预期" />
+      <Statistic
+        title={intl.formatMessage({
+          id: 'pages.dashboard.monitor.targetEvaluation',
+          defaultMessage: 'Target Evaluation',
+        })}
+        value={intl.formatMessage({
+          id: 'pages.dashboard.monitor.expectedTarget',
+          defaultMessage: 'Expected to meet target',
+        })}
+      />
       <div
         style={{
           marginTop: 32,
@@ -65,10 +80,11 @@ const ActiveChart = () => {
       {activeData && (
         <div>
           <div className={styles.activeChartGrid}>
-            <p>{[...activeData].sort()[activeData.length - 1]?.y + 200} 亿元</p>
             <p>
-              {[...activeData].sort()[Math.floor(activeData.length / 2)]?.y}{' '}
-              亿元
+              {[...activeData].sort()[activeData.length - 1]?.y + 200} {unit}
+            </p>
+            <p>
+              {[...activeData].sort()[Math.floor(activeData.length / 2)]?.y} {unit}
             </p>
           </div>
           <div className={styles.dashedLine}>

@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { useRequest } from '@umijs/max';
+import { useIntl, useRequest } from '@umijs/max';
 import { Button, Checkbox, Col, Form, Input, Modal, Row, message } from 'antd';
 import dayjs from 'dayjs';
 import React from 'react';
@@ -85,6 +85,12 @@ type GroupSwitchSummary = {
   state: GroupSwitchState;
 };
 
+type MachineTranslate = (
+  id: string,
+  defaultMessage: string,
+  values?: Record<string, string | number>
+) => string;
+
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0])
@@ -151,10 +157,15 @@ const summarizeGroupSwitch = (devices?: DeviceVO[]): GroupSwitchSummary => {
 const normalizeBuildingTreeToPrisonTree = (
   buildingTree: BuildingTreeVO | undefined,
   params: OrgTreeSelectionParams,
-  prisonMeta?: Pick<PrisonVO, 'name' | 'level'>
+  prisonMeta: Pick<PrisonVO, 'name' | 'level'> | undefined,
+  t: MachineTranslate
 ): PrisonTreeVO => ({
   prisonId: params.prisonId,
-  prisonName: prisonMeta?.name ?? (params.prisonId ? `监狱-${params.prisonId}` : '-'),
+  prisonName:
+    prisonMeta?.name ??
+    (params.prisonId
+      ? t('pages.machine.fallback.prison', 'Prison-{id}', { id: params.prisonId })
+      : '-'),
   level: prisonMeta?.level,
   buildingList: buildingTree
     ? [
@@ -169,18 +180,26 @@ const normalizeBuildingTreeToPrisonTree = (
 const normalizeFloorTreeToPrisonTree = (
   floorTree: FloorTreeVO | DeviceVO[] | undefined,
   params: OrgTreeSelectionParams,
-  prisonMeta?: Pick<PrisonVO, 'name' | 'level'>
+  prisonMeta: Pick<PrisonVO, 'name' | 'level'> | undefined,
+  t: MachineTranslate
 ): PrisonTreeVO => {
-  const floorDeviceList = Array.isArray(floorTree)
-    ? floorTree
-    : floorTree?.deviceList ?? [];
+  const floorDeviceList = Array.isArray(floorTree) ? floorTree : (floorTree?.deviceList ?? []);
   const resolvedFloorName = Array.isArray(floorTree)
-    ? floorTree[0]?.floorName ?? (params.floorId ? `楼层-${params.floorId}` : '-')
-    : floorTree?.floorName ?? (params.floorId ? `楼层-${params.floorId}` : '-');
+    ? (floorTree[0]?.floorName ??
+      (params.floorId
+        ? t('pages.machine.fallback.floor', 'Floor-{id}', { id: params.floorId })
+        : '-'))
+    : (floorTree?.floorName ??
+      (params.floorId
+        ? t('pages.machine.fallback.floor', 'Floor-{id}', { id: params.floorId })
+        : '-'));
   const resolvedBuildingName = Array.isArray(floorTree)
-    ? floorTree[0]?.buildingName ?? (params.buildingId ? `楼栋-${params.buildingId}` : '-')
+    ? (floorTree[0]?.buildingName ??
+      (params.buildingId
+        ? t('pages.machine.fallback.building', 'Building-{id}', { id: params.buildingId })
+        : '-'))
     : params.buildingId
-      ? `楼栋-${params.buildingId}`
+      ? t('pages.machine.fallback.building', 'Building-{id}', { id: params.buildingId })
       : '-';
 
   return {
@@ -188,9 +207,12 @@ const normalizeFloorTreeToPrisonTree = (
     prisonName:
       prisonMeta?.name ??
       (Array.isArray(floorTree)
-        ? floorTree[0]?.prisonName ?? (params.prisonId ? `监狱-${params.prisonId}` : '-')
+        ? (floorTree[0]?.prisonName ??
+          (params.prisonId
+            ? t('pages.machine.fallback.prison', 'Prison-{id}', { id: params.prisonId })
+            : '-'))
         : params.prisonId
-          ? `监狱-${params.prisonId}`
+          ? t('pages.machine.fallback.prison', 'Prison-{id}', { id: params.prisonId })
           : '-'),
     level: prisonMeta?.level,
     buildingList: [
@@ -200,8 +222,8 @@ const normalizeFloorTreeToPrisonTree = (
         floorList: [
           {
             floorId: Array.isArray(floorTree)
-              ? floorTree[0]?.floorId ?? params.floorId
-              : floorTree?.floorId ?? params.floorId,
+              ? (floorTree[0]?.floorId ?? params.floorId)
+              : (floorTree?.floorId ?? params.floorId),
             floorName: resolvedFloorName,
             deviceList: floorDeviceList,
           },
@@ -212,6 +234,11 @@ const normalizeFloorTreeToPrisonTree = (
 };
 
 const MachinePage: React.FC = () => {
+  const intl = useIntl();
+  const t = React.useCallback<MachineTranslate>(
+    (id, defaultMessage, values) => intl.formatMessage({ id, defaultMessage }, values),
+    [intl]
+  );
   const [deviceForm] = Form.useForm();
   const [editDeviceForm] = Form.useForm();
   const { data, loading } = useRequest(queryProvinceList);
@@ -224,7 +251,12 @@ const MachinePage: React.FC = () => {
         setProvinceTreeData(resolved);
       },
       onError: () => {
-        message.error('加载省份设备数据失败，请重试');
+        message.error(
+          t(
+            'pages.machine.message.loadProvinceDevicesFailed',
+            'Failed to load province device data. Please retry.'
+          )
+        );
       },
     }
   );
@@ -237,7 +269,12 @@ const MachinePage: React.FC = () => {
         setPrisonTreeData(resolved);
       },
       onError: () => {
-        message.error('加载监狱设备数据失败，请重试');
+        message.error(
+          t(
+            'pages.machine.message.loadPrisonDevicesFailed',
+            'Failed to load prison device data. Please retry.'
+          )
+        );
       },
     }
   );
@@ -251,12 +288,18 @@ const MachinePage: React.FC = () => {
           normalizeBuildingTreeToPrisonTree(
             resolved,
             detailRequestSelectionRef.current,
-            resolvePrisonMeta(detailRequestSelectionRef.current)
+            resolvePrisonMeta(detailRequestSelectionRef.current),
+            t
           )
         );
       },
       onError: () => {
-        message.error('加载楼宇设备数据失败，请重试');
+        message.error(
+          t(
+            'pages.machine.message.loadBuildingDevicesFailed',
+            'Failed to load building device data. Please retry.'
+          )
+        );
       },
     }
   );
@@ -266,17 +309,24 @@ const MachinePage: React.FC = () => {
       manual: true,
       onSuccess: (result) => {
         const resolved =
-          (result as { data?: DeviceVO[] | FloorTreeVO })?.data ?? (result as DeviceVO[] | FloorTreeVO);
+          (result as { data?: DeviceVO[] | FloorTreeVO })?.data ??
+          (result as DeviceVO[] | FloorTreeVO);
         setPrisonTreeData(
           normalizeFloorTreeToPrisonTree(
             resolved,
             detailRequestSelectionRef.current,
-            resolvePrisonMeta(detailRequestSelectionRef.current)
+            resolvePrisonMeta(detailRequestSelectionRef.current),
+            t
           )
         );
       },
       onError: () => {
-        message.error('加载楼层设备数据失败，请重试');
+        message.error(
+          t(
+            'pages.machine.message.loadFloorDevicesFailed',
+            'Failed to load floor device data. Please retry.'
+          )
+        );
       },
     }
   );
@@ -346,22 +396,30 @@ const MachinePage: React.FC = () => {
     [runQueryPrisonDevicePage]
   );
 
-  const ensurePrisonMetaLoaded = React.useCallback(async (params: OrgTreeSelectionParams) => {
-    if (
-      params.provinceId === undefined ||
-      params.provinceId === null ||
-      provincePrisonsRef.current[String(params.provinceId)]
-    ) {
-      return;
-    }
+  const ensurePrisonMetaLoaded = React.useCallback(
+    async (params: OrgTreeSelectionParams) => {
+      if (
+        params.provinceId === undefined ||
+        params.provinceId === null ||
+        provincePrisonsRef.current[String(params.provinceId)]
+      ) {
+        return;
+      }
 
-    try {
-      const result = await queryProvincePrisons(params.provinceId);
-      provincePrisonsRef.current[String(params.provinceId)] = (result.data ?? []) as PrisonVO[];
-    } catch {
-      message.warning('加载监狱等级失败，将使用默认颜色显示');
-    }
-  }, []);
+      try {
+        const result = await queryProvincePrisons(params.provinceId);
+        provincePrisonsRef.current[String(params.provinceId)] = (result.data ?? []) as PrisonVO[];
+      } catch {
+        message.warning(
+          t(
+            'pages.machine.message.loadPrisonLevelFailed',
+            'Failed to load prison level. Default colors will be used.'
+          )
+        );
+      }
+    },
+    [t]
+  );
 
   const loadBuildingDevicePage = React.useCallback(
     async (params: OrgTreeSelectionParams) => {
@@ -514,7 +572,12 @@ const MachinePage: React.FC = () => {
               floor: floorName,
               deviceNo: device.deviceNo || '-',
               networkNo: device.entireNo || '-',
-              on: device.powerOff === 0 ? 'On' : device.powerOff === 1 ? 'Off' : '-',
+              on:
+                device.powerOff === 0
+                  ? t('pages.machine.status.on', 'On')
+                  : device.powerOff === 1
+                    ? t('pages.machine.status.off', 'Off')
+                    : '-',
               ipAddress: device.ipAddress || '-',
               port: device.port || '-',
               workTime,
@@ -550,7 +613,7 @@ const MachinePage: React.FC = () => {
     });
 
     return rows;
-  }, [provinceTreeData?.prisonList, prisonTreeData, selectedNode.nodeType]);
+  }, [provinceTreeData?.prisonList, prisonTreeData, selectedNode.nodeType, t]);
 
   const machineCards = React.useMemo<ProvinceCard[]>(
     () =>
@@ -681,7 +744,9 @@ const MachinePage: React.FC = () => {
   const handleGroupSwitch = React.useCallback(
     async (groupKey: string, action: 'enable' | 'disable', ids: Array<number | string>) => {
       if (ids.length === 0) {
-        message.warning('当前分组下暂无可操作设备');
+        message.warning(
+          t('pages.machine.message.noOperableDevices', 'No operable devices in this group.')
+        );
         return;
       }
 
@@ -690,15 +755,23 @@ const MachinePage: React.FC = () => {
 
         if (action === 'enable') {
           await enableDevices(ids);
-          message.success('已批量开启设备');
+          message.success(
+            t('pages.machine.message.batchEnableSuccess', 'Devices enabled in batch.')
+          );
         } else {
           await disableDevices(ids);
-          message.success('已批量关闭设备');
+          message.success(
+            t('pages.machine.message.batchDisableSuccess', 'Devices disabled in batch.')
+          );
         }
 
         refreshCurrentDevicePage();
       } catch {
-        message.error(action === 'enable' ? '批量开启设备失败' : '批量关闭设备失败');
+        message.error(
+          action === 'enable'
+            ? t('pages.machine.message.batchEnableFailed', 'Failed to enable devices in batch.')
+            : t('pages.machine.message.batchDisableFailed', 'Failed to disable devices in batch.')
+        );
       } finally {
         setGroupSwitchSubmitting((prev) => {
           const next = { ...prev };
@@ -707,7 +780,7 @@ const MachinePage: React.FC = () => {
         });
       }
     },
-    [refreshCurrentDevicePage]
+    [refreshCurrentDevicePage, t]
   );
 
   const currentModalTree = React.useMemo<PrisonTreeVO[]>(() => {
@@ -744,14 +817,18 @@ const MachinePage: React.FC = () => {
                       }
 
                       return {
-                        label: floor.floorName || `楼层-${floorId}`,
+                        label:
+                          floor.floorName ||
+                          t('pages.machine.fallback.floor', 'Floor-{id}', { id: floorId }),
                         value: floorId,
                       };
                     })
                     .filter(Boolean) ?? [];
 
                 return {
-                  label: building.buildingName || `楼栋-${buildingId}`,
+                  label:
+                    building.buildingName ||
+                    t('pages.machine.fallback.building', 'Building-{id}', { id: buildingId }),
                   value: buildingId,
                   floors,
                 };
@@ -759,13 +836,15 @@ const MachinePage: React.FC = () => {
               .filter(Boolean) ?? [];
 
           return {
-            label: prison.prisonName || `监狱-${prisonId}`,
+            label:
+              prison.prisonName ||
+              t('pages.machine.fallback.prison', 'Prison-{id}', { id: prisonId }),
             value: prisonId,
             buildings,
           };
         })
         .filter(Boolean) as DeviceModalPrisonOption[],
-    [currentModalTree]
+    [currentModalTree, t]
   );
 
   const watchedPrisonId = Form.useWatch('prisonId', deviceForm);
@@ -857,8 +936,11 @@ const MachinePage: React.FC = () => {
       (item) => String(item.provinceId) === String(selectedNode.provinceId)
     );
 
-    return currentProvince?.provinceName || `省份-${selectedNode.provinceId}`;
-  }, [isProvinceView, provinceList, provinceTreeData?.provinceName, selectedNode.provinceId]);
+    return (
+      currentProvince?.provinceName ||
+      t('pages.machine.fallback.province', 'Province-{id}', { id: selectedNode.provinceId ?? '' })
+    );
+  }, [isProvinceView, provinceList, provinceTreeData?.provinceName, selectedNode.provinceId, t]);
 
   const prisonTitle = React.useMemo(() => {
     if (prisonTreeData?.prisonName) {
@@ -866,15 +948,15 @@ const MachinePage: React.FC = () => {
     }
 
     if (isPrisonView) {
-      return `监狱-${selectedNode.prisonId}`;
+      return t('pages.machine.fallback.prison', 'Prison-{id}', { id: selectedNode.prisonId ?? '' });
     }
 
     if (isBuildingView && selectedNode.prisonId !== undefined && selectedNode.prisonId !== null) {
-      return `监狱-${selectedNode.prisonId}`;
+      return t('pages.machine.fallback.prison', 'Prison-{id}', { id: selectedNode.prisonId });
     }
 
     return '-';
-  }, [isBuildingView, isPrisonView, prisonTreeData?.prisonName, selectedNode.prisonId]);
+  }, [isBuildingView, isPrisonView, prisonTreeData?.prisonName, selectedNode.prisonId, t]);
 
   const handleOpenAddDeviceModal = React.useCallback(
     (row: DeviceRow) => {
@@ -883,7 +965,12 @@ const MachinePage: React.FC = () => {
       const floorId = Number(row.floorId);
 
       if (!prisonId || !buildingId || !floorId) {
-        message.warning('当前楼层信息不完整，无法添加设备');
+        message.warning(
+          t(
+            'pages.machine.message.incompleteFloorCannotAdd',
+            'Current floor information is incomplete. Cannot add device.'
+          )
+        );
         return;
       }
 
@@ -909,12 +996,17 @@ const MachinePage: React.FC = () => {
       });
       setDeviceModalOpen(true);
     },
-    [deviceForm]
+    [deviceForm, t]
   );
 
   const handleOpenToolbarAddDeviceModal = React.useCallback(() => {
     if (!isDetailView) {
-      message.warning('请先在左侧选择省份、监狱、楼栋或楼层');
+      message.warning(
+        t(
+          'pages.machine.message.selectOrgFirst',
+          'Please select a province, prison, building, or floor on the left first.'
+        )
+      );
       return;
     }
 
@@ -947,7 +1039,7 @@ const MachinePage: React.FC = () => {
       ...Object.fromEntries(POWER_CHANNEL_KEYS.map((key) => [key, undefined])),
     });
     setDeviceModalOpen(true);
-  }, [deviceForm, isDetailView, selectedNode]);
+  }, [deviceForm, isDetailView, selectedNode, t]);
 
   const handleDeviceCancel = React.useCallback(() => {
     setDeviceModalOpen(false);
@@ -1035,14 +1127,21 @@ const MachinePage: React.FC = () => {
 
   const handleOpenEditDeviceModal = React.useCallback(async () => {
     if (selectedDeviceIds.length !== 1) {
-      message.warning('请选择一台设备进行修改');
+      message.warning(
+        t('pages.machine.message.selectOneDeviceToEdit', 'Please select one device to edit.')
+      );
       return;
     }
 
     const resolvedId = Number(selectedDeviceIds[0]);
 
     if (!resolvedId) {
-      message.warning('当前设备信息不完整，无法修改');
+      message.warning(
+        t(
+          'pages.machine.message.incompleteDeviceCannotEdit',
+          'Current device information is incomplete. Cannot edit.'
+        )
+      );
       return;
     }
 
@@ -1088,13 +1187,23 @@ const MachinePage: React.FC = () => {
       setEditDeviceStep(0);
       setEditDeviceModalOpen(true);
     } catch {
-      message.error('加载设备详情失败，请重试');
+      message.error(
+        t(
+          'pages.machine.message.loadDeviceDetailFailed',
+          'Failed to load device detail. Please retry.'
+        )
+      );
     }
-  }, [editDeviceForm, selectedDeviceIds]);
+  }, [editDeviceForm, selectedDeviceIds, t]);
 
   const handleEditDeviceFinish = React.useCallback(async () => {
     if (!editingDeviceId) {
-      message.warning('当前设备信息不完整，无法保存');
+      message.warning(
+        t(
+          'pages.machine.message.incompleteDeviceCannotSave',
+          'Current device information is incomplete. Cannot save.'
+        )
+      );
       return;
     }
 
@@ -1128,7 +1237,7 @@ const MachinePage: React.FC = () => {
         ...channelPayload,
       });
 
-      message.success('修改成功');
+      message.success(t('pages.machine.message.updateSuccess', 'Updated successfully.'));
       handleEditDeviceCancel();
       refreshCurrentDevicePage();
     } catch (error: any) {
@@ -1136,7 +1245,7 @@ const MachinePage: React.FC = () => {
         return;
       }
 
-      message.error('修改失败');
+      message.error(t('pages.machine.message.updateFailed', 'Update failed.'));
     } finally {
       setEditSubmitting(false);
     }
@@ -1146,6 +1255,7 @@ const MachinePage: React.FC = () => {
     editingDeviceId,
     handleEditDeviceCancel,
     refreshCurrentDevicePage,
+    t,
   ]);
 
   const handleDeviceFinish = React.useCallback(async () => {
@@ -1177,7 +1287,7 @@ const MachinePage: React.FC = () => {
         ...channelPayload,
       });
 
-      message.success('添加成功');
+      message.success(t('pages.machine.message.addSuccess', 'Added successfully.'));
       setDeviceModalOpen(false);
       setDeviceStep(0);
       setAddDeviceContext(null);
@@ -1185,9 +1295,9 @@ const MachinePage: React.FC = () => {
       refreshCurrentDevicePage();
     } catch (error: any) {
       if (error?.errorFields) return;
-      message.error('添加失败');
+      message.error(t('pages.machine.message.addFailed', 'Add failed.'));
     }
-  }, [deviceForm, powerChannelValues, refreshCurrentDevicePage]);
+  }, [deviceForm, powerChannelValues, refreshCurrentDevicePage, t]);
 
   const handleDeviceSelectionChange = React.useCallback(
     (checked: boolean, deviceId: string | number) => {
@@ -1208,10 +1318,14 @@ const MachinePage: React.FC = () => {
     }
 
     Modal.confirm({
-      title: '确认删除选中的设备？',
-      content: `已选中 ${selectedDeviceIds.length} 台设备，删除后不可恢复。`,
-      okText: '确认删除',
-      cancelText: '取消',
+      title: t('pages.machine.deleteConfirm.title', 'Confirm deleting selected devices?'),
+      content: t(
+        'pages.machine.deleteConfirm.content',
+        '{count} devices selected. This cannot be undone.',
+        { count: selectedDeviceIds.length }
+      ),
+      okText: t('pages.machine.deleteConfirm.ok', 'Confirm Delete'),
+      cancelText: t('pages.machine.action.cancel', 'Cancel'),
       okButtonProps: {
         danger: true,
         loading: deleteSubmitting,
@@ -1220,30 +1334,38 @@ const MachinePage: React.FC = () => {
         try {
           setDeleteSubmitting(true);
           await deleteDevices(selectedDeviceIds);
-          message.success('删除成功');
+          message.success(t('pages.machine.message.deleteSuccess', 'Deleted successfully.'));
           setSelectedDeviceIds([]);
           refreshCurrentDevicePage();
         } catch {
-          message.error('删除失败，请重试');
+          message.error(t('pages.machine.message.deleteFailed', 'Delete failed. Please retry.'));
           throw new Error('delete failed');
         } finally {
           setDeleteSubmitting(false);
         }
       },
     });
-  }, [deleteSubmitting, hasSelectedDevices, refreshCurrentDevicePage, selectedDeviceIds]);
+  }, [deleteSubmitting, hasSelectedDevices, refreshCurrentDevicePage, selectedDeviceIds, t]);
 
-  const handleOpenDeviceDetail = React.useCallback((deviceId: string | number) => {
-    const resolvedId = Number(deviceId);
+  const handleOpenDeviceDetail = React.useCallback(
+    (deviceId: string | number) => {
+      const resolvedId = Number(deviceId);
 
-    if (!resolvedId) {
-      message.warning('当前设备信息不完整，无法查看详情');
-      return;
-    }
+      if (!resolvedId) {
+        message.warning(
+          t(
+            'pages.machine.message.incompleteDeviceCannotView',
+            'Current device information is incomplete. Cannot view detail.'
+          )
+        );
+        return;
+      }
 
-    setSelectedDeviceId(resolvedId);
-    setDeviceDetailOpen(true);
-  }, []);
+      setSelectedDeviceId(resolvedId);
+      setDeviceDetailOpen(true);
+    },
+    [t]
+  );
 
   const handleCloseDeviceDetail = React.useCallback(() => {
     setDeviceDetailOpen(false);
@@ -1253,10 +1375,10 @@ const MachinePage: React.FC = () => {
   const renderGroupSwitchControls = React.useCallback(
     (groupKey: string, summary: GroupSwitchSummary) => {
       const statusTextMap: Record<GroupSwitchState, string> = {
-        unknown: '状态未知',
-        allOn: '当前全开',
-        allOff: '当前全关',
-        mixed: '有开有关',
+        unknown: t('pages.machine.switch.unknown', 'Status unknown'),
+        allOn: t('pages.machine.switch.allOnStatus', 'Currently all on'),
+        allOff: t('pages.machine.switch.allOffStatus', 'Currently all off'),
+        mixed: t('pages.machine.switch.mixedStatus', 'Mixed on and off'),
       };
       const submitting = groupSwitchSubmitting[groupKey];
 
@@ -1270,7 +1392,7 @@ const MachinePage: React.FC = () => {
               loading={submitting}
               onClick={() => handleGroupSwitch(groupKey, 'enable', summary.ids)}
             >
-              全开
+              {t('pages.machine.action.allOn', 'All On')}
             </Button>
             <Button
               size="small"
@@ -1278,13 +1400,13 @@ const MachinePage: React.FC = () => {
               loading={submitting}
               onClick={() => handleGroupSwitch(groupKey, 'disable', summary.ids)}
             >
-              全关
+              {t('pages.machine.action.allOff', 'All Off')}
             </Button>
           </div>
         </div>
       );
     },
-    [groupSwitchSubmitting, handleGroupSwitch]
+    [groupSwitchSubmitting, handleGroupSwitch, t]
   );
 
   React.useEffect(() => {
@@ -1315,7 +1437,9 @@ const MachinePage: React.FC = () => {
             {isPrisonView || isBuildingView || isFloorView ? prisonTitle : '-'}
           </td>
           <td colSpan={isProvinceView ? 10 : 9} style={{ textAlign: 'center' }}>
-            {detailLoading ? '加载中...' : '暂无数据'}
+            {detailLoading
+              ? t('pages.machine.status.loading', 'Loading...')
+              : t('pages.machine.status.noData', 'No data')}
           </td>
         </tr>
       );
@@ -1401,7 +1525,7 @@ const MachinePage: React.FC = () => {
                 className={styles.floorAddButton}
                 onClick={() => handleOpenAddDeviceModal(row)}
               >
-                添加设备
+                {t('pages.machine.action.addDevice', 'Add Device')}
               </Button>
             </td>
           ) : (
@@ -1431,7 +1555,7 @@ const MachinePage: React.FC = () => {
               <td style={cellStyle}>
                 {row.hasDevice ? (
                   <a type="link" onClick={() => handleOpenDeviceDetail(row.id)}>
-                    查看
+                    {t('pages.machine.action.view', 'View')}
                   </a>
                 ) : (
                   '-'
@@ -1538,42 +1662,48 @@ const MachinePage: React.FC = () => {
             ) : (
               <>
                 <div className={styles.toolbar}>
-                  <Button type="primary">所有设备</Button>
-                  <Button onClick={handleOpenToolbarAddDeviceModal}>添加设备</Button>
+                  <Button type="primary">
+                    {t('pages.machine.action.allDevices', 'All Devices')}
+                  </Button>
+                  <Button onClick={handleOpenToolbarAddDeviceModal}>
+                    {t('pages.machine.action.addDevice', 'Add Device')}
+                  </Button>
                   <Button
                     disabled={!canEditDevice}
                     loading={editSubmitting}
                     onClick={handleOpenEditDeviceModal}
                   >
-                    修改
+                    {t('pages.machine.action.edit', 'Edit')}
                   </Button>
                   <Button
                     disabled={!hasSelectedDevices || deleteSubmitting}
                     loading={deleteSubmitting}
                     onClick={handleDeleteDevices}
                   >
-                    删除
+                    {t('pages.machine.action.delete', 'Delete')}
                   </Button>
                   <div className={styles.searchArea}>
-                    <Input placeholder="请输入" />
-                    <Button>查找</Button>
+                    <Input placeholder={t('pages.machine.placeholder.search', 'Please enter')} />
+                    <Button>{t('pages.machine.action.find', 'Find')}</Button>
                   </div>
                 </div>
                 <div className={styles.tableWrap}>
                   <table className={styles.deviceTable}>
                     <thead>
                       <tr>
-                        {isProvinceView && <th>省份</th>}
-                        <th>监狱</th>
-                        <th>楼栋</th>
-                        <th>楼层</th>
-                        <th>设备编号</th>
-                        <th>全网编号</th>
-                        <th>开关</th>
+                        {isProvinceView && (
+                          <th>{t('pages.machine.column.province', 'Province')}</th>
+                        )}
+                        <th>{t('pages.machine.column.prison', 'Prison')}</th>
+                        <th>{t('pages.machine.column.building', 'Building')}</th>
+                        <th>{t('pages.machine.column.floor', 'Floor')}</th>
+                        <th>{t('pages.machine.column.deviceNo', 'Device No.')}</th>
+                        <th>{t('pages.machine.column.networkNo', 'Network No.')}</th>
+                        <th>{t('pages.machine.column.switch', 'Switch')}</th>
                         <th>IP</th>
-                        <th>端口号</th>
-                        <th>工作时间配置</th>
-                        <th>查看</th>
+                        <th>{t('pages.machine.column.port', 'Port')}</th>
+                        <th>{t('pages.machine.column.workTime', 'Work Time')}</th>
+                        <th>{t('pages.machine.column.view', 'View')}</th>
                         <th />
                       </tr>
                     </thead>
@@ -1588,7 +1718,7 @@ const MachinePage: React.FC = () => {
                       setPrisonTreeData(undefined);
                     }}
                   >
-                    返回
+                    {t('pages.machine.action.back', 'Back')}
                   </Button>
                 </div>
               </>

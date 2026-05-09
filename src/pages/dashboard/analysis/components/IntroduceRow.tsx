@@ -1,5 +1,6 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { Area, Column } from '@ant-design/plots';
+import { useIntl } from '@umijs/max';
 import { Col, Progress, Row, Tooltip } from 'antd';
 import numeral from 'numeral';
 import type { DataItem } from '../data.d';
@@ -18,22 +19,22 @@ const topColResponsiveProps = {
     marginBottom: 24,
   },
 };
-const IntroduceRow = ({
-  loading,
-  visitData,
-}: {
-  loading: boolean;
-  visitData: DataItem[];
-}) => {
+const IntroduceRow = ({ loading, visitData }: { loading: boolean; visitData: DataItem[] }) => {
+  const intl = useIntl();
   const { styles } = useStyles();
+  const t = (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage });
+  const tooltipTitle = t('pages.dashboard.analysis.metricDescription', 'Metric description');
+  const weekRatio = t('pages.dashboard.analysis.weekRatio', 'WoW');
+  const dayRatio = t('pages.dashboard.analysis.dayRatio', 'DoD');
+
   return (
     <Row gutter={24}>
       <Col {...topColResponsiveProps}>
         <ChartCard
           bordered={false}
-          title="总销售额"
+          title={t('pages.dashboard.analysis.totalSales', 'Total Sales')}
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title={tooltipTitle}>
               <InfoCircleOutlined />
             </Tooltip>
           }
@@ -41,8 +42,8 @@ const IntroduceRow = ({
           total={() => <Yuan>126560</Yuan>}
           footer={
             <Field
-              label="日销售额"
-              value={`￥${numeral(12423).format('0,0')}`}
+              label={t('pages.dashboard.analysis.dailySales', 'Daily Sales')}
+              value={`¥${numeral(12423).format('0,0')}`}
             />
           }
           contentHeight={46}
@@ -53,11 +54,11 @@ const IntroduceRow = ({
               marginRight: 16,
             }}
           >
-            周同比
+            {weekRatio}
             <span className={styles.trendText}>12%</span>
           </Trend>
           <Trend flag="down">
-            日同比
+            {dayRatio}
             <span className={styles.trendText}>11%</span>
           </Trend>
         </ChartCard>
@@ -67,15 +68,18 @@ const IntroduceRow = ({
         <ChartCard
           bordered={false}
           loading={loading}
-          title="访问量"
+          title={t('pages.dashboard.analysis.visits', 'Visits')}
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title={tooltipTitle}>
               <InfoCircleOutlined />
             </Tooltip>
           }
           total={numeral(8846).format('0,0')}
           footer={
-            <Field label="日访问量" value={numeral(1234).format('0,0')} />
+            <Field
+              label={t('pages.dashboard.analysis.dailyVisits', 'Daily Visits')}
+              value={numeral(1234).format('0,0')}
+            />
           }
           contentHeight={46}
         >
@@ -99,14 +103,19 @@ const IntroduceRow = ({
         <ChartCard
           bordered={false}
           loading={loading}
-          title="支付笔数"
+          title={t('pages.dashboard.analysis.payments', 'Payments')}
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title={tooltipTitle}>
               <InfoCircleOutlined />
             </Tooltip>
           }
           total={numeral(6560).format('0,0')}
-          footer={<Field label="转化率" value="60%" />}
+          footer={
+            <Field
+              label={t('pages.dashboard.analysis.conversionRate', 'Conversion Rate')}
+              value="60%"
+            />
+          }
           contentHeight={46}
         >
           <Column
@@ -124,9 +133,9 @@ const IntroduceRow = ({
         <ChartCard
           loading={loading}
           bordered={false}
-          title="运营活动效果"
+          title={t('pages.dashboard.analysis.operationalEffect', 'Operational Activity Effect')}
           action={
-            <Tooltip title="指标说明">
+            <Tooltip title={tooltipTitle}>
               <InfoCircleOutlined />
             </Tooltip>
           }
@@ -144,22 +153,18 @@ const IntroduceRow = ({
                   marginRight: 16,
                 }}
               >
-                周同比
+                {weekRatio}
                 <span className={styles.trendText}>12%</span>
               </Trend>
               <Trend flag="down">
-                日同比
+                {dayRatio}
                 <span className={styles.trendText}>11%</span>
               </Trend>
             </div>
           }
           contentHeight={46}
         >
-          <Progress
-            percent={78}
-            strokeColor={{ from: '#108ee9', to: '#87d068' }}
-            status="active"
-          />
+          <Progress percent={78} strokeColor={{ from: '#108ee9', to: '#87d068' }} status="active" />
         </ChartCard>
       </Col>
     </Row>

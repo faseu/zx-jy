@@ -1,7 +1,8 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useParams, useRequest } from '@umijs/max';
+import { history, useIntl, useParams, useRequest } from '@umijs/max';
 import { Button, Col, Divider, Form, List, Row, Spin, message } from 'antd';
 import React, { useMemo, useState } from 'react';
+import gb from '@/assets/gb.png';
 import BuildingFormModal from '../components/BuildingFormModal';
 import PrisonFormModal from '../components/PrisonFormModal';
 import type { BuildingDetailVO, BuildingFormVO, PrisonFormVO, PrisonInfoVO } from '../data.d';
@@ -14,13 +15,13 @@ import {
   updateBuilding,
   updatePrison,
 } from '../service';
-import gb from '@/assets/gb.png';
 
 type BuildingListItem = Omit<BuildingDetailVO, 'id'> & { __isNew?: boolean; id?: number | string };
 
 const cardColors = ['#fafef3'];
 
 const PrisonDetailPage: React.FC = () => {
+  const intl = useIntl();
   const params = useParams<{ id: string }>();
   const prisonId = params.id ?? '';
 
@@ -81,7 +82,7 @@ const PrisonDetailPage: React.FC = () => {
     try {
       const { data: buildingFormData } = await queryBuildingForm(buildingId);
       if (!buildingFormData) {
-        message.error('获取楼栋表单失败，请重试');
+        message.error(intl.formatMessage({ id: 'pages.region.message.buildingFormLoadFailed' }));
         return;
       }
       setBuildingModalMode('edit');
@@ -90,7 +91,7 @@ const PrisonDetailPage: React.FC = () => {
       buildingForm.setFieldsValue(buildingFormData);
       setIsBuildingModalOpen(true);
     } catch (error) {
-      message.error('获取楼栋表单失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.buildingFormLoadFailed' }));
     }
   };
 
@@ -101,14 +102,14 @@ const PrisonDetailPage: React.FC = () => {
     try {
       const { data: prisonFormData } = await queryPrisonForm(prisonId);
       if (!prisonFormData) {
-        message.error('获取监狱表单失败，请重试');
+        message.error(intl.formatMessage({ id: 'pages.region.message.prisonFormLoadFailed' }));
         return;
       }
       setEditingPrisonForm(prisonFormData);
       prisonForm.setFieldsValue(prisonFormData);
       setIsPrisonModalOpen(true);
     } catch (error) {
-      message.error('获取监狱表单失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.prisonFormLoadFailed' }));
     }
   };
 
@@ -124,10 +125,10 @@ const PrisonDetailPage: React.FC = () => {
           id: editingBuildingForm?.id ?? editingBuildingId,
         };
         await updateBuilding(editingBuildingId, payload);
-        message.success('楼栋信息已更新');
+        message.success(intl.formatMessage({ id: 'pages.region.message.buildingUpdated' }));
       } else {
         if (!values.prisonId) {
-          message.error('缺少监狱信息，请刷新页面后重试');
+          message.error(intl.formatMessage({ id: 'pages.region.message.prisonMissing' }));
           return;
         }
         await createBuilding({
@@ -136,7 +137,7 @@ const PrisonDetailPage: React.FC = () => {
           groundFloorNum: values.groundFloorNum,
           undergroundFloorNum: values.undergroundFloorNum,
         });
-        message.success('已提交新增楼栋信息');
+        message.success(intl.formatMessage({ id: 'pages.region.message.buildingCreated' }));
       }
 
       setIsBuildingModalOpen(false);
@@ -145,7 +146,7 @@ const PrisonDetailPage: React.FC = () => {
       buildingForm.resetFields();
       refreshBuildings();
     } catch (error) {
-      message.error('提交失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.submitFailed' }));
     } finally {
       setBuildingSubmitLoading(false);
     }
@@ -165,24 +166,39 @@ const PrisonDetailPage: React.FC = () => {
         id: editingPrisonForm?.id ?? Number(prisonId),
       };
       await updatePrison(prisonId, payload);
-      message.success('监狱信息已更新');
+      message.success(intl.formatMessage({ id: 'pages.region.message.prisonUpdated' }));
       setIsPrisonModalOpen(false);
       setEditingPrisonForm(undefined);
       prisonForm.resetFields();
       refreshDetail();
     } catch (error) {
-      message.error('提交失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.submitFailed' }));
     } finally {
       setPrisonSubmitLoading(false);
     }
   };
 
   const stats = [
-    { label: '楼栋', value: detail?.buildingNum ?? 0 },
-    { label: '设备', value: detail?.totalDevices ?? 0 },
-    { label: '在线', value: detail?.onlineDevices ?? 0 },
-    { label: '离线', value: detail?.offlineDevices ?? 0 },
-    { label: '告警', value: detail?.totalAlarms ?? 0 },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.building' }),
+      value: detail?.buildingNum ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.device' }),
+      value: detail?.totalDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.online' }),
+      value: detail?.onlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.offline' }),
+      value: detail?.offlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.alarm' }),
+      value: detail?.totalAlarms ?? 0,
+    },
   ];
 
   return (
@@ -206,7 +222,7 @@ const PrisonDetailPage: React.FC = () => {
                 style={{ position: 'absolute', top: 12, right: 12 }}
                 onClick={handleOpenPrisonEditModal}
               >
-                编辑
+                {intl.formatMessage({ id: 'pages.region.action.edit' })}
               </Button>
               <div
                 style={{
@@ -227,7 +243,9 @@ const PrisonDetailPage: React.FC = () => {
             <Spin spinning={detailLoading || buildingsLoading}>
               <div style={{ minHeight: 680, padding: '18px 26px' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => history.back()}>返回</Button>
+                  <Button onClick={() => history.back()}>
+                    {intl.formatMessage({ id: 'pages.region.action.back' })}
+                  </Button>
                 </div>
 
                 <div
@@ -307,18 +325,25 @@ const PrisonDetailPage: React.FC = () => {
                                 handleOpenBuildingEditModal(item.id as number | undefined);
                               }}
                             >
-                              编辑
+                              {intl.formatMessage({ id: 'pages.region.action.edit' })}
                             </Button>
                           </div>
                           <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
                             <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
-                              {item.name || '未命名楼栋'}
+                              {item.name ||
+                                intl.formatMessage({ id: 'pages.region.fallback.unnamedBuilding' })}
                             </div>
                             <div style={{ fontSize: '28px', marginTop: 14 }}>
-                              层数: {item.floorNum ?? 0}
+                              {intl.formatMessage(
+                                { id: 'pages.region.label.floorCount' },
+                                { count: item.floorNum ?? 0 }
+                              )}
                             </div>
                             <div style={{ fontSize: '28px', marginTop: 4 }}>
-                              设备数: {item.totalDevices ?? 0}
+                              {intl.formatMessage(
+                                { id: 'pages.region.label.deviceCount' },
+                                { count: item.totalDevices ?? 0 }
+                              )}
                             </div>
                           </div>
                         </div>

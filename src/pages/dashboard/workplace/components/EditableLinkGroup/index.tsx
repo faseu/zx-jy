@@ -1,7 +1,9 @@
 import { PlusOutlined } from '@ant-design/icons';
+import { useIntl } from '@umijs/max';
 import { Button } from 'antd';
 import React, { createElement } from 'react';
 import useStyles from './index.style';
+
 export type EditableLink = {
   title: string;
   href: string;
@@ -13,6 +15,7 @@ type EditableLinkGroupProps = {
   linkElement: any;
 };
 const EditableLinkGroup: React.FC<EditableLinkGroupProps> = (props) => {
+  const intl = useIntl();
   const { styles } = useStyles();
   const { links = [], linkElement = 'a', onAdd = () => {} } = props;
   return (
@@ -25,11 +28,15 @@ const EditableLinkGroup: React.FC<EditableLinkGroupProps> = (props) => {
             to: link.href,
             href: link.href,
           },
-          link.title,
-        ),
+          link.title
+        )
       )}
       <Button size="small" type="primary" ghost onClick={onAdd}>
-        <PlusOutlined /> 添加
+        <PlusOutlined />{' '}
+        {intl.formatMessage({
+          id: 'pages.dashboard.workplace.add',
+          defaultMessage: 'Add',
+        })}
       </Button>
     </div>
   );

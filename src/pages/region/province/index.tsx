@@ -1,9 +1,10 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useParams, useRequest } from '@umijs/max';
+import { history, useIntl, useParams, useRequest } from '@umijs/max';
 import { Button, Col, Divider, Form, List, Row, Spin, message } from 'antd';
 import React, { useMemo, useState } from 'react';
-import type { PrisonFormVO, PrisonVO, ProvinceDetailVO } from '../data.d';
+import gb from '@/assets/gb.png';
 import PrisonFormModal from '../components/PrisonFormModal';
+import type { PrisonFormVO, PrisonVO, ProvinceDetailVO } from '../data.d';
 import {
   createPrison,
   queryPrisonForm,
@@ -11,13 +12,13 @@ import {
   queryProvincePrisons,
   updatePrison,
 } from '../service';
-import gb from '@/assets/gb.png';
 
 type PrisonListItem = Omit<PrisonVO, 'id'> & { __isNew?: boolean; id?: number | string };
 
 const cardColors = ['#cae9f8', '#f0dd93', '#e8c0c9'];
 
 const ProvinceDetailPage: React.FC = () => {
+  const intl = useIntl();
   const params = useParams<{ id: string }>();
   const provinceId = params.id ?? '';
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,7 +69,7 @@ const ProvinceDetailPage: React.FC = () => {
     try {
       const { data: prisonForm } = await queryPrisonForm(prisonId);
       if (!prisonForm) {
-        message.error('获取监狱表单失败，请重试');
+        message.error(intl.formatMessage({ id: 'pages.region.message.prisonFormLoadFailed' }));
         return;
       }
       setModalMode('edit');
@@ -77,7 +78,7 @@ const ProvinceDetailPage: React.FC = () => {
       form.setFieldsValue(prisonForm);
       setIsModalOpen(true);
     } catch (error) {
-      message.error('获取监狱表单失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.prisonFormLoadFailed' }));
     }
   };
 
@@ -92,10 +93,10 @@ const ProvinceDetailPage: React.FC = () => {
           id: editingPrisonForm?.id ?? editingPrisonId,
         };
         await updatePrison(editingPrisonId, payload);
-        message.success('监狱信息已更新');
+        message.success(intl.formatMessage({ id: 'pages.region.message.prisonUpdated' }));
       } else {
         await createPrison(values);
-        message.success('已提交新增监狱信息');
+        message.success(intl.formatMessage({ id: 'pages.region.message.prisonCreated' }));
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -103,18 +104,33 @@ const ProvinceDetailPage: React.FC = () => {
       setEditingPrisonForm(undefined);
       refreshPrisons();
     } catch (error) {
-      message.error('提交失败，请重试');
+      message.error(intl.formatMessage({ id: 'pages.region.message.submitFailed' }));
     } finally {
       setSubmitLoading(false);
     }
   };
 
   const stats = [
-    { label: '监狱', value: detail?.totalPrisons ?? 0 },
-    { label: '设备', value: detail?.totalDevices ?? 0 },
-    { label: '在线', value: detail?.onlineDevices ?? 0 },
-    { label: '离线', value: detail?.offlineDevices ?? 0 },
-    { label: '告警', value: detail?.totalAlarms ?? 0 },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.prison' }),
+      value: detail?.totalPrisons ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.device' }),
+      value: detail?.totalDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.online' }),
+      value: detail?.onlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.offline' }),
+      value: detail?.offlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.alarm' }),
+      value: detail?.totalAlarms ?? 0,
+    },
   ];
 
   return (
@@ -126,7 +142,7 @@ const ProvinceDetailPage: React.FC = () => {
               style={{
                 position: 'relative',
                 height: 'calc(100vh - 128px)',
-                backgroundImage: 'url(' + gb + ')',
+                backgroundImage: `url(${gb})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 display: 'flex',
@@ -134,7 +150,6 @@ const ProvinceDetailPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              {/*<Button style={{ position: 'absolute', top: 12, right: 12 }}>编辑</Button>*/}
               <div
                 style={{
                   fontSize: 48,
@@ -153,7 +168,9 @@ const ProvinceDetailPage: React.FC = () => {
             <Spin spinning={detailLoading || prisonsLoading}>
               <div style={{ minHeight: 680, padding: '18px 26px' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => history.back()}>返回</Button>
+                  <Button onClick={() => history.back()}>
+                    {intl.formatMessage({ id: 'pages.region.action.back' })}
+                  </Button>
                 </div>
 
                 <div
@@ -185,72 +202,83 @@ const ProvinceDetailPage: React.FC = () => {
                 <List
                   grid={{ gutter: 12, xs: 1, sm: 2, md: 4, lg: 4, xl: 4, xxl: 4 }}
                   dataSource={listData}
-                  renderItem={(item, index) => (
-                    <List.Item style={{ marginBottom: 0 }}>
-                      {item.__isNew ? (
-                        <div
-                          onClick={handleOpenModal}
-                          style={{
-                            minHeight: 220,
-                            border: '1px solid #cdcdcd',
-                            background: '#f7f7f7',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexDirection: 'column',
-                            padding: '12px',
-                            marginTop: '12px',
-                            color: '#d7b8bd',
-                          }}
-                        >
-                          <div style={{ fontSize: 58, lineHeight: 1, marginBottom: 8 }}>NEW</div>
-                          <div style={{ fontSize: 92, lineHeight: 1, color: '#b9b9b9' }}>+</div>
-                        </div>
-                      ) : (
-                        <div
-                          onClick={() => {
-                            if (item.id !== undefined && item.id !== null) {
-                              history.push(`/region/prison/${item.id}`);
-                            }
-                          }}
-                          style={{
-                            minHeight: 220,
-                            border: '1px solid #c5c5c5',
-                            background: cardColors[item?.level - 1 || 0],
-                            padding: '12px',
-                            boxSizing: 'border-box',
-                            marginTop: '12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                          }}
-                        >
-                          <div style={{ position: 'absolute', top: 12, left: 24 }}>
-                            <Button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleOpenEditModal(item.id as number | undefined);
-                              }}
-                            >
-                              编辑
-                            </Button>
+                  renderItem={(item) => {
+                    const colorIndex = Math.max((item.level ?? 1) - 1, 0) % cardColors.length;
+
+                    return (
+                      <List.Item style={{ marginBottom: 0 }}>
+                        {item.__isNew ? (
+                          <div
+                            onClick={handleOpenModal}
+                            style={{
+                              minHeight: 220,
+                              border: '1px solid #cdcdcd',
+                              background: '#f7f7f7',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexDirection: 'column',
+                              padding: '12px',
+                              marginTop: '12px',
+                              color: '#d7b8bd',
+                            }}
+                          >
+                            <div style={{ fontSize: 58, lineHeight: 1, marginBottom: 8 }}>NEW</div>
+                            <div style={{ fontSize: 92, lineHeight: 1, color: '#b9b9b9' }}>+</div>
                           </div>
-                          <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
-                            <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
-                              {item.name || '未命名监狱'}
+                        ) : (
+                          <div
+                            onClick={() => {
+                              if (item.id !== undefined && item.id !== null) {
+                                history.push(`/region/prison/${item.id}`);
+                              }
+                            }}
+                            style={{
+                              minHeight: 220,
+                              border: '1px solid #c5c5c5',
+                              background: cardColors[colorIndex],
+                              padding: '12px',
+                              boxSizing: 'border-box',
+                              marginTop: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                            }}
+                          >
+                            <div style={{ position: 'absolute', top: 12, left: 24 }}>
+                              <Button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenEditModal(item.id as number | undefined);
+                                }}
+                              >
+                                {intl.formatMessage({ id: 'pages.region.action.edit' })}
+                              </Button>
                             </div>
-                            <div style={{ fontSize: '28px', marginTop: 14 }}>
-                              楼数: {item.buildingNum ?? 0}
-                            </div>
-                            <div style={{ fontSize: '28px', marginTop: 4 }}>
-                              设备数: {item.totalDevices ?? 0}
+                            <div style={{ marginTop: 28, textAlign: 'center', color: '#111' }}>
+                              <div style={{ fontSize: '38px', lineHeight: 1.2 }}>
+                                {item.name ||
+                                  intl.formatMessage({ id: 'pages.region.fallback.unnamedPrison' })}
+                              </div>
+                              <div style={{ fontSize: '28px', marginTop: 14 }}>
+                                {intl.formatMessage(
+                                  { id: 'pages.region.label.buildingCount' },
+                                  { count: item.buildingNum ?? 0 }
+                                )}
+                              </div>
+                              <div style={{ fontSize: '28px', marginTop: 4 }}>
+                                {intl.formatMessage(
+                                  { id: 'pages.region.label.deviceCount' },
+                                  { count: item.totalDevices ?? 0 }
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </List.Item>
-                  )}
+                        )}
+                      </List.Item>
+                    );
+                  }}
                 />
               </div>
             </Spin>

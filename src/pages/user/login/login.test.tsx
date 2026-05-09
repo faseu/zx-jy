@@ -1,4 +1,3 @@
-﻿// @ts-ignore
 import { startMock } from '@@/requestRecordMock';
 import { TestBrowser } from '@@/testBrowser';
 import { fireEvent, render } from '@testing-library/react';
@@ -36,20 +35,17 @@ describe('Login Page', () => {
         location={{
           pathname: '/user/login',
         }}
-      />,
+      />
     );
 
-    await rootContainer.findAllByText('Ant Design');
+    await rootContainer.findAllByText('Salam');
 
     act(() => {
       historyRef.current?.push('/user/login');
     });
 
-    expect(
-      rootContainer.baseElement?.querySelector('.ant-pro-form-login-desc')
-        ?.textContent,
-    ).toBe(
-      'Ant Design is the most influential web design specification in Xihu district',
+    expect(rootContainer.baseElement?.querySelector('.ant-pro-form-login-desc')?.textContent).toBe(
+      'Salam, Welcome toJamming Managment System'
     );
 
     expect(rootContainer.asFragment()).toMatchSnapshot();
@@ -65,22 +61,18 @@ describe('Login Page', () => {
         location={{
           pathname: '/user/login',
         }}
-      />,
+      />
     );
 
-    await rootContainer.findAllByText('Ant Design');
+    await rootContainer.findAllByText('Salam');
 
-    const userNameInput = await rootContainer.findByPlaceholderText(
-      'Username: admin or user',
-    );
+    const userNameInput = await rootContainer.findByPlaceholderText('Username');
 
     act(() => {
       fireEvent.change(userNameInput, { target: { value: 'admin' } });
     });
 
-    const passwordInput = await rootContainer.findByPlaceholderText(
-      'Password: ant.design',
-    );
+    const passwordInput = await rootContainer.findByPlaceholderText('Password');
 
     act(() => {
       fireEvent.change(passwordInput, { target: { value: 'ant.design' } });
@@ -88,7 +80,7 @@ describe('Login Page', () => {
 
     await (await rootContainer.findByText('Login')).click();
 
-    // 等待接口返回结果
+    // Wait for the mocked API response.
     await waitTime(5000);
 
     await rootContainer.findAllByText('Salam');

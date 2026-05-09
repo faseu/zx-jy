@@ -1,5 +1,5 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useLocation, useParams, useRequest } from '@umijs/max';
+import { history, useIntl, useLocation, useParams, useRequest } from '@umijs/max';
 import { Button, Col, Divider, Empty, Form, Modal, Row, Select, Spin, Upload, message } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import gb from '@/assets/gb.png';
@@ -16,9 +16,9 @@ import Point from 'ol/geom/Point';
 import { defaults as defaultInteractions, Select as OlSelect, Translate } from 'ol/interaction';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 import { getCenter } from 'ol/extent';
-import type { BuildingInfoVO } from '../data.d';
 import AddDeviceModal from '../components/AddDeviceModal';
 import DeviceDetailModal from '../components/DeviceDetailModal';
+import type { BuildingInfoVO } from '../data.d';
 import {
   createDevice,
   queryBuildingFloorForm,
@@ -54,6 +54,7 @@ const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
 ) as Record<string, number>;
 
 const BuildingDetailPage: React.FC = () => {
+  const intl = useIntl();
   const [selectedFloorId, setSelectedFloorId] = useState<number | null>(null);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
@@ -152,7 +153,9 @@ const BuildingDetailPage: React.FC = () => {
   const prisonOptions = prisonId
     ? [
         {
-          label: prisonDetail?.name || `监狱${prisonId}`,
+          label:
+            prisonDetail?.name ||
+            intl.formatMessage({ id: 'pages.region.fallback.prisonWithId' }, { id: prisonId }),
           value: Number(prisonId),
         },
       ]
@@ -160,7 +163,9 @@ const BuildingDetailPage: React.FC = () => {
 
   const deviceBuildingOptions =
     deviceBuildingsData?.map((item: any) => ({
-      label: item.name || `楼栋${item.id}`,
+      label:
+        item.name ||
+        intl.formatMessage({ id: 'pages.region.fallback.buildingWithId' }, { id: item.id }),
       value: Number(item.id),
     })) ?? [];
 
@@ -232,10 +237,10 @@ const BuildingDetailPage: React.FC = () => {
     setMarkerAction(null);
     void updateDeviceXY(deviceId, String(targetCoord[0]), String(targetCoord[1]))
       .then(() => {
-        message.success('设备位置已更新');
+        message.success(intl.formatMessage({ id: 'pages.region.message.devicePositionUpdated' }));
       })
       .catch(() => {
-        message.error('设备坐标保存失败，请重试');
+        message.error(intl.formatMessage({ id: 'pages.region.message.devicePositionSaveFailed' }));
       });
     setPlacingDeviceId(null);
   };
@@ -288,9 +293,12 @@ const BuildingDetailPage: React.FC = () => {
       const fitByLongestEdge = (targetMap: OlMap) => {
         const size = targetMap.getSize();
         if (!size) return;
-        const [containerWidth, containerHeight] = size;
-        if (!containerWidth || !containerHeight) return;
-        const resolution = Math.max(imageWidth / containerWidth, imageHeight / containerHeight);
+        const [targetContainerWidth, targetContainerHeight] = size;
+        if (!targetContainerWidth || !targetContainerHeight) return;
+        const resolution = Math.max(
+          imageWidth / targetContainerWidth,
+          imageHeight / targetContainerHeight
+        );
         const view = targetMap.getView();
         view.setCenter(getCenter(extent));
         view.setResolution(resolution);
@@ -576,19 +584,19 @@ const BuildingDetailPage: React.FC = () => {
       const floorDrawing = file?.response?.data?.url ?? '';
       const floorId = Number(values.floor);
       if (!floorId || !floorDrawing) {
-        message.error('请先选择楼层并上传图纸');
+        message.error(intl.formatMessage({ id: 'pages.region.message.selectFloorAndUpload' }));
         return;
       }
       setPlanSubmitting(true);
       await updateFloorDrawing(floorId, floorDrawing);
       await refreshFloors();
       await refreshFloorForm();
-      message.success('添加成功');
+      message.success(intl.formatMessage({ id: 'pages.region.message.addSuccess' }));
       setPlanModalOpen(false);
       planForm.resetFields();
     } catch (error: any) {
       if (error?.errorFields) return;
-      message.error('添加失败');
+      message.error(intl.formatMessage({ id: 'pages.region.message.addFailed' }));
     } finally {
       setPlanSubmitting(false);
     }
@@ -640,7 +648,7 @@ const BuildingDetailPage: React.FC = () => {
         endTime: formatTime(values.stopTime),
         ...channelPayload,
       });
-      message.success('添加成功');
+      message.success(intl.formatMessage({ id: 'pages.region.message.addSuccess' }));
       setDeviceModalOpen(false);
       setDeviceStep(0);
       deviceForm.resetFields();
@@ -649,7 +657,7 @@ const BuildingDetailPage: React.FC = () => {
       }
     } catch (error: any) {
       if (error?.errorFields) return;
-      message.error('添加失败');
+      message.error(intl.formatMessage({ id: 'pages.region.message.addFailed' }));
     }
   };
 
@@ -658,7 +666,7 @@ const BuildingDetailPage: React.FC = () => {
     deviceForm.setFieldsValue({ buildingId: undefined, floorId: undefined });
   };
 
-  const handleDeviceBuildingChange = (value: number | null) => {
+  const handleDeviceBuildingChange = () => {
     deviceForm.setFieldsValue({ floorId: undefined });
   };
 
@@ -681,15 +689,30 @@ const BuildingDetailPage: React.FC = () => {
   const handleAdjustDevicePosition = (deviceId: number) => {
     setMarkerAction(null);
     setPlacingDeviceId(deviceId);
-    message.info(`请点击地图或拖拽，更新设备 ${deviceId} 的位置`);
+    message.info(intl.formatMessage({ id: 'pages.region.message.placeDeviceHint' }, { deviceId }));
   };
 
   const stats = [
-    { label: '建筑层数', value: detail?.floorNum ?? 0 },
-    { label: '设备', value: detail?.totalDevices ?? 0 },
-    { label: '在线', value: detail?.onlineDevices ?? 0 },
-    { label: '离线', value: detail?.offlineDevices ?? 0 },
-    { label: '告警', value: detail?.totalAlarms ?? 0 },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.buildingFloors' }),
+      value: detail?.floorNum ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.device' }),
+      value: detail?.totalDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.online' }),
+      value: detail?.onlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.offline' }),
+      value: detail?.offlineDevices ?? 0,
+    },
+    {
+      label: intl.formatMessage({ id: 'pages.region.field.alarm' }),
+      value: detail?.totalAlarms ?? 0,
+    },
   ];
 
   return (
@@ -701,7 +724,7 @@ const BuildingDetailPage: React.FC = () => {
               style={{
                 position: 'relative',
                 height: 'calc(100vh - 128px)',
-                backgroundImage: 'url(' + gb + ')',
+                backgroundImage: `url(${gb})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 display: 'flex',
@@ -709,7 +732,9 @@ const BuildingDetailPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{ position: 'absolute', top: 12, right: 12 }}>编辑</Button>
+              <Button style={{ position: 'absolute', top: 12, right: 12 }}>
+                {intl.formatMessage({ id: 'pages.region.action.edit' })}
+              </Button>
               <div
                 style={{
                   fontSize: 48,
@@ -729,7 +754,9 @@ const BuildingDetailPage: React.FC = () => {
             <Spin spinning={detailLoading || floorFormLoading}>
               <div style={{ minHeight: 680, padding: '18px 26px' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => history.back()}>返回</Button>
+                  <Button onClick={() => history.back()}>
+                    {intl.formatMessage({ id: 'pages.region.action.back' })}
+                  </Button>
                 </div>
 
                 <div
@@ -767,7 +794,9 @@ const BuildingDetailPage: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 30, color: '#111' }}>当前楼层:</span>
+                    <span style={{ fontSize: 30, color: '#111' }}>
+                      {intl.formatMessage({ id: 'pages.region.label.currentFloor' })}
+                    </span>
                     <Select
                       value={Number(selectedFloorId)}
                       onChange={handleFloorChange}
@@ -777,9 +806,11 @@ const BuildingDetailPage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button type="primary" onClick={handleOpenPlanModal}>
-                      添加楼层图纸
+                      {intl.formatMessage({ id: 'pages.region.action.addFloorDrawing' })}
                     </Button>
-                    <Button onClick={handleOpenDeviceModal}>添加设备</Button>
+                    <Button onClick={handleOpenDeviceModal}>
+                      {intl.formatMessage({ id: 'pages.region.action.addDevice' })}
+                    </Button>
                   </div>
                 </div>
 
@@ -819,7 +850,9 @@ const BuildingDetailPage: React.FC = () => {
                       >
                         <Empty
                           description={
-                            currentFloorDrawing ? '当前图纸格式不支持地图渲染' : '当前楼层暂无图纸'
+                            currentFloorDrawing
+                              ? intl.formatMessage({ id: 'pages.region.status.drawingUnsupported' })
+                              : intl.formatMessage({ id: 'pages.region.status.floorNoDrawing' })
                           }
                         />
                       </div>
@@ -836,7 +869,9 @@ const BuildingDetailPage: React.FC = () => {
                           zIndex: 2,
                         }}
                       >
-                        <Spin tip="图纸加载中..." />
+                        <Spin
+                          tip={intl.formatMessage({ id: 'pages.region.status.drawingLoading' })}
+                        />
                       </div>
                     ) : null}
                     {placingDeviceId ? (
@@ -852,7 +887,10 @@ const BuildingDetailPage: React.FC = () => {
                           fontSize: 12,
                         }}
                       >
-                        当前选择设备 {placingDeviceId}：点击地图或拖拽放置
+                        {intl.formatMessage(
+                          { id: 'pages.region.label.selectedDevicePlacement' },
+                          { deviceId: placingDeviceId }
+                        )}
                       </div>
                     ) : null}
                     {markerAction ? (
@@ -872,21 +910,24 @@ const BuildingDetailPage: React.FC = () => {
                         }}
                       >
                         <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.65)', marginBottom: 8 }}>
-                          设备 {markerAction.label}
+                          {intl.formatMessage(
+                            { id: 'pages.region.label.deviceWithName' },
+                            { name: markerAction.label }
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <Button
                             size="small"
                             onClick={() => handleViewDeviceDetail(markerAction.deviceId)}
                           >
-                            查看详情
+                            {intl.formatMessage({ id: 'pages.region.action.viewDetail' })}
                           </Button>
                           <Button
                             size="small"
                             type="primary"
                             onClick={() => handleAdjustDevicePosition(markerAction.deviceId)}
                           >
-                            修改位置
+                            {intl.formatMessage({ id: 'pages.region.action.modifyPosition' })}
                           </Button>
                         </div>
                       </div>
@@ -912,15 +953,20 @@ const BuildingDetailPage: React.FC = () => {
                         marginBottom: 10,
                       }}
                     >
-                      <div style={{ fontWeight: 600 }}>设备列表</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {intl.formatMessage({ id: 'pages.region.title.deviceList' })}
+                      </div>
                       <Button type="link" size="small" onClick={handleResetMapDevices}>
-                        复位
+                        {intl.formatMessage({ id: 'pages.region.action.reset' })}
                       </Button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <Spin spinning={floorDevicesLoading}>
                         {devices.length === 0 ? (
-                          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无设备" />
+                          <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={intl.formatMessage({ id: 'pages.region.status.noDevice' })}
+                          />
                         ) : null}
                       </Spin>
                       {devices.map((item) => (
@@ -960,10 +1006,19 @@ const BuildingDetailPage: React.FC = () => {
                             >
                               {item.label}
                             </span>
-                            <span style={{ fontSize: 13 }}>设备 {item.label}</span>
+                            <span style={{ fontSize: 13 }}>
+                              {intl.formatMessage(
+                                { id: 'pages.region.label.deviceWithName' },
+                                { name: item.label }
+                              )}
+                            </span>
                           </div>
                           <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-                            {item.position ? '已放置，可再次拖动' : '未放置，拖到地图'}
+                            {item.position
+                              ? intl.formatMessage({ id: 'pages.region.status.placedDraggable' })
+                              : intl.formatMessage({
+                                  id: 'pages.region.status.notPlacedDragToMap',
+                                })}
                           </div>
                         </div>
                       ))}
@@ -977,7 +1032,7 @@ const BuildingDetailPage: React.FC = () => {
       </div>
 
       <Modal
-        title="添加图纸"
+        title={intl.formatMessage({ id: 'pages.region.modal.addDrawing' })}
         open={planModalOpen}
         onCancel={() => setPlanModalOpen(false)}
         onOk={handlePlanOk}
@@ -985,18 +1040,28 @@ const BuildingDetailPage: React.FC = () => {
       >
         <Form form={planForm} layout="vertical" initialValues={{ floor: null }}>
           <Form.Item
-            label="选择楼层"
+            label={intl.formatMessage({ id: 'pages.region.field.selectFloor' })}
             name="floor"
-            rules={[{ required: true, message: '请选择楼层' }]}
+            rules={[
+              {
+                required: true,
+                message: intl.formatMessage({ id: 'pages.region.validation.selectFloor' }),
+              },
+            ]}
           >
             <Select options={floorOptions} />
           </Form.Item>
           <Form.Item
-            label="上传图片"
+            label={intl.formatMessage({ id: 'pages.region.field.uploadImage' })}
             name="image"
             valuePropName="fileList"
             getValueFromEvent={normalizeUpload}
-            rules={[{ required: true, message: '请上传楼层图纸' }]}
+            rules={[
+              {
+                required: true,
+                message: intl.formatMessage({ id: 'pages.region.validation.uploadDrawing' }),
+              },
+            ]}
           >
             <Upload
               action="/api/v1/files"
@@ -1007,7 +1072,7 @@ const BuildingDetailPage: React.FC = () => {
                 authorization: `Bearer ${localStorage.getItem('accessToken') ?? ''}`,
               }}
             >
-              <div>上传</div>
+              <div>{intl.formatMessage({ id: 'pages.region.action.upload' })}</div>
             </Upload>
           </Form.Item>
         </Form>

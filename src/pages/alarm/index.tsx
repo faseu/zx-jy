@@ -1,6 +1,6 @@
-import { PageContainer } from '@ant-design/pro-components';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
-import { history, useRequest } from '@umijs/max';
+import { PageContainer } from '@ant-design/pro-components';
+import { history, useIntl, useRequest } from '@umijs/max';
 import {
   Button,
   Col,
@@ -23,26 +23,34 @@ import type { AlarmPageParams, AlarmVO, DataTAlarmVO } from './data.d';
 import { queryAlarmPage, updateAlarm } from './service';
 import styles from './index.less';
 
-const alarmTypeOptions = [
-  { label: '全部', value: '' },
-  { label: '低温告警', value: 'Bit0' },
-  { label: '过温告警', value: 'Bit1' },
-  { label: '过压告警', value: 'Bit2' },
-  { label: '欠压告警', value: 'Bit3' },
-  { label: '过流告警', value: 'Bit4' },
-  { label: '欠流告警', value: 'Bit5' },
+const alarmTypeOptionIds = [
+  { labelId: 'pages.alarm.option.all', defaultLabel: 'All', value: '' },
+  {
+    labelId: 'pages.alarm.type.lowTemperature',
+    defaultLabel: 'Low Temperature Alarm',
+    value: 'Bit0',
+  },
+  {
+    labelId: 'pages.alarm.type.overTemperature',
+    defaultLabel: 'Over Temperature Alarm',
+    value: 'Bit1',
+  },
+  { labelId: 'pages.alarm.type.overVoltage', defaultLabel: 'Over Voltage Alarm', value: 'Bit2' },
+  { labelId: 'pages.alarm.type.underVoltage', defaultLabel: 'Under Voltage Alarm', value: 'Bit3' },
+  { labelId: 'pages.alarm.type.overCurrent', defaultLabel: 'Over Current Alarm', value: 'Bit4' },
+  { labelId: 'pages.alarm.type.underCurrent', defaultLabel: 'Under Current Alarm', value: 'Bit5' },
 ];
 
-const processingStatusOptions = [
-  { label: '全部', value: -1 },
-  { label: '未处理', value: 0 },
-  { label: '已处理', value: 1 },
+const processingStatusOptionIds = [
+  { labelId: 'pages.alarm.option.all', defaultLabel: 'All', value: -1 },
+  { labelId: 'pages.alarm.status.unprocessed', defaultLabel: 'Unprocessed', value: 0 },
+  { labelId: 'pages.alarm.status.processed', defaultLabel: 'Processed', value: 1 },
 ];
 
-const blockedOptions = [
-  { label: '全部', value: -1 },
-  { label: '否', value: 0 },
-  { label: '是', value: 1 },
+const blockedOptionIds = [
+  { labelId: 'pages.alarm.option.all', defaultLabel: 'All', value: -1 },
+  { labelId: 'pages.alarm.option.no', defaultLabel: 'No', value: 0 },
+  { labelId: 'pages.alarm.option.yes', defaultLabel: 'Yes', value: 1 },
 ];
 
 const EMPTY_ALARM_PAGE: DataTAlarmVO = {
@@ -60,6 +68,7 @@ const normalizeAlarmPage = (data?: DataTAlarmVO): DataTAlarmVO => ({
 });
 
 const AlarmPage: React.FC = () => {
+  const intl = useIntl();
   const [pageNum, setPageNum] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(10);
   const [startDate, setStartDate] = React.useState<Dayjs | null>(null);
@@ -74,6 +83,35 @@ const AlarmPage: React.FC = () => {
   const [alarmLoading, setAlarmLoading] = React.useState(false);
   const [alarmPage, setAlarmPage] = React.useState<DataTAlarmVO>(EMPTY_ALARM_PAGE);
   const latestRequestIdRef = React.useRef(0);
+  const t = React.useCallback(
+    (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage }),
+    [intl]
+  );
+
+  const alarmTypeOptions = React.useMemo(
+    () =>
+      alarmTypeOptionIds.map((item) => ({
+        label: t(item.labelId, item.defaultLabel),
+        value: item.value,
+      })),
+    [t]
+  );
+  const processingStatusOptions = React.useMemo(
+    () =>
+      processingStatusOptionIds.map((item) => ({
+        label: t(item.labelId, item.defaultLabel),
+        value: item.value,
+      })),
+    [t]
+  );
+  const blockedOptions = React.useMemo(
+    () =>
+      blockedOptionIds.map((item) => ({
+        label: t(item.labelId, item.defaultLabel),
+        value: item.value,
+      })),
+    [t]
+  );
 
   const { data, loading: provinceLoading } = useRequest(queryProvinceList);
 
@@ -160,14 +198,20 @@ const AlarmPage: React.FC = () => {
         }
 
         setAlarmPage(EMPTY_ALARM_PAGE);
-        message.error(getErrorMessage(error) || '告警列表加载失败，请稍后重试');
+        message.error(
+          getErrorMessage(error) ||
+            t(
+              'pages.alarm.message.loadFailed',
+              'Failed to load alarm list. Please try again later.'
+            )
+        );
       } finally {
         if (requestId === latestRequestIdRef.current) {
           setAlarmLoading(false);
         }
       }
     },
-    [alarmType, blocked, deviceName, endDate, orgSelection, processingStatus, startDate]
+    [alarmType, blocked, deviceName, endDate, orgSelection, processingStatus, startDate, t]
   );
 
   const handleUpdateAlarm = React.useCallback(
@@ -177,7 +221,7 @@ const AlarmPage: React.FC = () => {
       successText: string
     ) => {
       if (record.id === undefined || record.id === null || record.id === '') {
-        message.error('缺少告警ID');
+        message.error(t('pages.alarm.message.missingAlarmId', 'Missing alarm ID.'));
         return;
       }
       if (
@@ -186,7 +230,9 @@ const AlarmPage: React.FC = () => {
         record.deviceId === null ||
         !record.deviceName
       ) {
-        message.error('缺少告警设备信息');
+        message.error(
+          t('pages.alarm.message.missingDeviceInfo', 'Missing alarm device information.')
+        );
         return;
       }
 
@@ -201,69 +247,84 @@ const AlarmPage: React.FC = () => {
         message.success(successText);
         await runAlarmSearch(pageNum, pageSize);
       } catch (error) {
-        message.error(getErrorMessage(error) || '操作失败，请稍后重试');
+        message.error(
+          getErrorMessage(error) ||
+            t('pages.alarm.message.operationFailed', 'Operation failed. Please try again later.')
+        );
       }
     },
-    [pageNum, pageSize, runAlarmSearch]
+    [pageNum, pageSize, runAlarmSearch, t]
   );
 
   const columns = React.useMemo(
     () => [
       {
-        title: '告警监狱',
+        title: t('pages.alarm.column.prison', 'Alarm Prison'),
         dataIndex: 'prisonName',
         render: (value?: string | null) => value || '-',
       },
       {
-        title: '告警设备ID',
+        title: t('pages.alarm.column.deviceId', 'Alarm Device ID'),
         dataIndex: 'deviceId',
         render: (value?: number | string) => value ?? '-',
       },
       {
-        title: '告警设备名称',
+        title: t('pages.alarm.column.deviceName', 'Alarm Device Name'),
         dataIndex: 'deviceName',
         render: (value?: string) => value || '-',
       },
       {
-        title: '告警内容',
+        title: t('pages.alarm.column.content', 'Alarm Content'),
         dataIndex: 'content',
         render: (value?: string) => value || '-',
       },
       {
-        title: '告警发生时间',
+        title: t('pages.alarm.column.alarmTime', 'Alarm Time'),
         dataIndex: 'alarmTime',
         render: (value?: string) => value || '-',
       },
       {
-        title: '排查建议',
+        title: t('pages.alarm.column.suggestions', 'Troubleshooting Suggestions'),
         dataIndex: 'suggestions',
         render: (value?: string) => value || '-',
       },
       {
-        title: '操作',
+        title: t('pages.alarm.column.action', 'Action'),
         dataIndex: 'action',
         render: (_: unknown, record: AlarmVO) => (
           <Space size="small">
             <Button type="link" onClick={() => handleJumpToBuildingFloor(record)}>
-              跳转定位
+              {t('pages.alarm.action.jumpLocate', 'Locate')}
             </Button>
             <Button
               type="link"
-              onClick={() => handleUpdateAlarm(record, { processingStatus: 1 }, '告警已清除')}
+              onClick={() =>
+                handleUpdateAlarm(
+                  record,
+                  { processingStatus: 1 },
+                  t('pages.alarm.message.clearSuccess', 'Alarm cleared.')
+                )
+              }
             >
-              清除
+              {t('pages.alarm.action.clear', 'Clear')}
             </Button>
             <Button
               type="link"
-              onClick={() => handleUpdateAlarm(record, { blocked: 1 }, '告警已屏蔽')}
+              onClick={() =>
+                handleUpdateAlarm(
+                  record,
+                  { blocked: 1 },
+                  t('pages.alarm.message.blockSuccess', 'Alarm blocked.')
+                )
+              }
             >
-              屏蔽
+              {t('pages.alarm.action.block', 'Block')}
             </Button>
           </Space>
         ),
       },
     ],
-    [handleJumpToBuildingFloor, handleUpdateAlarm]
+    [handleJumpToBuildingFloor, handleUpdateAlarm, t]
   );
 
   React.useEffect(() => {
@@ -299,35 +360,39 @@ const AlarmPage: React.FC = () => {
             />
           </Col>
           <Col xs={24} xl={18} className={styles.rightPane}>
-            <div className={styles.queryTitle}>查询表格</div>
+            <div className={styles.queryTitle}>{t('pages.alarm.query.title', 'Query Table')}</div>
             <div className={styles.queryRow}>
               <div className={styles.queryItem}>
-                <span className={styles.queryLabel}>时间</span>
+                <span className={styles.queryLabel}>{t('pages.alarm.query.time', 'Time')}</span>
                 <DatePicker
-                  placeholder="开始日期"
+                  placeholder={t('pages.alarm.query.startDate', 'Start Date')}
                   value={startDate}
                   format="YYYY-MM-DD"
                   onChange={(value) => setStartDate(value)}
                 />
-                <span className={styles.middleLabel}>至</span>
+                <span className={styles.middleLabel}>{t('pages.alarm.query.to', 'to')}</span>
                 <DatePicker
-                  placeholder="结束日期"
+                  placeholder={t('pages.alarm.query.endDate', 'End Date')}
                   value={endDate}
                   format="YYYY-MM-DD"
                   onChange={(value) => setEndDate(value)}
                 />
               </div>
               <div className={styles.queryItem}>
-                <span className={styles.queryLabel}>设备名称</span>
+                <span className={styles.queryLabel}>
+                  {t('pages.alarm.query.deviceName', 'Device Name')}
+                </span>
                 <Input
                   value={deviceName}
-                  placeholder="请输入"
+                  placeholder={t('pages.alarm.query.deviceNamePlaceholder', 'Please enter')}
                   onChange={(event) => setDeviceName(event.target.value)}
                   onPressEnter={handleSearch}
                 />
               </div>
               <div className={styles.queryItem}>
-                <span className={styles.queryLabel}>告警类型</span>
+                <span className={styles.queryLabel}>
+                  {t('pages.alarm.query.alarmType', 'Alarm Type')}
+                </span>
                 <Select
                   value={alarmType}
                   options={alarmTypeOptions}
@@ -335,7 +400,9 @@ const AlarmPage: React.FC = () => {
                 />
               </div>
               <div className={styles.queryItem}>
-                <span className={styles.queryLabel}>处理状态</span>
+                <span className={styles.queryLabel}>
+                  {t('pages.alarm.query.processingStatus', 'Processing Status')}
+                </span>
                 <Select
                   value={processingStatus}
                   options={processingStatusOptions}
@@ -343,7 +410,9 @@ const AlarmPage: React.FC = () => {
                 />
               </div>
               <div className={styles.queryItem}>
-                <span className={styles.queryLabel}>是否屏蔽</span>
+                <span className={styles.queryLabel}>
+                  {t('pages.alarm.query.blocked', 'Blocked')}
+                </span>
                 <Select
                   value={blocked}
                   options={blockedOptions}
@@ -356,16 +425,20 @@ const AlarmPage: React.FC = () => {
                 className={styles.queryButton}
                 onClick={handleSearch}
               >
-                查询
+                {t('pages.alarm.action.search', 'Search')}
               </Button>
             </div>
             <div className={styles.actionRow}>
               <Space size={10}>
-                <Button>告警清除</Button>
-                <Button>告警屏蔽</Button>
-                <Button>跳转到设备监控位置</Button>
+                <Button>{t('pages.alarm.action.clearAlarm', 'Clear Alarm')}</Button>
+                <Button>{t('pages.alarm.action.blockAlarm', 'Block Alarm')}</Button>
+                <Button>
+                  {t('pages.alarm.action.jumpDeviceMonitor', 'Jump to Device Monitor Location')}
+                </Button>
               </Space>
-              <Button icon={<DownloadOutlined />}>导出</Button>
+              <Button icon={<DownloadOutlined />}>
+                {t('pages.alarm.action.export', 'Export')}
+              </Button>
             </div>
             <Table<AlarmVO>
               className={styles.alarmTable}
@@ -388,7 +461,10 @@ const AlarmPage: React.FC = () => {
               columns={columns}
             />
             <div className={styles.paginationRow}>
-              <span className={styles.totalText}>共 {alarmTotal} 条</span>
+              <span className={styles.totalText}>
+                {t('pages.alarm.pagination.totalPrefix', 'Total')} {alarmTotal}{' '}
+                {t('pages.alarm.pagination.totalSuffix', 'items')}
+              </span>
               <Pagination
                 simple
                 current={pageNum}

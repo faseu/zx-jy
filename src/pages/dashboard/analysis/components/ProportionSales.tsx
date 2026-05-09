@@ -1,4 +1,5 @@
 import { Pie } from '@ant-design/plots';
+import { useIntl } from '@umijs/max';
 import { Card, Segmented, Typography } from 'antd';
 import numeral from 'numeral';
 import React from 'react';
@@ -19,13 +20,15 @@ const ProportionSales = ({
   salesPieData: DataItem[];
   handleChangeSalesType?: (value: 'all' | 'online' | 'stores') => void;
 }) => {
+  const intl = useIntl();
   const { styles } = useStyles();
+  const t = (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage });
   return (
     <Card
       loading={loading}
       className={styles.salesCard}
       variant="borderless"
-      title="销售额类别占比"
+      title={t('pages.dashboard.analysis.salesCategoryRatio', 'Sales Category Ratio')}
       style={{
         height: '100%',
       }}
@@ -37,16 +40,16 @@ const ProportionSales = ({
             value={salesType}
             onChange={handleChangeSalesType}
             options={[
-              { label: '全部渠道', value: 'all' },
-              { label: '线上', value: 'online' },
-              { label: '门店', value: 'stores' },
+              { label: t('pages.dashboard.analysis.allChannels', 'All Channels'), value: 'all' },
+              { label: t('pages.dashboard.analysis.online', 'Online'), value: 'online' },
+              { label: t('pages.dashboard.analysis.stores', 'Stores'), value: 'stores' },
             ]}
             size="middle"
           />
         </div>
       }
     >
-      <Text>销售额</Text>
+      <Text>{t('pages.dashboard.analysis.sales', 'Sales')}</Text>
       <Pie
         height={340}
         radius={0.8}
@@ -57,8 +60,7 @@ const ProportionSales = ({
         legend={false}
         label={{
           position: 'spider',
-          text: (item: { x: number; y: number }) =>
-            `${item.x}: ${numeral(item.y).format('0,0')}`,
+          text: (item: { x: number; y: number }) => `${item.x}: ${numeral(item.y).format('0,0')}`,
         }}
       />
     </Card>

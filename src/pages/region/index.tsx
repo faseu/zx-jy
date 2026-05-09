@@ -1,24 +1,28 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useRequest } from '@umijs/max';
+import { history, useIntl, useRequest } from '@umijs/max';
 import { Table, message } from 'antd';
 import React from 'react';
+import SaudiMap from '@/components/SaudiMap';
 import type { ProvinceVO } from './data.d';
 import { queryProvinceList } from './service';
-import SaudiMap from '@/components/SaudiMap';
 import './index.less';
+
 const RegionPage: React.FC = () => {
+  const intl = useIntl();
   const { data, loading } = useRequest(queryProvinceList);
   const provinceList = data ?? [];
 
   const handleProvinceClick = (provinceName: string) => {
     if (provinceList.length === 0) {
-      message.warning('省份数据加载中，请稍后再试');
+      message.warning(intl.formatMessage({ id: 'pages.region.message.provinceLoading' }));
       return;
     }
 
     const matched = provinceList.find((item: ProvinceVO) => item.provinceName === provinceName);
     if (matched?.provinceId === undefined || matched?.provinceId === null) {
-      message.warning(`未找到 ${provinceName} 的省份信息`);
+      message.warning(
+        intl.formatMessage({ id: 'pages.region.message.provinceNotFound' }, { name: provinceName })
+      );
       return;
     }
 
@@ -27,7 +31,7 @@ const RegionPage: React.FC = () => {
 
   return (
     <PageContainer title={false}>
-      <div style={{ display: 'flex', gap: 24, alignItems: 'center',justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: 24, alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ flex: 1, minWidth: 0 }} className="region-table-wrap">
           <Table<ProvinceVO>
             className="region-table"
@@ -37,28 +41,25 @@ const RegionPage: React.FC = () => {
             dataSource={provinceList}
             columns={[
               {
-                title: '省份',
+                title: intl.formatMessage({ id: 'pages.region.field.province' }),
                 dataIndex: 'provinceName',
-                align: 'center'
+                align: 'center',
               },
               {
-                title: '总监狱',
+                title: intl.formatMessage({ id: 'pages.region.field.totalPrisons' }),
                 dataIndex: 'totalPrisons',
-                align: 'center'
+                align: 'center',
               },
               {
-                title: '总干扰机',
+                title: intl.formatMessage({ id: 'pages.region.field.totalDevices' }),
                 dataIndex: 'totalDevices',
-                align: 'center'
+                align: 'center',
               },
             ]}
             pagination={false}
             onRow={(record) => ({
               onClick: () => {
-                if (
-                  record.provinceId !== undefined &&
-                  record.provinceId !== null
-                ) {
+                if (record.provinceId !== undefined && record.provinceId !== null) {
                   history.push(`/region/province/${record.provinceId}`);
                 }
               },

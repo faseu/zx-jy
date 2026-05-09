@@ -1,4 +1,5 @@
 import { CaretDownOutlined } from '@ant-design/icons';
+import { useIntl } from '@umijs/max';
 import { Spin, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React from 'react';
@@ -41,7 +42,7 @@ export type OrgTreeProps = {
 
 const buildFloorNodes = (
   floorList: FloorVO[],
-  parent: { provinceId?: number | string; prisonId?: number | string; buildingId?: number | string },
+  parent: { provinceId?: number | string; prisonId?: number | string; buildingId?: number | string }
 ): AlarmTreeNode[] =>
   floorList.map((floor, index) => ({
     title: floor.floorName ?? '-',
@@ -57,7 +58,7 @@ const buildFloorNodes = (
 const buildBuildingNodes = (
   buildingList: BuildingDetailVO[],
   parent: { provinceId?: number | string; prisonId?: number | string },
-  maxLevel: number,
+  maxLevel: number
 ): AlarmTreeNode[] =>
   buildingList.map((building, index) => ({
     title: building.name ?? '-',
@@ -73,7 +74,7 @@ const buildBuildingNodes = (
 const buildPrisonNodes = (
   prisonList: PrisonVO[],
   parent: { provinceId?: number | string },
-  maxLevel: number,
+  maxLevel: number
 ): AlarmTreeNode[] =>
   prisonList.map((prison, index) => {
     const canExpand = maxLevel >= 3 && Boolean(prison.buildingNum && prison.buildingNum > 0);
@@ -92,7 +93,7 @@ const buildPrisonNodes = (
 const buildProvinceNodes = (
   provinceList: ProvinceVO[],
   maxLevel: number,
-  rootTitle: React.ReactNode,
+  rootTitle: React.ReactNode
 ): AlarmTreeNode[] => [
   {
     title: rootTitle,
@@ -100,7 +101,8 @@ const buildProvinceNodes = (
     nodeType: 'country',
     isLeaf: false,
     children: provinceList.map((province, index) => {
-      const canExpand = maxLevel >= 2 && Boolean(province.totalPrisons && province.totalPrisons > 0);
+      const canExpand =
+        maxLevel >= 2 && Boolean(province.totalPrisons && province.totalPrisons > 0);
 
       return {
         title: province.provinceName ?? '-',
@@ -118,16 +120,21 @@ const OrgTree: React.FC<OrgTreeProps> = ({
   provinceList,
   loading,
   maxLevel = 4,
-  rootTitle = '全国',
+  rootTitle,
   onSelectionChange,
 }) => {
+  const intl = useIntl();
   const [selectedKeys, setSelectedKeys] = React.useState<React.Key[]>([]);
   const [provincePrisons, setProvincePrisons] = React.useState<Record<string, PrisonVO[]>>({});
-  const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>({});
+  const [prisonBuildings, setPrisonBuildings] = React.useState<Record<string, BuildingDetailVO[]>>(
+    {}
+  );
   const [buildingFloors, setBuildingFloors] = React.useState<Record<string, FloorVO[]>>({});
 
   const orgTreeData = React.useMemo<AlarmTreeNode[]>(() => {
-    const rootNodes = buildProvinceNodes(provinceList, maxLevel, rootTitle);
+    const resolvedRootTitle =
+      rootTitle ?? intl.formatMessage({ id: 'component.orgTree.rootTitle' });
+    const rootNodes = buildProvinceNodes(provinceList, maxLevel, resolvedRootTitle);
 
     if (maxLevel < 2) {
       return rootNodes;
@@ -143,7 +150,11 @@ const OrgTree: React.FC<OrgTreeProps> = ({
           return provinceNode;
         }
 
-        const prisonNodes = buildPrisonNodes(prisonList, { provinceId: provinceNode.provinceId }, maxLevel);
+        const prisonNodes = buildPrisonNodes(
+          prisonList,
+          { provinceId: provinceNode.provinceId },
+          maxLevel
+        );
 
         if (maxLevel < 3) {
           return {
@@ -168,7 +179,7 @@ const OrgTree: React.FC<OrgTreeProps> = ({
                 provinceId: prisonNode.provinceId,
                 prisonId: prisonNode.prisonId,
               },
-              maxLevel,
+              maxLevel
             );
 
             if (maxLevel < 4) {
@@ -202,7 +213,7 @@ const OrgTree: React.FC<OrgTreeProps> = ({
         };
       }),
     }));
-  }, [buildingFloors, maxLevel, prisonBuildings, provinceList, provincePrisons, rootTitle]);
+  }, [buildingFloors, intl, maxLevel, prisonBuildings, provinceList, provincePrisons, rootTitle]);
 
   const handleLoadData = async (treeNode: AlarmTreeNode): Promise<void> => {
     const currentNode = treeNode;

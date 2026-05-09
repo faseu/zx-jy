@@ -1,6 +1,6 @@
 import { EllipsisOutlined } from '@ant-design/icons';
 import { GridContent } from '@ant-design/pro-components';
-import { useRequest } from '@umijs/max';
+import { useIntl, useRequest } from '@umijs/max';
 import { Col, Dropdown, Row } from 'antd';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import type { Dayjs } from 'dayjs';
@@ -25,13 +25,15 @@ type AnalysisProps = {
 };
 type SalesType = 'all' | 'online' | 'stores';
 const Analysis: FC<AnalysisProps> = () => {
+  const intl = useIntl();
   const { styles } = useStyles();
   const [salesType, setSalesType] = useState<SalesType>('all');
   const [currentTabKey, setCurrentTabKey] = useState<string>('');
   const [rangePickerValue, setRangePickerValue] = useState<RangePickerValue>(
-    getTimeDistance('year'),
+    getTimeDistance('year')
   );
   const { loading, data } = useRequest(fakeChartData);
+  const t = (id: string, defaultMessage: string) => intl.formatMessage({ id, defaultMessage });
   const selectDate = (type: TimeType) => {
     setRangePickerValue(getTimeDistance(type));
   };
@@ -62,10 +64,7 @@ const Analysis: FC<AnalysisProps> = () => {
   if (salesType === 'all') {
     salesPieData = data?.salesTypeData;
   } else {
-    salesPieData =
-      salesType === 'online'
-        ? data?.salesTypeDataOnline
-        : data?.salesTypeDataOffline;
+    salesPieData = salesType === 'online' ? data?.salesTypeDataOnline : data?.salesTypeDataOffline;
   }
 
   const dropdownGroup = (
@@ -75,11 +74,11 @@ const Analysis: FC<AnalysisProps> = () => {
           items: [
             {
               key: '1',
-              label: '操作一',
+              label: t('pages.dashboard.action.one', 'Action 1'),
             },
             {
               key: '2',
-              label: '操作二',
+              label: t('pages.dashboard.action.two', 'Action 2'),
             },
           ],
         }}
