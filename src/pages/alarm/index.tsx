@@ -41,6 +41,61 @@ const alarmTypeOptionIds = [
   { labelId: 'pages.alarm.type.underCurrent', defaultLabel: 'Under Current Alarm', value: 'Bit5' },
 ];
 
+const alarmI18nByType: Record<
+  string,
+  {
+    contentLabelId: string;
+    contentDefaultLabel: string;
+    suggestionLabelId: string;
+    suggestionDefaultLabel: string;
+  }
+> = {
+  '0': {
+    contentLabelId: 'pages.alarm.type.lowTemperature',
+    contentDefaultLabel: 'Low Temperature Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkAmbientTemperature',
+    suggestionDefaultLabel: 'Check ambient temperature',
+  },
+  '1': {
+    contentLabelId: 'pages.alarm.type.overTemperature',
+    contentDefaultLabel: 'High Temperature Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkCooling',
+    suggestionDefaultLabel: 'Check cooling',
+  },
+  '2': {
+    contentLabelId: 'pages.alarm.type.overVoltage',
+    contentDefaultLabel: 'Over Voltage Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkPowerSupply',
+    suggestionDefaultLabel: 'Check power supply',
+  },
+  '3': {
+    contentLabelId: 'pages.alarm.type.underVoltage',
+    contentDefaultLabel: 'Under Voltage Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkPowerInput',
+    suggestionDefaultLabel: 'Check power input',
+  },
+  '4': {
+    contentLabelId: 'pages.alarm.type.overCurrent',
+    contentDefaultLabel: 'Over Current Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkLoad',
+    suggestionDefaultLabel: 'Check load',
+  },
+  '5': {
+    contentLabelId: 'pages.alarm.type.underCurrent',
+    contentDefaultLabel: 'Under Current Alarm',
+    suggestionLabelId: 'pages.alarm.suggestion.checkWiring',
+    suggestionDefaultLabel: 'Check wiring',
+  },
+};
+
+const normalizeAlarmType = (type?: string | number | null) => {
+  if (type === undefined || type === null) {
+    return undefined;
+  }
+
+  return String(type).replace(/^Bit/i, '');
+};
+
 const processingStatusOptionIds = [
   { labelId: 'pages.alarm.option.all', defaultLabel: 'All', value: -1 },
   { labelId: 'pages.alarm.status.unprocessed', defaultLabel: 'Unprocessed', value: 0 },
@@ -276,7 +331,12 @@ const AlarmPage: React.FC = () => {
       {
         title: t('pages.alarm.column.content', 'Alarm Content'),
         dataIndex: 'content',
-        render: (value?: string) => value || '-',
+        render: (value?: string, record?: AlarmVO) => {
+          const alarmI18n = alarmI18nByType[normalizeAlarmType(record?.type) ?? ''];
+          return alarmI18n
+            ? t(alarmI18n.contentLabelId, alarmI18n.contentDefaultLabel)
+            : value || '-';
+        },
       },
       {
         title: t('pages.alarm.column.alarmTime', 'Alarm Time'),
@@ -286,7 +346,12 @@ const AlarmPage: React.FC = () => {
       {
         title: t('pages.alarm.column.suggestions', 'Troubleshooting Suggestions'),
         dataIndex: 'suggestions',
-        render: (value?: string) => value || '-',
+        render: (value?: string, record?: AlarmVO) => {
+          const alarmI18n = alarmI18nByType[normalizeAlarmType(record?.type) ?? ''];
+          return alarmI18n
+            ? t(alarmI18n.suggestionLabelId, alarmI18n.suggestionDefaultLabel)
+            : value || '-';
+        },
       },
       {
         title: t('pages.alarm.column.action', 'Action'),

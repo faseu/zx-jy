@@ -53,12 +53,12 @@ const AccountPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Button style={{ position: 'absolute', top: 12, right: 12 }}>
-                {intl.formatMessage({
-                  id: 'pages.account.action.edit',
-                  defaultMessage: 'Edit',
-                })}
-              </Button>
+              {/*<Button style={{ position: 'absolute', top: 12, right: 12 }}>*/}
+              {/*  {intl.formatMessage({*/}
+              {/*    id: 'pages.account.action.edit',*/}
+              {/*    defaultMessage: 'Edit',*/}
+              {/*  })}*/}
+              {/*</Button>*/}
             </div>
           </Col>
 
