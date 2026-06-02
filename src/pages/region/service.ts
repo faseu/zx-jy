@@ -446,3 +446,16 @@ export async function getDeviceInfoByIp(
 
   return wrapResult<any>(result);
 }
+
+export async function getDeviceInfoByEntireNo(
+  entireNo: string,
+  options?: { [key: string]: any }
+): Promise<ResultData<any>> {
+  const result = await request<ResultData<any>>('/api/v1/udp/shield/getDeviceInfo', {
+    method: 'GET',
+    params: { entireNo },
+    ...(options || {}),
+  });
+
+  return wrapResult<any>(result);
+}

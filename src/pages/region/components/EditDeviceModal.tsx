@@ -18,7 +18,7 @@ import type { FormInstance } from 'antd';
 import React from 'react';
 import dayjs from 'dayjs';
 import shielder from '@/assets/shielder.png';
-import { getDeviceInfoByIp } from '../service';
+import { getDeviceInfoByEntireNo } from '../service';
 
 type OptionItem = {
   label: React.ReactNode;
@@ -82,13 +82,13 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
 
   const handleTestConnection = async () => {
     try {
-      const { ip } = await form.validateFields(['ip']);
-      if (!ip) {
+      const { networkCode } = await form.validateFields(['networkCode']);
+      if (!networkCode) {
         return;
       }
 
       setTestingConnection(true);
-      const result = await getDeviceInfoByIp(ip);
+      const result = await getDeviceInfoByEntireNo(networkCode);
 
       if (result?.code === '00000') {
         message.success(intl.formatMessage({ id: 'pages.region.message.connectionSuccess' }));
@@ -142,7 +142,8 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
       <Form
         form={form}
         layout="horizontal"
-        labelCol={{ span: 3 }}
+        labelCol={{ flex: '120px' }}
+        wrapperCol={{ flex: 1 }}
         initialValues={{ powerOff: true }}
       >
         <Row gutter={16}>
@@ -268,17 +269,31 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
               <>
                 <Form.Item
                   label={intl.formatMessage({ id: 'pages.region.field.networkCode' })}
-                  name="networkCode"
-                  rules={[
-                    {
-                      required: true,
-                      message: intl.formatMessage({ id: 'pages.region.validation.networkCode' }),
-                    },
-                  ]}
+                  required
                 >
-                  <Input
-                    placeholder={intl.formatMessage({ id: 'pages.region.validation.networkCode' })}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Form.Item
+                      name="networkCode"
+                      noStyle
+                      rules={[
+                        {
+                          required: true,
+                          message: intl.formatMessage({
+                            id: 'pages.region.validation.networkCode',
+                          }),
+                        },
+                      ]}
+                    >
+                      <Input
+                        placeholder={intl.formatMessage({
+                          id: 'pages.region.validation.networkCode',
+                        })}
+                      />
+                    </Form.Item>
+                    <Button type="link" onClick={handleTestConnection} loading={testingConnection}>
+                      {intl.formatMessage({ id: 'pages.region.action.connectionTest' })}
+                    </Button>
+                  </div>
                 </Form.Item>
                 <Form.Item label="IP" required>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -296,9 +311,6 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
                         placeholder={intl.formatMessage({ id: 'pages.region.validation.ip' })}
                       />
                     </Form.Item>
-                    <Button type="link" onClick={handleTestConnection} loading={testingConnection}>
-                      {intl.formatMessage({ id: 'pages.region.action.connectionTest' })}
-                    </Button>
                   </div>
                 </Form.Item>
                 <Form.Item
@@ -317,7 +329,13 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
                   <Row gutter={[12, 8]}>
                     {powerChannelKeys.map((key, index) => (
                       <Col span={8} key={key}>
-                        <Form.Item name={key} label={`CH${index + 1}`} style={{ marginBottom: 0 }}>
+                        <Form.Item
+                          name={key}
+                          label={`CH${index + 1}`}
+                          labelCol={{ flex: '40px' }}
+                          wrapperCol={{ flex: 1 }}
+                          style={{ marginBottom: 0 }}
+                        >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ minWidth: 24, textAlign: 'right' }}>
                               {powerChannelValues[key] ?? 0}
